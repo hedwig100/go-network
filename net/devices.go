@@ -22,6 +22,8 @@ const (
 	NetDeviceAddrLen = 16
 )
 
+// デバイスの抽象化
+// abstraction of the device
 type Device interface {
 
 	// name
@@ -46,7 +48,7 @@ type Device interface {
 	Transmit([]byte, ProtocolType, HardwareAddress) error
 
 	// input from the device
-	RxHandler(chan error)
+	RxHandler(chan struct{})
 }
 
 func isUp(d Device) bool {
@@ -55,20 +57,16 @@ func isUp(d Device) bool {
 
 // すべてのデバイス: all the devices
 var Devices []Device
-var DevicesChannel []chan error
 
 // デバイスを登録する
 // register device
 func DeviceRegister(dev Device) (err error) {
 
-	// エラー通知用チャンネル: channel for error
-	ch := make(chan error)
-	DevicesChannel = append(DevicesChannel, ch)
+	// デバイスの追加: add the device
 	Devices = append(Devices, dev)
 
 	// 受信ハンドラを起動させる: activate the receive handler
-	go dev.RxHandler(ch)
-
+	go dev.RxHandler(done)
 	log.Printf("registerd dev=%s", dev.Name())
 	return
 }
@@ -76,9 +74,14 @@ func DeviceRegister(dev Device) (err error) {
 // デバイスから入力されたデータをプロトコルに渡す
 // passes the data input from the device to the protocol
 func DeviceInputHanlder(typ ProtocolType, data []byte, dev Device) {
-	for _, proto := range Protocols {
+	log.Printf("input data dev=%s,typ=%s,data:%v", dev, typ, data)
+
+	for i, proto := range Protocols {
 		if proto.Type() == typ {
-			proto.RxHandler(data, dev)
+			ProtocolBuffers[i] <- ProtocolBuffer{
+				data: data,
+				dev:  dev,
+			}
 			break
 		}
 	}
@@ -102,34 +105,21 @@ func DeviceOutput(dev Device, data []byte, typ ProtocolType, dst HardwareAddress
 	return
 }
 
-// すべてのデバイスを開く: open all the devices
-// func OpenDevices() (err error) {
-// 	for _, dev := range Devices {
-
-// 		if isUp(dev) {
-// 			return fmt.Errorf("already opened dev=%s", dev.Name())
-// 		}
-
-// 		err = dev.Open()
-// 		if err != nil {
-// 			return
-// 		}
-// 		log.Printf("open device dev=%s", dev.Name())
-// 	}
-// 	return
-// }
-
 // すべてのデバイスを閉じる
 // close all the devices
 func CloseDevices() (err error) {
-	for i, dev := range Devices {
+
+	// 先にRxHandlerを停止
+	// stop RxHandler beforehand
+	close(done)
+
+	for _, dev := range Devices {
 
 		if !isUp(dev) {
 			return fmt.Errorf("already closed dev=%s", dev.Name())
 		}
 
 		// チャンネルを閉じて受信ハンドラを停止: close the channel and stop the receive handler
-		close(DevicesChannel[i])
 		err = dev.Close()
 		if err != nil {
 			return

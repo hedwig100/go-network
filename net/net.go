@@ -1,10 +1,8 @@
 package net
 
-func NetRun() (err error) {
+var done chan struct{} = make(chan struct{})
 
-	// if err = OpenDevices(); err != nil {
-	// 	return
-	// }
+func NetRun() (err error) {
 	return
 }
 

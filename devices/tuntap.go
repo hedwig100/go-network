@@ -4,10 +4,12 @@ import (
 	"errors"
 	"os"
 	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
 const (
-	cloneDevice = "dev/net/tun"
+	cloneDevice = "/dev/net/tun"
 )
 
 func openTap(name string) (string, *os.File, error) {
@@ -16,15 +18,19 @@ func openTap(name string) (string, *os.File, error) {
 		return "", nil, errors.New("device name is too long")
 	}
 
-	fd, err := os.OpenFile(cloneDevice, os.O_RDWR, 0600)
+	fd, err := unix.Open(cloneDevice, os.O_RDWR, 0600)
 	if err != nil {
 		return "", nil, err
 	}
 
-	name, err = TUNSETIFF(fd.Fd(), name)
+	name, err = TUNSETIFF(uintptr(fd), name)
 	if err != nil {
 		return "", nil, err
 	}
+
+	// https://github.com/golang/go/issues/30426
+	unix.SetNonblock(fd, true)
+	file := os.NewFile(uintptr(fd), cloneDevice)
 
 	flags, err := SIOCGIFFLAGS(name)
 	if err != nil {
@@ -37,7 +43,7 @@ func openTap(name string) (string, *os.File, error) {
 		return "", nil, err
 	}
 
-	return name, fd, nil
+	return name, file, nil
 }
 
 func getAddr(name string) (addr [EtherAddrLen]byte, err error) {

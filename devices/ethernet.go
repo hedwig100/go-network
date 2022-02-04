@@ -31,7 +31,7 @@ type EthernetDevice struct {
 	flags      uint16
 	interfaces []net.Interface
 	Addr       [EtherAddrLen]byte
-	fd         io.ReadWriteCloser
+	file       io.ReadWriteCloser
 }
 
 type EthernetHdr struct {
@@ -40,10 +40,10 @@ type EthernetHdr struct {
 	Type net.ProtocolType
 }
 
-func EtherInit(name string) (e EthernetDevice, err error) {
+func EtherInit(name string) (e *EthernetDevice, err error) {
 
 	// tapを開く: open tap
-	name, fd, err := openTap(name)
+	name, file, err := openTap(name)
 	if err != nil {
 		return
 	}
@@ -54,53 +54,45 @@ func EtherInit(name string) (e EthernetDevice, err error) {
 		return
 	}
 
-	e = EthernetDevice{
+	e = &EthernetDevice{
 		name:  name,
-		flags: net.NetDeviceFlagBroadcast | net.NetDeviceFlagNeedARP,
+		flags: net.NetDeviceFlagBroadcast | net.NetDeviceFlagNeedARP | net.NetDeviceFlagUp,
 		Addr:  addr,
-		fd:    fd,
+		file:  file,
 	}
+
+	err = net.DeviceRegister(e)
 	return
 }
 
-func (e EthernetDevice) Name() string {
+func (e *EthernetDevice) Name() string {
 	return e.name
 }
 
-func (e EthernetDevice) Type() net.DeviceType {
+func (e *EthernetDevice) Type() net.DeviceType {
 	return net.NetDeviceTypeEthernet
 }
 
-func (e EthernetDevice) MTU() uint16 {
+func (e *EthernetDevice) MTU() uint16 {
 	return EtherPayloadSizeMax
 }
 
-func (e EthernetDevice) Flags() uint16 {
+func (e *EthernetDevice) Flags() uint16 {
 	return e.flags
 }
 
-func (e EthernetDevice) Interfaces() []net.Interface {
+func (e *EthernetDevice) Interfaces() []net.Interface {
 	return e.interfaces
 }
 
-// func (e EthernetDevice) Open() error {
-// 	name, fd, err := OpenTap(e.name)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	e.fd = fd
-// 	e.name = name
-// 	return nil
-// }
-
-func (e EthernetDevice) Close() error {
-	err := e.fd.Close()
+func (e *EthernetDevice) Close() error {
+	err := e.file.Close()
 	return err
 }
 
 // データをデバイスを用いて送信する
 // transmit the data using the device
-func (e EthernetDevice) Transmit(data []byte, typ net.ProtocolType, dst net.HardwareAddress) error {
+func (e *EthernetDevice) Transmit(data []byte, typ net.ProtocolType, dst net.HardwareAddress) error {
 
 	// バッファーにEthernetヘッダの状態,データを入れる: put the status of the Ethernet header and data into the buffer
 	var buf = make([]byte, EtherFrameSizeMax)
@@ -109,7 +101,7 @@ func (e EthernetDevice) Transmit(data []byte, typ net.ProtocolType, dst net.Hard
 	copy(buf[2*EtherAddrLen:EtherHdrSize], utils.Hton16(uint16(typ))) // littleEndian -> bigEndian
 	copy(buf[EtherHdrSize:], data)
 
-	_, err := e.fd.Write(buf)
+	_, err := e.file.Write(buf)
 	if err != nil {
 		return err
 	}
@@ -120,17 +112,24 @@ func (e EthernetDevice) Transmit(data []byte, typ net.ProtocolType, dst net.Hard
 
 // ポーリングで入力があるか確認する, あればプロトコルへ渡す
 // check if there is input by polling, if so, pass it to the protocol
-func (e EthernetDevice) RxHandler(ch chan error) {
+func (e *EthernetDevice) RxHandler(done chan struct{}) {
 	buf := make([]byte, EtherFrameSizeMax)
 	var rdr *bytes.Reader
 	var hdr EthernetHdr
 
-	for _, ok := <-ch; ok; {
+	for {
+
+		// 終了したかどうか確認: check if finished or not
+		select {
+		case <-done:
+			return
+		default:
+		}
 
 		// デバイスファイルから読み出す: read from device file
-		len, err := e.fd.Read(buf)
+		len, err := e.file.Read(buf)
 		if err != nil {
-			ch <- err
+			log.Printf("[E] dev=%s,%s", e.name, err.Error())
 		}
 
 		if len == 0 {
@@ -149,7 +148,7 @@ func (e EthernetDevice) RxHandler(ch chan error) {
 			rdr = bytes.NewReader(buf)
 			err = binary.Read(rdr, binary.BigEndian, &hdr)
 			if err != nil {
-				ch <- err
+				log.Printf("[E] dev=%s,%s", e.name, err.Error())
 			}
 
 			// 自分宛のアドレスか確認: check if the address is for me
@@ -161,5 +160,6 @@ func (e EthernetDevice) RxHandler(ch chan error) {
 			log.Printf("[D] dev=%s,protocolType=%s,len=%d", e.name, hdr.Type, len)
 			net.DeviceInputHanlder(hdr.Type, buf[14:len], e)
 		}
+
 	}
 }

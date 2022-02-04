@@ -13,35 +13,40 @@ type Loopback struct {
 	flags uint16
 }
 
-func (l Loopback) Name() string {
+func LoopbackInit(name string) (l *Loopback, err error) {
+	l = &Loopback{
+		name:  name,
+		flags: net.NetDeviceFlagUp | net.NetDeviceFlagLoopback,
+	}
+	err = net.DeviceRegister(l)
+	return
+}
+
+func (l *Loopback) Name() string {
 	return l.name
 }
 
-func (l Loopback) Type() net.DeviceType {
+func (l *Loopback) Type() net.DeviceType {
 	return net.NetDeviceTypeLoopback
 }
 
-func (l Loopback) MTU() uint16 {
+func (l *Loopback) MTU() uint16 {
 	return math.MaxUint16
 }
 
-func (l Loopback) Flags() uint16 {
+func (l *Loopback) Flags() uint16 {
 	return l.flags
 }
 
-func (l Loopback) Interfaces() []net.Interface {
+func (l *Loopback) Interfaces() []net.Interface {
 	return nil
 }
 
-// func (l Loopback) Open() error {
-// 	return nil
-// }
-
-func (l Loopback) Close() error {
+func (l *Loopback) Close() error {
 	return nil
 }
 
-func (l Loopback) Transmit(data []byte, typ net.ProtocolType, dst net.HardwareAddress) error {
+func (l *Loopback) Transmit(data []byte, typ net.ProtocolType, dst net.HardwareAddress) error {
 
 	// 送り返す send back
 	net.DeviceInputHanlder(typ, data, l)
@@ -50,8 +55,13 @@ func (l Loopback) Transmit(data []byte, typ net.ProtocolType, dst net.HardwareAd
 	return nil
 }
 
-func (l Loopback) RxHandler(ch chan error) {
-	for _, ok := <-ch; ok; {
-		time.Sleep(time.Second)
+func (l *Loopback) RxHandler(done chan struct{}) {
+	for {
+		select {
+		case <-done:
+			return
+		default:
+			time.Sleep(time.Second)
+		}
 	}
 }

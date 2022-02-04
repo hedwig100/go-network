@@ -13,41 +13,52 @@ type Null struct {
 	flags uint16
 }
 
-func (n Null) Name() string {
+func NullInit(name string) (n *Null, err error) {
+	n = &Null{
+		name:  name,
+		flags: net.NetDeviceFlagUp,
+	}
+	err = net.DeviceRegister(n)
+	return
+}
+
+func (n *Null) Name() string {
 	return n.name
 }
 
-func (n Null) Type() net.DeviceType {
+func (n *Null) Type() net.DeviceType {
 	return net.NetDeviceTypeNull
 }
 
-func (n Null) MTU() uint16 {
+func (n *Null) MTU() uint16 {
 	return math.MaxUint16
 }
 
-func (n Null) Flags() uint16 {
+func (n *Null) Flags() uint16 {
 	return n.flags
 }
 
-func (n Null) Interfaces() []net.Interface {
+func (n *Null) Interfaces() []net.Interface {
+	// TODO: implements interfaces
 	return nil
 }
 
-// func (n Null) Open() error {
-// 	return nil
-// }
-
-func (n Null) Close() error {
+func (n *Null) Close() error {
 	return nil
 }
 
-func (n Null) Transmit(data []byte, typ net.Protocol, dst net.HardwareAddress) error {
+func (n *Null) Transmit(data []byte, typ net.ProtocolType, dst net.HardwareAddress) error {
 	log.Printf("data(%v) is trasmitted by null-device(name=%s)", data, n.name)
 	return nil
 }
 
-func (n Null) RxHandler(ch chan error) {
-	for _, ok := <-ch; ok; {
-		time.Sleep(time.Second)
+func (n *Null) RxHandler(done chan struct{}) {
+	for {
+		select {
+		case <-done:
+			return
+		default:
+			time.Sleep(time.Second)
+		}
 	}
 }
