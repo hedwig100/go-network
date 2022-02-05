@@ -38,6 +38,9 @@ type Device interface {
 	// flag which represents state of the device
 	Flags() uint16
 
+	// add logical interface
+	AddIface(Interface)
+
 	// logical interface that the device has
 	Interfaces() []Interface
 
@@ -79,8 +82,8 @@ func DeviceInputHanlder(typ ProtocolType, data []byte, dev Device) {
 	for i, proto := range Protocols {
 		if proto.Type() == typ {
 			ProtocolBuffers[i] <- ProtocolBuffer{
-				data: data,
-				dev:  dev,
+				Data: data,
+				Dev:  dev,
 			}
 			break
 		}

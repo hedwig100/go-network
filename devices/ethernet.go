@@ -81,6 +81,11 @@ func (e *EthernetDevice) Flags() uint16 {
 	return e.flags
 }
 
+func (e *EthernetDevice) AddIface(iface net.Interface) {
+	log.Printf("[I] iface=%d is registerd dev=%s", iface.Family(), e.name)
+	e.interfaces = append(e.interfaces, iface)
+}
+
 func (e *EthernetDevice) Interfaces() []net.Interface {
 	return e.interfaces
 }

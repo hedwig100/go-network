@@ -38,8 +38,11 @@ func (n *Null) Flags() uint16 {
 	return n.flags
 }
 
+func (n *Null) AddIface(iface net.Interface) {
+	log.Printf("[I] iface=%d is registerd dev=%s", iface.Family(), n.name)
+}
+
 func (n *Null) Interfaces() []net.Interface {
-	// TODO: implements interfaces
 	return nil
 }
 

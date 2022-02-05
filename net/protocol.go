@@ -46,8 +46,8 @@ type Protocol interface {
 // 各プロトコルが持つバッファ, ここにデバイスがデータを置いてくのでここから読み込む
 // each protocol's buffer, read the data from here which the device puts
 type ProtocolBuffer struct {
-	data []byte
-	dev  Device
+	Data []byte
+	Dev  Device
 }
 
 var Protocols []Protocol

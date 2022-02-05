@@ -1,6 +1,12 @@
 package ip
 
-type IPProtocolType uint8
+type IpProtocolType uint8
 
-type IPUpperProtocol interface {
+const (
+	IpProtocolICMP IpProtocolType = 1
+	IpProtocolTCP  IpProtocolType = 6
+	IpProtocolUDP  IpProtocolType = 11
+)
+
+type IPHihgerProtocol interface {
 }
