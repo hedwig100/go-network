@@ -101,6 +101,45 @@ func data2IpHeader(b []byte) (ipHdr IpHeader, data []byte, err error) {
 	return
 }
 
+var id uint16 = 0
+
+// generateId() generates id for IP header
+func generateId() uint16 {
+	id++
+	return id
+}
+
+// IpHead2byte encodes IP header data to a strings of bytes
+func IpHead2byte(protocol IpProtocolType, src IpAddr, dst IpAddr, data []byte, flags uint16) ([]byte, error) {
+
+	// ip header
+	hdr := IpHeader{
+		vhl:          (IpVersionIPv4<<4 | IpHeaderSizeMin>>2),
+		tol:          uint16(IpHeaderSizeMin + len(data)),
+		id:           generateId(),
+		flags:        flags,
+		ttl:          0xff,
+		protocolType: protocol,
+		checksum:     0,
+		src:          src,
+		dst:          dst,
+	}
+
+	// encoding BigEndian
+	rdr := bytes.NewReader(make([]byte, IpHeaderSizeMin))
+	binary.Read(rdr, binary.BigEndian, hdr)
+	buf := make([]byte, IpHeaderSizeMin)
+	_, err := rdr.Read(buf)
+	if err != nil {
+		return nil, err
+	}
+
+	// caluculate checksum
+	chs := utils.CheckSum(buf)
+	copy(buf[10:12], utils.Hton16(chs))
+	return buf, nil
+}
+
 /*
 	IP Protocol
 */
@@ -116,8 +155,49 @@ func (p *IpProtocol) Type() net.ProtocolType {
 	return net.ProtocolTypeIP
 }
 
-func (p *IpProtocol) TxHandler(b []byte) error {
-	return nil
+func (p *IpProtocol) TxHandler(protocol IpProtocolType, data []byte, src IpAddr, dst IpAddr) error {
+
+	// TODO:implement IP rooting
+	if src == IpAddrAny {
+		log.Printf("ip routing is not implemented yet")
+		return nil
+	}
+
+	// search the interface whose address matches src
+	var ipIface *IpIface
+	for _, iface := range net.Interfaces {
+		ipIface, ok := iface.(*IpIface)
+		if ok && src == ipIface.unicast {
+			break
+		}
+	}
+	if ipIface == nil {
+		return fmt.Errorf("IP interface whose address is %v is not found", src)
+	}
+
+	// check if dst is broadcast address of IP interface broadcast address
+	if dst != IpAddrBroadcast && (uint32(dst)|uint32(ipIface.broadcast)) != uint32(ipIface.broadcast) {
+		return fmt.Errorf("dst(%v) IP address cannot be reachable(broadcast=%v)", dst, ipIface.broadcast)
+	}
+
+	// does not support fragmentation
+	if int(ipIface.dev.MTU()) < IpHeaderSizeMin+len(data) {
+		return fmt.Errorf("dst(%v) IP address cannot be reachable(broadcast=%v)", dst, ipIface.broadcast)
+	}
+
+	// get IP header
+	hdr, err := IpHead2byte(protocol, src, dst, data, 0)
+	if err != nil {
+		return err
+	}
+	data = append(hdr, data...) // more efficient implementation?
+
+	// TODO:ARP
+	// transmit data from device
+	var hwadddr net.HardwareAddress
+	err = ipIface.dev.Transmit(data, net.ProtocolTypeIP, hwadddr)
+
+	return err
 }
 
 func (p *IpProtocol) RxHandler(ch chan net.ProtocolBuffer, done chan struct{}) {

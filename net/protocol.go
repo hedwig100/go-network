@@ -37,7 +37,7 @@ type Protocol interface {
 	Type() ProtocolType
 
 	// transmit handler
-	TxHandler([]byte) error
+	// TxHandler([]byte) error
 
 	// reeceive handler
 	RxHandler(chan ProtocolBuffer, chan struct{})

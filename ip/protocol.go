@@ -32,7 +32,7 @@ type IpUpperProtocol interface {
 	Type() IpProtocolType
 
 	// Transmit handler
-	TxHandler()
+	// TxHandler()
 
 	// Receive Handler
 	RxHandler(data []byte, src IpAddr, dst IpAddr, ipIface *IpIface)
