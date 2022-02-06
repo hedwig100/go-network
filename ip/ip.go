@@ -19,6 +19,9 @@ const (
 	IpVersionIPv6 = 6
 
 	IpHeaderSizeMin = 20
+
+	IpAddrAny       IpAddr = 0x00000000
+	IpAddrBroadcast IpAddr = 0xffffffff
 )
 
 func IpInit(name string) (err error) {
@@ -63,7 +66,7 @@ func (h *IpHeader) String() string {
 	return ""
 }
 
-func data2IpHeader(b []byte) (ipHdr IpHeader, err error) {
+func data2IpHeader(b []byte) (ipHdr IpHeader, data []byte, err error) {
 
 	if len(b) < IpHeaderSizeMin {
 		err = fmt.Errorf("data size is too small")
@@ -93,12 +96,8 @@ func data2IpHeader(b []byte) (ipHdr IpHeader, err error) {
 		return
 	}
 
-	if ipHdr.flags&0x2000 > 0 || ipHdr.flags&0x1fff > 0 {
-		err = fmt.Errorf("fragments does not support")
-		return
-	}
-
 	log.Printf("[D] ip header is received")
+	data = b[hlen:]
 	return
 }
 
@@ -134,10 +133,40 @@ func (p *IpProtocol) RxHandler(ch chan net.ProtocolBuffer, done chan struct{}) {
 		default:
 		}
 
+		// receive data from device
 		pb = <-ch
-		ipHdr, err := data2IpHeader(pb.Data)
-		_ = ipHdr
-		_ = err
+
+		// extract the header from the beginning of the data
+		ipHdr, data, err := data2IpHeader(pb.Data)
+		if err != nil {
+			log.Printf("[E] IP RxHandler %s", err.Error())
+			continue
+		}
+
+		if ipHdr.flags&0x2000 > 0 || ipHdr.flags&0x1fff > 0 {
+			log.Printf("[E] IP RxHandler does not support fragments")
+			continue
+		}
+
+		// search the interface whose address matches the header's one
+		var ipIface *IpIface
+		for _, iface := range pb.Dev.Interfaces() {
+			ipIface, ok := iface.(*IpIface)
+			if ok && (ipIface.unicast == ipHdr.dst || ipIface.broadcast == IpAddrBroadcast || ipIface.broadcast == ipHdr.dst) {
+				break
+			}
+		}
+		if ipIface == nil {
+			return // the packet is to other host
+		}
+		log.Printf("[D] IP header=%v,iface=%v,protocol=%s", ipHdr, ipIface, ipHdr.protocolType)
+
+		// search the protocol whose type is the same as the header's one
+		for _, proto := range IpProtocols {
+			if proto.Type() == ipHdr.protocolType {
+				proto.RxHandler(data, ipHdr.src, ipHdr.dst, ipIface)
+			}
+		}
 	}
 }
 
