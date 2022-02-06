@@ -26,6 +26,13 @@ type Interface interface {
 	Family() int
 }
 
+// IfaceRegister register iface to deev
+func IfaceRegister(dev Device, iface Interface) {
+	dev.AddIface(iface)
+	iface.SetDev(dev)
+	Interfaces = append(Interfaces, iface)
+}
+
 // デバイスに紐づくあるインタフェースを探す,入力時に必要
 // search certain interface tied to device, required for input
 func GetIface(dev Device, family int) (Interface, error) {

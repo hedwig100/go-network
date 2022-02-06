@@ -2,11 +2,15 @@ package utils
 
 import "fmt"
 
-func Hton16(v uint16) (b []byte) {
-	b = make([]byte, 2)
+func Hton16(v uint16) []byte {
+	b := make([]byte, 2)
 	b[0] = byte(v >> 8)
 	b[1] = byte(v)
-	return
+	return b
+}
+
+func NtoH32(v uint32) uint32 {
+	return (v&0xff)<<24 | (v&0xff00)<<8 | (v&0xff0000)>>8 | (v >> 24)
 }
 
 // bを16bitごとに1の補数和を取り, 最後にその1の補数を取る

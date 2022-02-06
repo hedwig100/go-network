@@ -28,6 +28,11 @@ func IPInit(name string) (err error) {
 	return
 }
 
+func (a IPAddr) String() string {
+	b := uint32(a)
+	return fmt.Sprintf("%d.%d,%d.%d", (b>>24)&0xff, (b>>16)&0xff, (b>>8)&0xff, b&0xff)
+}
+
 /*
 	IP Header
 */
@@ -157,10 +162,20 @@ func (p *IPProtocol) Type() net.ProtocolType {
 
 func (p *IPProtocol) TxHandler(protocol IPProtocolType, data []byte, src IPAddr, dst IPAddr) error {
 
-	// TODO:implement IP rooting
-	if src == IPAddrAny {
-		log.Printf("ip routing is not implemented yet")
-		return nil
+	// if dst is broadcast address, source is required
+	if src == IPAddrAny && dst == IPAddrBroadcast {
+		return fmt.Errorf("source is required for broadcast address")
+	}
+
+	// look up routing table
+	route, err := LookupTable(dst)
+	if err != nil {
+		return err
+	}
+
+	// source address must be the same as interface's one
+	if src != IPAddrAny && src != route.ipIface.unicast {
+		return fmt.Errorf("unable to output with specified source address,addr=%s", src)
 	}
 
 	// search the interface whose address matches src
@@ -193,6 +208,7 @@ func (p *IPProtocol) TxHandler(protocol IPProtocolType, data []byte, src IPAddr,
 	data = append(hdr, data...) // more efficient implementation?
 
 	// TODO:ARP
+	// use route.nexthop here (in the future)
 	// transmit data from device
 	var hwadddr net.HardwareAddress
 	err = ipIface.dev.Transmit(data, net.ProtocolTypeIP, hwadddr)
@@ -290,6 +306,15 @@ func (i *IPIface) SetDev(dev net.Device) {
 
 func (i *IPIface) Family() int {
 	return net.NetIfaceFamilyIP
+}
+
+// IPIfaceRegister registers ipIface to dev
+func IPIfaceRegister(dev net.Device, ipIface *IPIface) {
+	net.IfaceRegister(dev, ipIface)
+
+	// register subnet's routing information to routing table
+	// this information is used when data is sent to the subnet's host
+	IPRouteAdd(ipIface.unicast&ipIface.netmask, ipIface.netmask, IPAddrAny, ipIface)
 }
 
 // あるIPアドレスを持つインタフェースを探す
