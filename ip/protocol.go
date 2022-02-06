@@ -2,52 +2,52 @@ package ip
 
 import "fmt"
 
-type IpProtocolType uint8
+type IPProtocolType uint8
 
 const (
-	IpProtocolICMP IpProtocolType = 1
-	IpProtocolTCP  IpProtocolType = 6
-	IpProtocolUDP  IpProtocolType = 11
+	IPProtocolICMP IPProtocolType = 1
+	IPProtocolTCP  IPProtocolType = 6
+	IPProtocolUDP  IPProtocolType = 11
 )
 
-func (p IpProtocolType) String() string {
+func (p IPProtocolType) String() string {
 	switch p {
-	case IpProtocolICMP:
+	case IPProtocolICMP:
 		return "ICMP"
-	case IpProtocolTCP:
+	case IPProtocolTCP:
 		return "TCP"
-	case IpProtocolUDP:
+	case IPProtocolUDP:
 		return "UDP"
 	default:
 		return "UNKNOWN"
 	}
 }
 
-var IpProtocols []IpUpperProtocol
+var IPProtocols []IPUpperProtocol
 
 // Ip Upper Protocol is upper protocol of IP such as TCP,UDP
-type IpUpperProtocol interface {
+type IPUpperProtocol interface {
 
 	// Protocol Type
-	Type() IpProtocolType
+	Type() IPProtocolType
 
 	// Transmit handler
 	// TxHandler()
 
 	// Receive Handler
-	RxHandler(data []byte, src IpAddr, dst IpAddr, ipIface *IpIface)
+	RxHandler(data []byte, src IPAddr, dst IPAddr, ipIface *IPIface)
 }
 
 // IpProtocolRegister is used to register IpUpperProtocol
-func IpProtocolRegister(iproto IpUpperProtocol) error {
+func IpProtocolRegister(iproto IPUpperProtocol) error {
 
 	// check if the same type IpUpperProtocol is already registered
-	for _, proto := range IpProtocols {
+	for _, proto := range IPProtocols {
 		if proto.Type() == iproto.Type() {
 			return fmt.Errorf("IP protocol(type=%s) is already registerd", proto.Type())
 		}
 	}
 
-	IpProtocols = append(IpProtocols, iproto)
+	IPProtocols = append(IPProtocols, iproto)
 	return nil
 }

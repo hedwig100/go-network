@@ -12,26 +12,26 @@ import (
 	"github.com/hedwig100/go-network/utils"
 )
 
-type IpAddr uint32
+type IPAddr uint32
 
 const (
-	IpVersionIPv4 = 4
-	IpVersionIPv6 = 6
+	IPVersionIPv4 = 4
+	IPVersionIPv6 = 6
 
-	IpHeaderSizeMin = 20
+	IPHeaderSizeMin = 20
 
-	IpAddrAny       IpAddr = 0x00000000
-	IpAddrBroadcast IpAddr = 0xffffffff
+	IPAddrAny       IPAddr = 0x00000000
+	IPAddrBroadcast IPAddr = 0xffffffff
 )
 
-func IpInit(name string) (err error) {
+func IPInit(name string) (err error) {
 	return
 }
 
 /*
 	IP Header
 */
-type IpHeader struct {
+type IPHeader struct {
 
 	// Version and Internet Header Length (4bit and 4bit)
 	vhl uint8
@@ -52,30 +52,30 @@ type IpHeader struct {
 	ttl uint8
 
 	// protocol Type
-	protocolType IpProtocolType
+	protocolType IPProtocolType
 
 	// checksum
 	checksum uint16
 
 	// source IP address and destination IP address
-	src IpAddr
-	dst IpAddr
+	src IPAddr
+	dst IPAddr
 }
 
-func (h *IpHeader) String() string {
+func (h *IPHeader) String() string {
 	return ""
 }
 
-func data2IpHeader(b []byte) (ipHdr IpHeader, data []byte, err error) {
+func data2IPHeader(b []byte) (ipHdr IPHeader, data []byte, err error) {
 
-	if len(b) < IpHeaderSizeMin {
+	if len(b) < IPHeaderSizeMin {
 		err = fmt.Errorf("data size is too small")
 		return
 	}
 
 	r := bytes.NewReader(b)
 	binary.Read(r, binary.BigEndian, &ipHdr)
-	if (ipHdr.vhl >> 4) != IpVersionIPv4 {
+	if (ipHdr.vhl >> 4) != IPVersionIPv4 {
 		err = fmt.Errorf("version is not valid")
 		return
 	}
@@ -110,12 +110,12 @@ func generateId() uint16 {
 }
 
 // IpHead2byte encodes IP header data to a strings of bytes
-func IpHead2byte(protocol IpProtocolType, src IpAddr, dst IpAddr, data []byte, flags uint16) ([]byte, error) {
+func IPHead2byte(protocol IPProtocolType, src IPAddr, dst IPAddr, data []byte, flags uint16) ([]byte, error) {
 
 	// ip header
-	hdr := IpHeader{
-		vhl:          (IpVersionIPv4<<4 | IpHeaderSizeMin>>2),
-		tol:          uint16(IpHeaderSizeMin + len(data)),
+	hdr := IPHeader{
+		vhl:          (IPVersionIPv4<<4 | IPHeaderSizeMin>>2),
+		tol:          uint16(IPHeaderSizeMin + len(data)),
 		id:           generateId(),
 		flags:        flags,
 		ttl:          0xff,
@@ -126,9 +126,9 @@ func IpHead2byte(protocol IpProtocolType, src IpAddr, dst IpAddr, data []byte, f
 	}
 
 	// encoding BigEndian
-	rdr := bytes.NewReader(make([]byte, IpHeaderSizeMin))
+	rdr := bytes.NewReader(make([]byte, IPHeaderSizeMin))
 	binary.Read(rdr, binary.BigEndian, hdr)
-	buf := make([]byte, IpHeaderSizeMin)
+	buf := make([]byte, IPHeaderSizeMin)
 	_, err := rdr.Read(buf)
 	if err != nil {
 		return nil, err
@@ -143,30 +143,30 @@ func IpHead2byte(protocol IpProtocolType, src IpAddr, dst IpAddr, data []byte, f
 /*
 	IP Protocol
 */
-type IpProtocol struct {
+type IPProtocol struct {
 	name string
 }
 
-func (p *IpProtocol) Name() string {
+func (p *IPProtocol) Name() string {
 	return p.name
 }
 
-func (p *IpProtocol) Type() net.ProtocolType {
+func (p *IPProtocol) Type() net.ProtocolType {
 	return net.ProtocolTypeIP
 }
 
-func (p *IpProtocol) TxHandler(protocol IpProtocolType, data []byte, src IpAddr, dst IpAddr) error {
+func (p *IPProtocol) TxHandler(protocol IPProtocolType, data []byte, src IPAddr, dst IPAddr) error {
 
 	// TODO:implement IP rooting
-	if src == IpAddrAny {
+	if src == IPAddrAny {
 		log.Printf("ip routing is not implemented yet")
 		return nil
 	}
 
 	// search the interface whose address matches src
-	var ipIface *IpIface
+	var ipIface *IPIface
 	for _, iface := range net.Interfaces {
-		ipIface, ok := iface.(*IpIface)
+		ipIface, ok := iface.(*IPIface)
 		if ok && src == ipIface.unicast {
 			break
 		}
@@ -176,17 +176,17 @@ func (p *IpProtocol) TxHandler(protocol IpProtocolType, data []byte, src IpAddr,
 	}
 
 	// check if dst is broadcast address of IP interface broadcast address
-	if dst != IpAddrBroadcast && (uint32(dst)|uint32(ipIface.broadcast)) != uint32(ipIface.broadcast) {
+	if dst != IPAddrBroadcast && (uint32(dst)|uint32(ipIface.broadcast)) != uint32(ipIface.broadcast) {
 		return fmt.Errorf("dst(%v) IP address cannot be reachable(broadcast=%v)", dst, ipIface.broadcast)
 	}
 
 	// does not support fragmentation
-	if int(ipIface.dev.MTU()) < IpHeaderSizeMin+len(data) {
+	if int(ipIface.dev.MTU()) < IPHeaderSizeMin+len(data) {
 		return fmt.Errorf("dst(%v) IP address cannot be reachable(broadcast=%v)", dst, ipIface.broadcast)
 	}
 
 	// get IP header
-	hdr, err := IpHead2byte(protocol, src, dst, data, 0)
+	hdr, err := IPHead2byte(protocol, src, dst, data, 0)
 	if err != nil {
 		return err
 	}
@@ -200,7 +200,7 @@ func (p *IpProtocol) TxHandler(protocol IpProtocolType, data []byte, src IpAddr,
 	return err
 }
 
-func (p *IpProtocol) RxHandler(ch chan net.ProtocolBuffer, done chan struct{}) {
+func (p *IPProtocol) RxHandler(ch chan net.ProtocolBuffer, done chan struct{}) {
 	var pb net.ProtocolBuffer
 
 	for {
@@ -217,7 +217,7 @@ func (p *IpProtocol) RxHandler(ch chan net.ProtocolBuffer, done chan struct{}) {
 		pb = <-ch
 
 		// extract the header from the beginning of the data
-		ipHdr, data, err := data2IpHeader(pb.Data)
+		ipHdr, data, err := data2IPHeader(pb.Data)
 		if err != nil {
 			log.Printf("[E] IP RxHandler %s", err.Error())
 			continue
@@ -229,10 +229,10 @@ func (p *IpProtocol) RxHandler(ch chan net.ProtocolBuffer, done chan struct{}) {
 		}
 
 		// search the interface whose address matches the header's one
-		var ipIface *IpIface
+		var ipIface *IPIface
 		for _, iface := range pb.Dev.Interfaces() {
-			ipIface, ok := iface.(*IpIface)
-			if ok && (ipIface.unicast == ipHdr.dst || ipIface.broadcast == IpAddrBroadcast || ipIface.broadcast == ipHdr.dst) {
+			ipIface, ok := iface.(*IPIface)
+			if ok && (ipIface.unicast == ipHdr.dst || ipIface.broadcast == IPAddrBroadcast || ipIface.broadcast == ipHdr.dst) {
 				break
 			}
 		}
@@ -242,7 +242,7 @@ func (p *IpProtocol) RxHandler(ch chan net.ProtocolBuffer, done chan struct{}) {
 		log.Printf("[D] IP header=%v,iface=%v,protocol=%s", ipHdr, ipIface, ipHdr.protocolType)
 
 		// search the protocol whose type is the same as the header's one
-		for _, proto := range IpProtocols {
+		for _, proto := range IPProtocols {
 			if proto.Type() == ipHdr.protocolType {
 				proto.RxHandler(data, ipHdr.src, ipHdr.dst, ipIface)
 			}
@@ -253,50 +253,50 @@ func (p *IpProtocol) RxHandler(ch chan net.ProtocolBuffer, done chan struct{}) {
 /*
 	IP logical Interface
 */
-type IpIface struct {
+type IPIface struct {
 	dev       net.Device
-	unicast   IpAddr
-	netmask   IpAddr
-	broadcast IpAddr
+	unicast   IPAddr
+	netmask   IPAddr
+	broadcast IPAddr
 }
 
-func NewIpIface(unicastStr string, netmaskStr string) (iface *IpIface, err error) {
+func NewIpIface(unicastStr string, netmaskStr string) (iface *IPIface, err error) {
 
-	unicast, err := str2IpAddr(unicastStr)
+	unicast, err := str2IPAddr(unicastStr)
 	if err != nil {
 		return
 	}
 
-	netmask, err := str2IpAddr(unicastStr)
+	netmask, err := str2IPAddr(unicastStr)
 	if err != nil {
 		return
 	}
 
-	iface = &IpIface{
-		unicast:   IpAddr(unicast),
-		netmask:   IpAddr(netmask),
-		broadcast: IpAddr(unicast | ^netmask),
+	iface = &IPIface{
+		unicast:   IPAddr(unicast),
+		netmask:   IPAddr(netmask),
+		broadcast: IPAddr(unicast | ^netmask),
 	}
 	return
 }
 
-func (i *IpIface) Dev() net.Device {
+func (i *IPIface) Dev() net.Device {
 	return i.dev
 }
 
-func (i *IpIface) SetDev(dev net.Device) {
+func (i *IPIface) SetDev(dev net.Device) {
 	i.dev = dev
 }
 
-func (i *IpIface) Family() int {
+func (i *IPIface) Family() int {
 	return net.NetIfaceFamilyIP
 }
 
 // あるIPアドレスを持つインタフェースを探す
 // search an interface which has the IP address
-func SearchIpIface(addr IpAddr) (*IpIface, error) {
+func SearchIpIface(addr IPAddr) (*IPIface, error) {
 	for _, iface := range net.Interfaces {
-		iface, ok := iface.(*IpIface)
+		iface, ok := iface.(*IPIface)
 		if ok && iface.unicast == addr {
 			return iface, nil
 		}
@@ -305,7 +305,7 @@ func SearchIpIface(addr IpAddr) (*IpIface, error) {
 }
 
 // ex) "127.0.0.1" -> 01111111 00000000 00000000 00000001
-func str2IpAddr(str string) (uint32, error) {
+func str2IPAddr(str string) (uint32, error) {
 	strs := strings.Split(str, ".")
 	var b uint32
 	for i, s := range strs {
