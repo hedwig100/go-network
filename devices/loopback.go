@@ -52,7 +52,7 @@ func (l *Loopback) Close() error {
 
 func (l *Loopback) Transmit(data []byte, typ net.ProtocolType, dst net.HardwareAddress) error {
 
-	// 送り返す send back
+	// send back
 	net.DeviceInputHanlder(typ, data, l)
 
 	log.Printf("data(%v) is trasmitted by loopback-device(name=%s)", data, l.name)

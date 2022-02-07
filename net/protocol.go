@@ -26,8 +26,7 @@ func (pt ProtocolType) String() string {
 
 }
 
-// プロトコルの抽象化
-// abstraction of protocol
+// Protocol is the eabstraction of protocol
 type Protocol interface {
 
 	// name
@@ -43,8 +42,7 @@ type Protocol interface {
 	RxHandler(chan ProtocolBuffer, chan struct{})
 }
 
-// 各プロトコルが持つバッファ, ここにデバイスがデータを置いてくのでここから読み込む
-// each protocol's buffer, read the data from here which the device puts
+// ProtocolBuffer is each protocol's buffer, read the data from here which the device puts
 type ProtocolBuffer struct {
 	Data []byte
 	Dev  Device
@@ -53,17 +51,14 @@ type ProtocolBuffer struct {
 var Protocols []Protocol
 var ProtocolBuffers []chan ProtocolBuffer
 
-// プロトコルの登録
-// register protocol
+// ProtocolRegister registers the  protocol
 func ProtocolRegister(proto Protocol) (err error) {
 
-	// プロトコルを追加
-	// add protocol
+	// add thee protocol
 	ch := make(chan ProtocolBuffer, ProtocolBufferSize)
 	Protocols = append(Protocols, proto)
 	ProtocolBuffers = append(ProtocolBuffers, ch)
 
-	// ハンドラを起動
 	// activate the receive handler
 	go proto.RxHandler(ch, done)
 	log.Printf("registerd dev=%s", proto.Name())

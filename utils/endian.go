@@ -13,7 +13,6 @@ func NtoH32(v uint32) uint32 {
 	return (v&0xff)<<24 | (v&0xff00)<<8 | (v&0xff0000)>>8 | (v >> 24)
 }
 
-// bを16bitごとに1の補数和を取り, 最後にその1の補数を取る
 // the 16-bit 1's complement sum of 1's complement
 // https://datatracker.ietf.org/doc/html/rfc1071
 func CheckSum(b []byte) uint16 {

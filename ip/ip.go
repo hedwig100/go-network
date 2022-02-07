@@ -69,7 +69,18 @@ type IPHeader struct {
 }
 
 func (h *IPHeader) String() string {
-	return ""
+	return fmt.Sprintf(`
+		version: %d,
+		header length: %d,
+		tos: %d,
+		id: %d,
+		flags: %x,
+		ttl: %d,
+		protocolType: %s,
+		checksum: %x,
+		src: %s,
+		dst: %s,
+	`, h.vhl>>4, h.vhl&0xf, h.tos, h.id, h.flags, h.ttl, h.protocolType, h.checksum, h.src, h.dst)
 }
 
 func data2IPHeader(b []byte) (ipHdr IPHeader, data []byte, err error) {
@@ -222,7 +233,6 @@ func (p *IPProtocol) RxHandler(ch chan net.ProtocolBuffer, done chan struct{}) {
 
 	for {
 
-		// 終了したかどうか確認
 		// check if finished or not
 		select {
 		case <-done:
@@ -270,14 +280,26 @@ func (p *IPProtocol) RxHandler(ch chan net.ProtocolBuffer, done chan struct{}) {
 /*
 	IP logical Interface
 */
+
+// IPIface is IP interface
+// *IPIface implements net.Interface
 type IPIface struct {
-	dev       net.Device
-	Unicast   IPAddr
-	netmask   IPAddr
+
+	// device of the interface
+	dev net.Device
+
+	// unicast address ex) 192.0.0.1
+	Unicast IPAddr
+
+	// netmask ex) 255.255.255.0
+	netmask IPAddr
+
+	// broadcast address for the subnet
 	broadcast IPAddr
 }
 
-func NewIpIface(unicastStr string, netmaskStr string) (iface *IPIface, err error) {
+// NewIPIface returns IPIface whose address is unicastStr
+func NewIPIface(unicastStr string, netmaskStr string) (iface *IPIface, err error) {
 
 	unicast, err := str2IPAddr(unicastStr)
 	if err != nil {
@@ -318,9 +340,8 @@ func IPIfaceRegister(dev net.Device, ipIface *IPIface) {
 	IPRouteAdd(ipIface.Unicast&ipIface.netmask, ipIface.netmask, IPAddrAny, ipIface)
 }
 
-// あるIPアドレスを持つインタフェースを探す
-// search an interface which has the IP address
-func SearchIpIface(addr IPAddr) (*IPIface, error) {
+// SearchIpIface searches an interface which has the IP address
+func SearchIPIface(addr IPAddr) (*IPIface, error) {
 	for _, iface := range net.Interfaces {
 		iface, ok := iface.(*IPIface)
 		if ok && iface.Unicast == addr {

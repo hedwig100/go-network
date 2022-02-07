@@ -75,15 +75,15 @@ type ArpEther struct {
 
 func (ae ArpEther) String() string {
 	return fmt.Sprintf(`
-		hrd: %d\n 
-		pro: %d\n
-		hln: %d\n
-		pln: %d\n
-		op: %d\n
-		sha: %v\n
-		spa: %s\n
-		tha: %v\n
-		tpa: %s\n
+		hrd: %d
+		pro: %d
+		hln: %d
+		pln: %d
+		op: %d
+		sha: %v
+		spa: %s
+		tha: %v
+		tpa: %s
 	`, ae.hrd, ae.pro, ae.hln, ae.pln, ae.op, ae.sha, ae.spa, ae.tha, ae.tpa)
 }
 

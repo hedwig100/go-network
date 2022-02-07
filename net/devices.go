@@ -22,8 +22,7 @@ const (
 	NetDeviceAddrLen = 16
 )
 
-// デバイスの抽象化
-// abstraction of the device
+// Device interface is the abstraction of the device
 type Device interface {
 
 	// name
@@ -58,24 +57,21 @@ func isUp(d Device) bool {
 	return d.Flags()&NetDeviceFlagUp > 0
 }
 
-// すべてのデバイス: all the devices
 var Devices []Device
 
-// デバイスを登録する
-// register device
+// DeviceRegister registers the device
 func DeviceRegister(dev Device) (err error) {
 
-	// デバイスの追加: add the device
+	// add the device
 	Devices = append(Devices, dev)
 
-	// 受信ハンドラを起動させる: activate the receive handler
+	// activate the receive handler
 	go dev.RxHandler(done)
 	log.Printf("registerd dev=%s", dev.Name())
 	return
 }
 
-// デバイスから入力されたデータをプロトコルに渡す
-// passes the data input from the device to the protocol
+// DeviceInputHandler receives data from the device and passes it to the protocol.
 func DeviceInputHanlder(typ ProtocolType, data []byte, dev Device) {
 	log.Printf("input data dev=%s,typ=%s,data:%v", dev, typ, data)
 
@@ -90,16 +86,15 @@ func DeviceInputHanlder(typ ProtocolType, data []byte, dev Device) {
 	}
 }
 
-// デバイスからデータを出力する
-// output the data from the device
+// DeviceOutput outputs the data from the device
 func DeviceOutput(dev Device, data []byte, typ ProtocolType, dst HardwareAddress) (err error) {
 
-	// デバイスが開いているか確認: check if the device is opening
+	// check if the device is opening
 	if !isUp(dev) {
 		return fmt.Errorf("already closed dev=%s", dev.Name())
 	}
 
-	// データの長さがMTUを超えないことを確認: check if data length is longer than MTU
+	// check if data length is longer than MTU
 	if dev.MTU() < uint16(len(data)) {
 		return fmt.Errorf("data size is too large dev=%s,mtu=%v", dev.Name(), dev.MTU())
 	}
@@ -108,11 +103,9 @@ func DeviceOutput(dev Device, data []byte, typ ProtocolType, dst HardwareAddress
 	return
 }
 
-// すべてのデバイスを閉じる
-// close all the devices
+// CloseDevices closes all the devices
 func CloseDevices() (err error) {
 
-	// 先にRxHandlerを停止
 	// stop RxHandler beforehand
 	close(done)
 
@@ -122,7 +115,7 @@ func CloseDevices() (err error) {
 			return fmt.Errorf("already closed dev=%s", dev.Name())
 		}
 
-		// チャンネルを閉じて受信ハンドラを停止: close the channel and stop the receive handler
+		// close the channel and stop the receive handler
 		err = dev.Close()
 		if err != nil {
 			return
