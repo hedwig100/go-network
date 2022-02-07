@@ -12,8 +12,6 @@ import (
 	"github.com/hedwig100/go-network/utils"
 )
 
-type IPAddr uint32
-
 const (
 	IPVersionIPv4 = 4
 	IPVersionIPv6 = 6
@@ -29,14 +27,23 @@ func IPInit(name string) (err error) {
 	return
 }
 
+/*
+	IP address
+*/
+
+// IPAddr is IP address
+type IPAddr uint32
+
 func (a IPAddr) String() string {
 	b := uint32(a)
-	return fmt.Sprintf("%d.%d,%d.%d", (b>>24)&0xff, (b>>16)&0xff, (b>>8)&0xff, b&0xff)
+	return fmt.Sprintf("%d.%d.%d.%d", (b>>24)&0xff, (b>>16)&0xff, (b>>8)&0xff, b&0xff)
 }
 
 /*
 	IP Header
 */
+
+// IPHeader is header for IP packet.
 type IPHeader struct {
 
 	// Version and Internet Header Length (4bit and 4bit)
@@ -83,6 +90,7 @@ func (h *IPHeader) String() string {
 	`, h.vhl>>4, h.vhl&0xf, h.tos, h.id, h.flags, h.ttl, h.protocolType, h.checksum, h.src, h.dst)
 }
 
+// data2IPHeader transforms byte strings to IP Header and the rest of the data
 func data2IPHeader(b []byte) (ipHdr IPHeader, data []byte, err error) {
 
 	if len(b) < IPHeaderSizeMin {
@@ -126,8 +134,8 @@ func generateId() uint16 {
 	return id
 }
 
-// IpHead2byte encodes IP header data to a strings of bytes
-func IPHead2byte(protocol IPProtocolType, src IPAddr, dst IPAddr, data []byte, flags uint16) ([]byte, error) {
+// IPHead2byte encodes IP header data to a strings of bytes
+func IPHeader2byte(protocol IPProtocolType, src IPAddr, dst IPAddr, data []byte, flags uint16) ([]byte, error) {
 
 	// ip header
 	hdr := IPHeader{
@@ -213,7 +221,7 @@ func (p *IPProtocol) TxHandler(protocol IPProtocolType, data []byte, src IPAddr,
 	}
 
 	// get IP header
-	hdr, err := IPHead2byte(protocol, src, dst, data, 0)
+	hdr, err := IPHeader2byte(protocol, src, dst, data, 0)
 	if err != nil {
 		return err
 	}
@@ -360,7 +368,7 @@ func str2IPAddr(str string) (uint32, error) {
 		if err != nil {
 			return 0, err
 		}
-		b |= uint32((n & 0x000f) << (24 - 8*i))
+		b |= uint32((n & 0xff) << (24 - 8*i))
 	}
 	return b, nil
 }

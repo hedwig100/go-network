@@ -135,7 +135,6 @@ func (e *EthernetDevice) Address() net.HardwareAddress {
 }
 
 func (e *EthernetDevice) AddIface(iface net.Interface) {
-	log.Printf("[I] iface=%d is registerd dev=%s", iface.Family(), e.name)
 	e.interfaces = append(e.interfaces, iface)
 }
 

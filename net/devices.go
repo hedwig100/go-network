@@ -21,6 +21,9 @@ const (
 
 var Devices []Device
 
+/*
+	Device
+*/
 // Device interface is the abstraction of the device
 type Device interface {
 
@@ -100,6 +103,7 @@ func DeviceOutput(dev Device, data []byte, typ ProtocolType, dst HardwareAddress
 	}
 
 	err = dev.Transmit(data, typ, dst)
+	log.Printf("[I] device output, dev=%s,typ=%s,data=%v", dev.Name(), typ, data)
 	return
 }
 

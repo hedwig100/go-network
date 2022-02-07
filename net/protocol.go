@@ -2,8 +2,6 @@ package net
 
 import "log"
 
-type ProtocolType uint16
-
 const (
 	ProtocolTypeIP   ProtocolType = 0x0800
 	ProtocolTypeArp  ProtocolType = 0x0806
@@ -11,6 +9,11 @@ const (
 
 	ProtocolBufferSize = 100
 )
+
+/*
+	Protocol Type
+*/
+type ProtocolType uint16
 
 func (pt ProtocolType) String() string {
 	switch pt {
@@ -29,6 +32,9 @@ func (pt ProtocolType) String() string {
 var Protocols []Protocol
 var ProtocolBuffers []chan ProtocolBuffer
 
+/*
+	Protocol
+*/
 // Protocol is the eabstraction of protocol
 type Protocol interface {
 

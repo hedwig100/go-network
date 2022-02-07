@@ -1,6 +1,9 @@
 package net
 
-import "fmt"
+import (
+	"fmt"
+	"log"
+)
 
 const (
 	NetIfaceFamilyIP   = 1
@@ -9,6 +12,9 @@ const (
 
 var Interfaces []Interface
 
+/*
+	Interface
+*/
 // Interfaces is a logical interface,
 // it serves as an entry point for devices and manages their addresses, etc
 type Interface interface {
@@ -28,6 +34,7 @@ func IfaceRegister(dev Device, iface Interface) {
 	dev.AddIface(iface)
 	iface.SetDev(dev)
 	Interfaces = append(Interfaces, iface)
+	log.Printf("[I] iface=%d is registerd dev=%s", iface.Family(), dev.Name())
 }
 
 // GetIface searches the family type of interface tied to the device

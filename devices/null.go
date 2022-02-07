@@ -43,7 +43,6 @@ func (n *Null) Address() net.HardwareAddress {
 }
 
 func (n *Null) AddIface(iface net.Interface) {
-	log.Printf("[I] iface=%d is registerd dev=%s", iface.Family(), n.name)
 }
 
 func (n *Null) Interfaces() []net.Interface {

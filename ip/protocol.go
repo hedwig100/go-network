@@ -2,13 +2,17 @@ package ip
 
 import "fmt"
 
-type IPProtocolType uint8
-
 const (
 	IPProtocolICMP IPProtocolType = 1
 	IPProtocolTCP  IPProtocolType = 6
 	IPProtocolUDP  IPProtocolType = 11
 )
+
+/*
+	IP Protoocol Type is type of the upper protocol of IP
+*/
+
+type IPProtocolType uint8
 
 func (p IPProtocolType) String() string {
 	switch p {
@@ -25,7 +29,7 @@ func (p IPProtocolType) String() string {
 
 var IPProtocols []IPUpperProtocol
 
-// Ip Upper Protocol is upper protocol of IP such as TCP,UDP
+// IP Upper Protocol is the upper protocol of IP such as TCP,UDP
 type IPUpperProtocol interface {
 
 	// Protocol Type
@@ -38,8 +42,8 @@ type IPUpperProtocol interface {
 	RxHandler(data []byte, src IPAddr, dst IPAddr, ipIface *IPIface)
 }
 
-// IpProtocolRegister is used to register IpUpperProtocol
-func IpProtocolRegister(iproto IPUpperProtocol) error {
+// IPProtocolRegister is used to register IpUpperProtocol
+func IPProtocolRegister(iproto IPUpperProtocol) error {
 
 	// check if the same type IpUpperProtocol is already registered
 	for _, proto := range IPProtocols {
