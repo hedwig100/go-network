@@ -38,6 +38,10 @@ func (l *Loopback) Flags() uint16 {
 	return l.flags
 }
 
+func (l *Loopback) Address() net.HardwareAddress {
+	return nil
+}
+
 func (l *Loopback) AddIface(iface net.Interface) {
 	log.Printf("[I] iface=%d is registerd dev=%s", iface.Family(), l.name)
 }

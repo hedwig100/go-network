@@ -3,6 +3,7 @@ package devices
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"log"
 	"time"
@@ -13,7 +14,7 @@ import (
 
 const (
 	EtherAddrLen    = 6
-	EtherAddrStrLen = 18 /* "xx:xx:xx:xx:xx:xx\0" */
+	EtherAddrStrLen = 17 /* "xx:xx:xx:xx:xx:xx" */
 	EtherHdrSize    = 14
 
 	EtherFrameSizeMin = 60   /* without FCS */
@@ -24,24 +25,11 @@ const (
 )
 
 var (
-	EtherAddrAny       = [EtherAddrLen]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
-	EtherAddrBroadcast = [EtherAddrLen]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
+	EtherAddrAny       = EthernetAddress{addr: [EtherAddrLen]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}}
+	EtherAddrBroadcast = EthernetAddress{addr: [EtherAddrLen]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}}
 )
 
-type EthernetDevice struct {
-	name       string
-	flags      uint16
-	interfaces []net.Interface
-	Addr       [EtherAddrLen]byte
-	file       io.ReadWriteCloser
-}
-
-type EthernetHdr struct {
-	Src  [EtherAddrLen]byte
-	Dst  [EtherAddrLen]byte
-	Type net.ProtocolType
-}
-
+// EtherInit setup ethernet device
 func EtherInit(name string) (e *EthernetDevice, err error) {
 
 	// open tap
@@ -59,12 +47,71 @@ func EtherInit(name string) (e *EthernetDevice, err error) {
 	e = &EthernetDevice{
 		name:  name,
 		flags: net.NetDeviceFlagBroadcast | net.NetDeviceFlagNeedARP | net.NetDeviceFlagUp,
-		Addr:  addr,
-		file:  file,
+		EthernetAddress: EthernetAddress{
+			addr: addr,
+		},
+		file: file,
 	}
 
 	err = net.DeviceRegister(e)
 	return
+}
+
+/*
+	Ethernet Address (MAC address)
+*/
+
+// EthernetAddress implments net.HardwareAddress interface
+type EthernetAddress struct {
+	addr [EtherAddrLen]byte
+}
+
+func (a EthernetAddress) Address() []byte {
+	return a.addr[:]
+}
+
+func (a EthernetAddress) String() string {
+	return fmt.Sprintf("%x:%x:%x:%x:%x:%x", a.addr[0], a.addr[1], a.addr[2], a.addr[3], a.addr[4], a.addr[5])
+}
+
+/*
+	Ethernet Header
+*/
+
+// EthernetHdr is header for ethernet frame
+type EthernetHdr struct {
+
+	// source address
+	Src EthernetAddress
+
+	// destination address
+	Dst EthernetAddress
+
+	// protocol type
+	Type net.ProtocolType
+}
+
+/*
+	Ethernet Device
+*/
+
+// EthernetDevice implements net.Device interface
+type EthernetDevice struct {
+
+	// name
+	name string
+
+	// flags represents device state and device type
+	flags uint16
+
+	// interfaces tied to the device
+	interfaces []net.Interface
+
+	// ethernet address
+	EthernetAddress
+
+	// device file (character file)
+	file io.ReadWriteCloser
 }
 
 func (e *EthernetDevice) Name() string {
@@ -83,6 +130,10 @@ func (e *EthernetDevice) Flags() uint16 {
 	return e.flags
 }
 
+func (e *EthernetDevice) Address() net.HardwareAddress {
+	return e.EthernetAddress
+}
+
 func (e *EthernetDevice) AddIface(iface net.Interface) {
 	log.Printf("[I] iface=%d is registerd dev=%s", iface.Family(), e.name)
 	e.interfaces = append(e.interfaces, iface)
@@ -97,13 +148,18 @@ func (e *EthernetDevice) Close() error {
 	return err
 }
 
-// Transmit transmits the data using the device
 func (e *EthernetDevice) Transmit(data []byte, typ net.ProtocolType, dst net.HardwareAddress) error {
 
-	// バッファーにEthernetヘッダの状態,データを入れる: put the status of the Ethernet header and data into the buffer
+	// dst must be Ethernet address
+	etherDst, ok := dst.(EthernetAddress)
+	if !ok {
+		return fmt.Errorf("ethernet device only supports ethernet address")
+	}
+
+	// put the status of the Ethernet header and data into the buffer
 	var buf = make([]byte, EtherFrameSizeMax)
-	copy(buf[:EtherAddrLen], dst)
-	copy(buf[EtherAddrLen:2*EtherAddrLen], e.Addr[:EtherAddrLen])
+	copy(buf[:EtherAddrLen], etherDst.addr[:])
+	copy(buf[EtherAddrLen:2*EtherAddrLen], e.addr[:])
 	copy(buf[2*EtherAddrLen:EtherHdrSize], utils.Hton16(uint16(typ))) // littleEndian -> bigEndian
 	copy(buf[EtherHdrSize:], data)
 
@@ -116,7 +172,6 @@ func (e *EthernetDevice) Transmit(data []byte, typ net.ProtocolType, dst net.Har
 	return nil
 }
 
-// RxHandler checks if there is input by polling, if so, pass it to the protocol
 func (e *EthernetDevice) RxHandler(done chan struct{}) {
 	buf := make([]byte, EtherFrameSizeMax)
 	var rdr *bytes.Reader
@@ -142,7 +197,7 @@ func (e *EthernetDevice) RxHandler(done chan struct{}) {
 			// if there is no data, it sleeps a little to prevent busy wait
 			time.Sleep(time.Microsecond)
 
-		} else if len < EtherHdrSize { // EtherAddrLen + EtherAddrlen + 2(Type)
+		} else if len < EtherHdrSize {
 
 			// ignore the data if length is smaller than Ethernet Header Size
 			log.Printf("[E] frame size is too small")
@@ -157,7 +212,7 @@ func (e *EthernetDevice) RxHandler(done chan struct{}) {
 			}
 
 			// check if the address is for me
-			if hdr.Dst != e.Addr && hdr.Dst != EtherAddrBroadcast {
+			if hdr.Dst.addr != e.addr && hdr.Dst != EtherAddrBroadcast {
 				continue
 			}
 

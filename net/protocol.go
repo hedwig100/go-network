@@ -26,6 +26,9 @@ func (pt ProtocolType) String() string {
 
 }
 
+var Protocols []Protocol
+var ProtocolBuffers []chan ProtocolBuffer
+
 // Protocol is the eabstraction of protocol
 type Protocol interface {
 
@@ -47,9 +50,6 @@ type ProtocolBuffer struct {
 	Data []byte
 	Dev  Device
 }
-
-var Protocols []Protocol
-var ProtocolBuffers []chan ProtocolBuffer
 
 // ProtocolRegister registers the  protocol
 func ProtocolRegister(proto Protocol) (err error) {

@@ -61,13 +61,13 @@ type ArpEther struct {
 	ArpHeader
 
 	// source hardware address
-	sha [devices.EtherAddrLen]uint8
+	sha devices.EthernetAddress
 
 	// source protocol address
 	spa ip.IPAddr
 
 	// target hardware address
-	tha [devices.EtherAddrLen]uint8
+	tha devices.EthernetAddress
 
 	// target protocol address
 	tpa ip.IPAddr
@@ -80,9 +80,9 @@ func (ae ArpEther) String() string {
 		hln: %d
 		pln: %d
 		op: %d
-		sha: %v
+		sha: %s
 		spa: %s
-		tha: %v
+		tha: %s
 		tpa: %s
 	`, ae.hrd, ae.pro, ae.hln, ae.pln, ae.op, ae.sha, ae.spa, ae.tha, ae.tpa)
 }
@@ -151,7 +151,7 @@ func (p *ArpProtocol) RxHandler(ch chan net.ProtocolBuffer, done chan struct{}) 
 
 		// update arp cache table
 		mutex.Lock()
-		if err := arpCacheUpdate(hdr.spa, hdr.sha[:]); err == nil {
+		if err := arpCacheUpdate(hdr.spa, hdr.sha); err == nil {
 			marge = true
 		}
 		mutex.Unlock()
@@ -171,20 +171,20 @@ func (p *ArpProtocol) RxHandler(ch chan net.ProtocolBuffer, done chan struct{}) 
 		// insert cache entry if entry is not updated before
 		if !marge {
 			mutex.Lock()
-			arpCacheInsert(hdr.spa, hdr.sha[:])
+			arpCacheInsert(hdr.spa, hdr.sha)
 			mutex.Unlock()
 		}
 
 		log.Printf("[D] dev=%s,arpheader=%s", pb.Dev.Name(), hdr)
 
 		if hdr.op == ArpOpRequest {
-			ArpReply(ipIface, hdr.sha, hdr.spa, hdr.tha[:]) // reply arp message
+			ArpReply(ipIface, hdr.sha, hdr.spa, hdr.tha) // reply arp message
 		}
 	}
 }
 
 // ArpReply transmits ARP reply data to dst
-func ArpReply(ipIface *ip.IPIface, tha [devices.EtherAddrLen]uint8, tpa ip.IPAddr, dst net.HardwareAddress) error {
+func ArpReply(ipIface *ip.IPIface, tha devices.EthernetAddress, tpa ip.IPAddr, dst devices.EthernetAddress) error {
 
 	dev, ok := ipIface.Dev().(*devices.EthernetDevice)
 	if !ok {
@@ -200,7 +200,7 @@ func ArpReply(ipIface *ip.IPIface, tha [devices.EtherAddrLen]uint8, tpa ip.IPAdd
 			pln: ip.IPAddrLen,
 			op:  ArpOpReply,
 		},
-		sha: dev.Addr,
+		sha: dev.EthernetAddress,
 		spa: ipIface.Unicast,
 		tha: tha,
 		tpa: tpa,
@@ -271,7 +271,7 @@ func ArpRequest(ipIface *ip.IPIface, tpa ip.IPAddr) error {
 			pln: ip.IPAddrLen,
 			op:  ArpOpRequest,
 		},
-		sha: dev.Addr,
+		sha: dev.EthernetAddress,
 		spa: ipIface.Unicast,
 		tha: devices.EtherAddrAny,
 		tpa: tpa,
@@ -287,5 +287,5 @@ func ArpRequest(ipIface *ip.IPIface, tpa ip.IPAddr) error {
 	}
 
 	log.Printf("[D] ARP request, dev=%s,arp header=%s", dev.Name(), rep)
-	return net.DeviceOutput(dev, data, net.ProtocolTypeArp, devices.EtherAddrBroadcast[:])
+	return net.DeviceOutput(dev, data, net.ProtocolTypeArp, devices.EtherAddrBroadcast)
 }

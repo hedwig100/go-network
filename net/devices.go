@@ -6,7 +6,6 @@ import (
 )
 
 type DeviceType uint16
-type HardwareAddress []uint8
 
 const (
 	NetDeviceTypeNull     DeviceType = 0x0000
@@ -18,9 +17,9 @@ const (
 	NetDeviceFlagBroadcast uint16 = 0x0020
 	NetDeviceFlagP2P       uint16 = 0x0040
 	NetDeviceFlagNeedARP   uint16 = 0x0100
-
-	NetDeviceAddrLen = 16
 )
+
+var Devices []Device
 
 // Device interface is the abstraction of the device
 type Device interface {
@@ -36,6 +35,9 @@ type Device interface {
 
 	// flag which represents state of the device
 	Flags() uint16
+
+	// device's hardware address
+	Address() HardwareAddress
 
 	// add logical interface
 	AddIface(Interface)
@@ -56,8 +58,6 @@ type Device interface {
 func isUp(d Device) bool {
 	return d.Flags()&NetDeviceFlagUp > 0
 }
-
-var Devices []Device
 
 // DeviceRegister registers the device
 func DeviceRegister(dev Device) (err error) {
