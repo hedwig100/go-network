@@ -25,7 +25,7 @@ func IPRouteAdd(network IPAddr, netmask IPAddr, nexthop IPAddr, ipIface *IPIface
 		nexthop: nexthop,
 		ipIface: ipIface,
 	})
-	log.Printf("[I] route added,netword=%s,netmask=%s,nexthop=%s,iface=%s,dev=%s", network, netmask, nexthop, ipIface.unicast, ipIface.dev.Name())
+	log.Printf("[I] route added,netword=%s,netmask=%s,nexthop=%s,iface=%s,dev=%s", network, netmask, nexthop, ipIface.Unicast, ipIface.dev.Name())
 }
 
 // SetDefaultGateway sets gw address as default gateway of ipIface

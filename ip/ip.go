@@ -20,6 +20,7 @@ const (
 
 	IPHeaderSizeMin = 20
 
+	IPAddrLen       uint8  = 4
 	IPAddrAny       IPAddr = 0x00000000
 	IPAddrBroadcast IPAddr = 0xffffffff
 )
@@ -174,7 +175,7 @@ func (p *IPProtocol) TxHandler(protocol IPProtocolType, data []byte, src IPAddr,
 	}
 
 	// source address must be the same as interface's one
-	if src != IPAddrAny && src != route.ipIface.unicast {
+	if src != IPAddrAny && src != route.ipIface.Unicast {
 		return fmt.Errorf("unable to output with specified source address,addr=%s", src)
 	}
 
@@ -182,7 +183,7 @@ func (p *IPProtocol) TxHandler(protocol IPProtocolType, data []byte, src IPAddr,
 	var ipIface *IPIface
 	for _, iface := range net.Interfaces {
 		ipIface, ok := iface.(*IPIface)
-		if ok && src == ipIface.unicast {
+		if ok && src == ipIface.Unicast {
 			break
 		}
 	}
@@ -248,7 +249,7 @@ func (p *IPProtocol) RxHandler(ch chan net.ProtocolBuffer, done chan struct{}) {
 		var ipIface *IPIface
 		for _, iface := range pb.Dev.Interfaces() {
 			ipIface, ok := iface.(*IPIface)
-			if ok && (ipIface.unicast == ipHdr.dst || ipIface.broadcast == IPAddrBroadcast || ipIface.broadcast == ipHdr.dst) {
+			if ok && (ipIface.Unicast == ipHdr.dst || ipIface.broadcast == IPAddrBroadcast || ipIface.broadcast == ipHdr.dst) {
 				break
 			}
 		}
@@ -271,7 +272,7 @@ func (p *IPProtocol) RxHandler(ch chan net.ProtocolBuffer, done chan struct{}) {
 */
 type IPIface struct {
 	dev       net.Device
-	unicast   IPAddr
+	Unicast   IPAddr
 	netmask   IPAddr
 	broadcast IPAddr
 }
@@ -289,7 +290,7 @@ func NewIpIface(unicastStr string, netmaskStr string) (iface *IPIface, err error
 	}
 
 	iface = &IPIface{
-		unicast:   IPAddr(unicast),
+		Unicast:   IPAddr(unicast),
 		netmask:   IPAddr(netmask),
 		broadcast: IPAddr(unicast | ^netmask),
 	}
@@ -314,7 +315,7 @@ func IPIfaceRegister(dev net.Device, ipIface *IPIface) {
 
 	// register subnet's routing information to routing table
 	// this information is used when data is sent to the subnet's host
-	IPRouteAdd(ipIface.unicast&ipIface.netmask, ipIface.netmask, IPAddrAny, ipIface)
+	IPRouteAdd(ipIface.Unicast&ipIface.netmask, ipIface.netmask, IPAddrAny, ipIface)
 }
 
 // あるIPアドレスを持つインタフェースを探す
@@ -322,7 +323,7 @@ func IPIfaceRegister(dev net.Device, ipIface *IPIface) {
 func SearchIpIface(addr IPAddr) (*IPIface, error) {
 	for _, iface := range net.Interfaces {
 		iface, ok := iface.(*IPIface)
-		if ok && iface.unicast == addr {
+		if ok && iface.Unicast == addr {
 			return iface, nil
 		}
 	}
