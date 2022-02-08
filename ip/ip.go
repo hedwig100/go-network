@@ -180,7 +180,7 @@ func (p *IPProtocol) Type() net.ProtocolType {
 	return net.ProtocolTypeIP
 }
 
-func (p *IPProtocol) TxHandler(protocol IPProtocolType, data []byte, src IPAddr, dst IPAddr) error {
+func TxHandler(protocol IPProtocolType, data []byte, src IPAddr, dst IPAddr) error {
 
 	// if dst is broadcast address, source is required
 	if src == IPAddrAny && dst == IPAddrBroadcast {
@@ -279,7 +279,10 @@ func (p *IPProtocol) RxHandler(ch chan net.ProtocolBuffer, done chan struct{}) {
 		// search the protocol whose type is the same as the header's one
 		for _, proto := range IPProtocols {
 			if proto.Type() == ipHdr.protocolType {
-				proto.RxHandler(data, ipHdr.src, ipHdr.dst, ipIface)
+				err = proto.RxHandler(data, ipHdr.src, ipHdr.dst, ipIface)
+				if err != nil {
+					log.Printf("[E] %s", err.Error())
+				}
 			}
 		}
 	}

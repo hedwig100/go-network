@@ -44,9 +44,6 @@ type Protocol interface {
 	// protocol type ex) IP,IPv6,ARP
 	Type() ProtocolType
 
-	// transmit handler
-	// TxHandler([]byte) error
-
 	// reeceive handler
 	RxHandler(chan ProtocolBuffer, chan struct{})
 }

@@ -35,11 +35,8 @@ type IPUpperProtocol interface {
 	// Protocol Type
 	Type() IPProtocolType
 
-	// Transmit handler
-	// TxHandler()
-
 	// Receive Handler
-	RxHandler(data []byte, src IPAddr, dst IPAddr, ipIface *IPIface)
+	RxHandler(data []byte, src IPAddr, dst IPAddr, ipIface *IPIface) error
 }
 
 // IPProtocolRegister is used to register IpUpperProtocol
