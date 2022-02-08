@@ -70,13 +70,13 @@ func DeviceRegister(dev Device) (err error) {
 
 	// activate the receive handler
 	go dev.RxHandler(done)
-	log.Printf("registerd dev=%s", dev.Name())
+	log.Printf("[I] registerd dev=%s", dev.Name())
 	return
 }
 
 // DeviceInputHandler receives data from the device and passes it to the protocol.
 func DeviceInputHanlder(typ ProtocolType, data []byte, dev Device) {
-	log.Printf("input data dev=%s,typ=%s,data:%v", dev, typ, data)
+	log.Printf("[I] input data dev=%s,typ=%s,data:%v", dev, typ, data)
 
 	for i, proto := range Protocols {
 		if proto.Type() == typ {
@@ -103,16 +103,12 @@ func DeviceOutput(dev Device, data []byte, typ ProtocolType, dst HardwareAddress
 	}
 
 	err = dev.Transmit(data, typ, dst)
-	log.Printf("[I] device output, dev=%s,typ=%s,data=%v", dev.Name(), typ, data)
+	log.Printf("[I] device output, dev=%s,typ=%s", dev.Name(), typ)
 	return
 }
 
 // CloseDevices closes all the devices
 func CloseDevices() (err error) {
-
-	// stop RxHandler beforehand
-	close(done)
-
 	for _, dev := range Devices {
 
 		if !isUp(dev) {
@@ -124,7 +120,7 @@ func CloseDevices() (err error) {
 		if err != nil {
 			return
 		}
-		log.Printf("close device dev=%s", dev.Name())
+		log.Printf("[I] close device dev=%s", dev.Name())
 	}
 	return
 }

@@ -62,8 +62,6 @@ func ProtocolRegister(proto Protocol) (err error) {
 	Protocols = append(Protocols, proto)
 	ProtocolBuffers = append(ProtocolBuffers, ch)
 
-	// activate the receive handler
-	go proto.RxHandler(ch, done)
-	log.Printf("registerd dev=%s", proto.Name())
+	log.Printf("[I] registerd proto=%s", proto.Name())
 	return
 }

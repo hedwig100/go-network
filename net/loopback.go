@@ -56,7 +56,7 @@ func (l *Loopback) Transmit(data []byte, typ ProtocolType, dst HardwareAddress) 
 	// send back
 	DeviceInputHanlder(typ, data, l)
 
-	log.Printf("data(%v) is trasmitted by loopback-device(name=%s)", data, l.name)
+	log.Printf("[I] data(%v) is trasmitted by loopback-device(name=%s)", data, l.name)
 	return nil
 }
 

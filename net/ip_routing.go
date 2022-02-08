@@ -47,6 +47,8 @@ func LookupTable(dst IPAddr) (IPRoute, error) {
 
 	// search routing table
 	for _, route := range routes {
+
+		// check if dst is the subnet of the route
 		if uint32(dst)&uint32(route.netmask) == uint32(route.netmask) {
 
 			// longest match

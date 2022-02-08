@@ -7,6 +7,11 @@ import (
 	"log"
 )
 
+func ICMPInit() error {
+	err := IPProtocolRegister(&ICMPProtocol{})
+	return err
+}
+
 /*
 	ICMP message type
 */
@@ -110,19 +115,19 @@ func (h ICMPHeader) String() string {
 	switch h.typ {
 	case ICMPTypeEchoReply, ICMPTypeEcho:
 		return fmt.Sprintf(`
-			typ: %s, 
-			code: %d,
-			checksum: %d,
-			id: %d,
-			seq: %d,
-		`, h.typ, h.code, h.checksum, h.values>>16, h.values&0xff)
+		typ: %s, 
+		code: %d,
+		checksum: %d,
+		id: %d,
+		seq: %d,
+	`, h.typ, h.code, h.checksum, h.values>>16, h.values&0xff)
 	default:
 		return fmt.Sprintf(`
-			typ: %s,
-			code: %d,
-			checksum: %d,
-			values: %x,
-		`, h.typ, h.code, h.checksum, h.values)
+		typ: %s,
+		code: %d,
+		checksum: %d,
+		values: %x,
+	`, h.typ, h.code, h.checksum, h.values)
 	}
 }
 

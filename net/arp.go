@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
+	"time"
 )
 
 const (
@@ -110,6 +111,13 @@ func data2headerARP(data []byte) (ArpEther, []byte, error) {
 	return hdr, data[ArpIPEtherSize:], nil
 }
 
+func header2data(hdr ArpEther) ([]byte, error) {
+	// write data in bigDndian
+	w := bytes.NewBuffer(make([]byte, ArpIPEtherSize))
+	err := binary.Write(w, binary.BigEndian, hdr)
+	return w.Bytes(), err
+}
+
 /*
 	Arp Protocol
 */
@@ -177,7 +185,7 @@ func (p *ArpProtocol) RxHandler(ch chan ProtocolBuffer, done chan struct{}) {
 		log.Printf("[D] dev=%s,arpheader=%s", pb.Dev.Name(), hdr)
 
 		if hdr.op == ArpOpRequest {
-			ArpReply(ipIface, hdr.sha, hdr.spa, hdr.tha) // reply arp message
+			ArpReply(ipIface, hdr.sha, hdr.spa, hdr.sha) // reply arp message
 		}
 	}
 }
@@ -205,13 +213,10 @@ func ArpReply(ipIface *IPIface, tha EthernetAddress, tpa IPAddr, dst EthernetAdd
 		tpa: tpa,
 	}
 
-	// write data in bigDndian
-	w := bytes.NewBuffer(make([]byte, ArpIPEtherSize))
-	err := binary.Write(w, binary.BigEndian, rep)
+	data, err := header2data(rep)
 	if err != nil {
 		return err
 	}
-	data := w.Bytes()
 
 	log.Printf("[D] ARP reply, dev=%s,arp header=%s", dev.Name(), rep)
 	return DeviceOutput(dev, data, ProtocolTypeArp, dst)
@@ -220,33 +225,48 @@ func ArpReply(ipIface *IPIface, tha EthernetAddress, tpa IPAddr, dst EthernetAdd
 // ArpResolve receives protocol address and returns hardware address
 func ArpResolve(iface Interface, pa IPAddr) (HardwareAddress, error) {
 
-	// only supports IPv4 protocol
+	// only supports IPv4 and Ethernet protocol
 	ipIface, ok := iface.(*IPIface)
 	if !ok {
 		return nil, fmt.Errorf("unsupported protocol address type")
+	}
+	if ipIface.dev.Type() != NetDeviceTypeEthernet {
+		return nil, fmt.Errorf("unsupported hardware address type")
 	}
 
 	// search cache table
 	mutex.Lock()
 	index, err := arpCacheSelect(pa)
+
+	// cache not found
 	if err != nil {
+
+		index = arpCacheAlloc()
+		caches[index] = arpCacheEntry{
+			state:   ArpCacheStateImcomplete,
+			pa:      pa,
+			timeval: time.Now(),
+		}
 
 		// if cache is not in the table, transmit arp request
 		ArpRequest(ipIface, pa)
-
 		mutex.Unlock()
+
+		log.Printf("[D] could not be found,pa = %s", pa)
 		return nil, err
 	}
+
+	// cache found but imcomplete request
 	if caches[index].state == ArpCacheStateImcomplete {
 
 		// if found cache is imcomplete,it might be a packet loss,so transmit arp request
 		ArpRequest(ipIface, pa)
-
 		mutex.Unlock()
+
 		return nil, err
 	}
 
-	// get hardware address
+	// cache found and get hardware address
 	ha := caches[index].ha
 	mutex.Unlock()
 	return ha, nil
@@ -275,13 +295,10 @@ func ArpRequest(ipIface *IPIface, tpa IPAddr) error {
 		tpa: tpa,
 	}
 
-	// write data in bigEndian
-	w := bytes.NewBuffer(make([]byte, ArpIPEtherSize))
-	err := binary.Write(w, binary.BigEndian, rep)
+	data, err := header2data(rep)
 	if err != nil {
 		return err
 	}
-	data := w.Bytes()
 
 	log.Printf("[D] ARP request, dev=%s,arp header=%s", dev.Name(), rep)
 	return DeviceOutput(dev, data, ProtocolTypeArp, EtherAddrBroadcast)

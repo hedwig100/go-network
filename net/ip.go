@@ -18,8 +18,9 @@ const (
 	IPAddrBroadcast IPAddr = 0xffffffff
 )
 
-func IPInit(name string) (err error) {
-	return
+func IPInit() error {
+	err := ProtocolRegister(&IPProtocol{name: "ip0"})
+	return err
 }
 
 /*
@@ -82,7 +83,7 @@ func (h *IPHeader) String() string {
 		checksum: %x,
 		src: %s,
 		dst: %s,
-	`, h.vhl>>4, h.vhl&0xf, h.tos, h.id, h.flags, h.ttl, h.protocolType, h.checksum, h.src, h.dst)
+	`, h.vhl>>4, h.vhl&0xf<<2, h.tos, h.id, h.flags, h.ttl, h.protocolType, h.checksum, h.src, h.dst)
 }
 
 // data2IPHeader transforms byte strings to IP Header and the rest of the data

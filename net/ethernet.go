@@ -89,6 +89,14 @@ type EthernetHdr struct {
 	Type ProtocolType
 }
 
+func (h EthernetHdr) String() string {
+	return fmt.Sprintf(`
+		src: %s,
+		dst: %s.
+		type: %x
+	`, h.Src, h.Dst, h.Type)
+}
+
 func data2headerEther(data []byte) (EthernetHdr, []byte, error) {
 
 	// read header in bigEndian
@@ -197,7 +205,7 @@ func (e *EthernetDevice) Transmit(data []byte, typ ProtocolType, dst HardwareAdd
 		return err
 	}
 
-	log.Printf("data(%v) is trasmitted by ethernet-device(name=%s)", data, e.name)
+	log.Printf("[D] data is trasmitted by ethernet-device(name=%s),header=%s", e.name, hdr)
 	return nil
 }
 
@@ -246,7 +254,7 @@ func (e *EthernetDevice) RxHandler(done chan struct{}) {
 			}
 
 			// pass the header and subsequent parts as data to the protocol
-			log.Printf("[D] dev=%s,protocolType=%s,len=%d", e.name, hdr.Type, len)
+			log.Printf("[D] dev=%s,protocolType=%s,len=%d,header=%s", e.name, hdr.Type, len, hdr)
 			DeviceInputHanlder(hdr.Type, data, e)
 		}
 

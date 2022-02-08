@@ -51,7 +51,7 @@ func arpCacheAlloc() int {
 		}
 
 		// update if cache's timeval is older than oldest's timeval
-		if oldestIndex < 0 || oldest.timeval.Before(cache.timeval) {
+		if oldestIndex < 0 || oldest.timeval.After(cache.timeval) {
 			oldestIndex = i
 			oldest = cache
 		}

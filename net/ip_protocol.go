@@ -1,6 +1,9 @@
 package net
 
-import "fmt"
+import (
+	"fmt"
+	"log"
+)
 
 const (
 	IPProtocolICMP IPProtocolType = 1
@@ -50,5 +53,6 @@ func IPProtocolRegister(iproto IPUpperProtocol) error {
 	}
 
 	IPProtocols = append(IPProtocols, iproto)
+	log.Printf("[I] proto=%s is registerd", iproto.Type())
 	return nil
 }
