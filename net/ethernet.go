@@ -1,4 +1,4 @@
-package devices
+package net
 
 import (
 	"bytes"
@@ -7,8 +7,6 @@ import (
 	"io"
 	"log"
 	"time"
-
-	"github.com/hedwig100/go-network/net"
 )
 
 const (
@@ -45,14 +43,14 @@ func EtherInit(name string) (e *EthernetDevice, err error) {
 
 	e = &EthernetDevice{
 		name:  name,
-		flags: net.NetDeviceFlagBroadcast | net.NetDeviceFlagNeedARP | net.NetDeviceFlagUp,
+		flags: NetDeviceFlagBroadcast | NetDeviceFlagNeedARP | NetDeviceFlagUp,
 		EthernetAddress: EthernetAddress{
 			addr: addr,
 		},
 		file: file,
 	}
 
-	err = net.DeviceRegister(e)
+	err = DeviceRegister(e)
 	return
 }
 
@@ -88,10 +86,10 @@ type EthernetHdr struct {
 	Dst EthernetAddress
 
 	// protocol type
-	Type net.ProtocolType
+	Type ProtocolType
 }
 
-func data2header(data []byte) (EthernetHdr, []byte, error) {
+func data2headerEther(data []byte) (EthernetHdr, []byte, error) {
 
 	// read header in bigEndian
 	var hdr EthernetHdr
@@ -102,7 +100,7 @@ func data2header(data []byte) (EthernetHdr, []byte, error) {
 	return hdr, data[EtherHdrSize:], err
 }
 
-func header2data(hdr EthernetHdr, data []byte) ([]byte, error) {
+func header2dataEther(hdr EthernetHdr, data []byte) ([]byte, error) {
 
 	// write header in bigEndian
 	w := bytes.NewBuffer(make([]byte, EtherHdrSize))
@@ -132,7 +130,7 @@ type EthernetDevice struct {
 	flags uint16
 
 	// interfaces tied to the device
-	interfaces []net.Interface
+	interfaces []Interface
 
 	// ethernet address
 	EthernetAddress
@@ -145,8 +143,8 @@ func (e *EthernetDevice) Name() string {
 	return e.name
 }
 
-func (e *EthernetDevice) Type() net.DeviceType {
-	return net.NetDeviceTypeEthernet
+func (e *EthernetDevice) Type() DeviceType {
+	return NetDeviceTypeEthernet
 }
 
 func (e *EthernetDevice) MTU() uint16 {
@@ -157,15 +155,15 @@ func (e *EthernetDevice) Flags() uint16 {
 	return e.flags
 }
 
-func (e *EthernetDevice) Address() net.HardwareAddress {
+func (e *EthernetDevice) Address() HardwareAddress {
 	return e.EthernetAddress
 }
 
-func (e *EthernetDevice) AddIface(iface net.Interface) {
+func (e *EthernetDevice) AddIface(iface Interface) {
 	e.interfaces = append(e.interfaces, iface)
 }
 
-func (e *EthernetDevice) Interfaces() []net.Interface {
+func (e *EthernetDevice) Interfaces() []Interface {
 	return e.interfaces
 }
 
@@ -174,7 +172,7 @@ func (e *EthernetDevice) Close() error {
 	return err
 }
 
-func (e *EthernetDevice) Transmit(data []byte, typ net.ProtocolType, dst net.HardwareAddress) error {
+func (e *EthernetDevice) Transmit(data []byte, typ ProtocolType, dst HardwareAddress) error {
 
 	// dst must be Ethernet address
 	etherDst, ok := dst.(EthernetAddress)
@@ -188,7 +186,7 @@ func (e *EthernetDevice) Transmit(data []byte, typ net.ProtocolType, dst net.Har
 		Dst:  etherDst,
 		Type: typ,
 	}
-	data, err := header2data(hdr, data)
+	data, err := header2dataEther(hdr, data)
 	if err != nil {
 		return err
 	}
@@ -236,7 +234,7 @@ func (e *EthernetDevice) RxHandler(done chan struct{}) {
 		} else {
 
 			// read data
-			hdr, data, err := data2header(buf)
+			hdr, data, err := data2headerEther(buf)
 			if err != nil {
 				log.Printf("[E] dev=%s,%s", e.name, err.Error())
 				continue
@@ -249,7 +247,7 @@ func (e *EthernetDevice) RxHandler(done chan struct{}) {
 
 			// pass the header and subsequent parts as data to the protocol
 			log.Printf("[D] dev=%s,protocolType=%s,len=%d", e.name, hdr.Type, len)
-			net.DeviceInputHanlder(hdr.Type, data, e)
+			DeviceInputHanlder(hdr.Type, data, e)
 		}
 
 	}

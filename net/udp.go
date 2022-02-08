@@ -1,4 +1,4 @@
-package udp
+package net
 
 type UdpProtocol struct {
 }

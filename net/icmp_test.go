@@ -1,11 +1,9 @@
-package ip_test
+package net_test
 
 import (
 	"testing"
 	"time"
 
-	"github.com/hedwig100/go-network/devices"
-	"github.com/hedwig100/go-network/ip"
 	"github.com/hedwig100/go-network/net"
 )
 
@@ -34,38 +32,38 @@ var testdata = []byte{
 	0x26, 0x2a, 0x28, 0x29,
 }
 
-func TestIP(t *testing.T) {
+func TestICMP(t *testing.T) {
 	var err error
 
 	// devices
-	_, err = devices.NullInit("null0")
+	_, err = net.NullInit("null0")
 	if err != nil {
 		t.Error(err)
 	}
-	loop, err := devices.LoopbackInit("loop0")
+	loop, err := net.LoopbackInit("loop0")
 	if err != nil {
 		t.Error(err)
 	}
-	ether, err := devices.EtherInit("tap0")
+	ether, err := net.EtherInit("tap0")
 	if err != nil {
 		t.Error(err)
 	}
 
 	// iface
-	iface0, err := ip.NewIPIface(loopbackIPAddr, loopbackNetmask)
+	iface0, err := net.NewIPIface(loopbackIPAddr, loopbackNetmask)
 	if err != nil {
 		t.Error(err)
 	}
-	ip.IPIfaceRegister(loop, iface0)
+	net.IPIfaceRegister(loop, iface0)
 
-	iface1, err := ip.NewIPIface(etherTapIPAddr, etherTapNetmask)
+	iface1, err := net.NewIPIface(etherTapIPAddr, etherTapNetmask)
 	if err != nil {
 		t.Error(err)
 	}
-	ip.IPIfaceRegister(ether, iface1)
+	net.IPIfaceRegister(ether, iface1)
 
 	// default gateway
-	err = ip.SetDefaultGateway(iface0, defaultGateway)
+	err = net.SetDefaultGateway(iface1, defaultGateway)
 	if err != nil {
 		return
 	}
@@ -75,9 +73,15 @@ func TestIP(t *testing.T) {
 		t.Error(err)
 	}
 
+	src := iface1.Unicast
+	dst := net.IPAddrBroadcast
+	id := uint32(109)
+	seq := uint32(0)
+
 	for i := 0; i < 5; i++ {
 		time.Sleep(time.Millisecond)
-		err = net.DeviceOutput(ether, testdata, net.ProtocolTypeIP, devices.EtherAddrAny)
+		err = net.TxHandlerICMP(net.ICMPTypeEcho, 0, (id<<16 | seq), testdata, src, dst)
+		seq++
 		if err != nil {
 			t.Error(err)
 		}

@@ -1,4 +1,4 @@
-package arp
+package net
 
 import "time"
 

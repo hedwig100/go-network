@@ -1,11 +1,9 @@
-package devices
+package net
 
 import (
 	"log"
 	"math"
 	"time"
-
-	"github.com/hedwig100/go-network/net"
 )
 
 type Loopback struct {
@@ -16,9 +14,9 @@ type Loopback struct {
 func LoopbackInit(name string) (l *Loopback, err error) {
 	l = &Loopback{
 		name:  name,
-		flags: net.NetDeviceFlagUp | net.NetDeviceFlagLoopback,
+		flags: NetDeviceFlagUp | NetDeviceFlagLoopback,
 	}
-	err = net.DeviceRegister(l)
+	err = DeviceRegister(l)
 	return
 }
 
@@ -26,8 +24,8 @@ func (l *Loopback) Name() string {
 	return l.name
 }
 
-func (l *Loopback) Type() net.DeviceType {
-	return net.NetDeviceTypeLoopback
+func (l *Loopback) Type() DeviceType {
+	return NetDeviceTypeLoopback
 }
 
 func (l *Loopback) MTU() uint16 {
@@ -38,14 +36,14 @@ func (l *Loopback) Flags() uint16 {
 	return l.flags
 }
 
-func (l *Loopback) Address() net.HardwareAddress {
+func (l *Loopback) Address() HardwareAddress {
 	return nil
 }
 
-func (l *Loopback) AddIface(iface net.Interface) {
+func (l *Loopback) AddIface(iface Interface) {
 }
 
-func (l *Loopback) Interfaces() []net.Interface {
+func (l *Loopback) Interfaces() []Interface {
 	return nil
 }
 
@@ -53,10 +51,10 @@ func (l *Loopback) Close() error {
 	return nil
 }
 
-func (l *Loopback) Transmit(data []byte, typ net.ProtocolType, dst net.HardwareAddress) error {
+func (l *Loopback) Transmit(data []byte, typ ProtocolType, dst HardwareAddress) error {
 
 	// send back
-	net.DeviceInputHanlder(typ, data, l)
+	DeviceInputHanlder(typ, data, l)
 
 	log.Printf("data(%v) is trasmitted by loopback-device(name=%s)", data, l.name)
 	return nil

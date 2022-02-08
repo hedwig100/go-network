@@ -1,11 +1,9 @@
-package devices
+package net
 
 import (
 	"log"
 	"math"
 	"time"
-
-	"github.com/hedwig100/go-network/net"
 )
 
 type Null struct {
@@ -16,9 +14,9 @@ type Null struct {
 func NullInit(name string) (n *Null, err error) {
 	n = &Null{
 		name:  name,
-		flags: net.NetDeviceFlagUp,
+		flags: NetDeviceFlagUp,
 	}
-	err = net.DeviceRegister(n)
+	err = DeviceRegister(n)
 	return
 }
 
@@ -26,8 +24,8 @@ func (n *Null) Name() string {
 	return n.name
 }
 
-func (n *Null) Type() net.DeviceType {
-	return net.NetDeviceTypeNull
+func (n *Null) Type() DeviceType {
+	return NetDeviceTypeNull
 }
 
 func (n *Null) MTU() uint16 {
@@ -38,14 +36,14 @@ func (n *Null) Flags() uint16 {
 	return n.flags
 }
 
-func (n *Null) Address() net.HardwareAddress {
+func (n *Null) Address() HardwareAddress {
 	return nil
 }
 
-func (n *Null) AddIface(iface net.Interface) {
+func (n *Null) AddIface(iface Interface) {
 }
 
-func (n *Null) Interfaces() []net.Interface {
+func (n *Null) Interfaces() []Interface {
 	return nil
 }
 
@@ -53,7 +51,7 @@ func (n *Null) Close() error {
 	return nil
 }
 
-func (n *Null) Transmit(data []byte, typ net.ProtocolType, dst net.HardwareAddress) error {
+func (n *Null) Transmit(data []byte, typ ProtocolType, dst HardwareAddress) error {
 	log.Printf("data(%v) is trasmitted by null-device(name=%s)", data, n.name)
 	return nil
 }

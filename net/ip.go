@@ -1,13 +1,10 @@
-package ip
+package net
 
 import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
 	"log"
-
-	"github.com/hedwig100/go-network/net"
-	"github.com/hedwig100/go-network/utils"
 )
 
 const (
@@ -89,7 +86,7 @@ func (h *IPHeader) String() string {
 }
 
 // data2IPHeader transforms byte strings to IP Header and the rest of the data
-func data2header(data []byte) (IPHeader, []byte, error) {
+func data2headerIP(data []byte) (IPHeader, []byte, error) {
 
 	if len(data) < IPHeaderSizeMin {
 		return IPHeader{}, nil, fmt.Errorf("data size is too small")
@@ -116,7 +113,7 @@ func data2header(data []byte) (IPHeader, []byte, error) {
 		return IPHeader{}, nil, fmt.Errorf("data length is smaller than Total Length")
 	}
 
-	if utils.CheckSum(data[:hlen]) != 0 {
+	if CheckSum(data[:hlen]) != 0 {
 		return IPHeader{}, nil, fmt.Errorf("checksum is not valid")
 	}
 
@@ -124,7 +121,7 @@ func data2header(data []byte) (IPHeader, []byte, error) {
 	return ipHdr, data[hlen:], nil
 }
 
-func header2data(hdr IPHeader, data []byte) ([]byte, error) {
+func header2dataIP(hdr IPHeader, data []byte) ([]byte, error) {
 
 	// write header in bigEndian
 	w := bytes.NewBuffer(make([]byte, IPHeaderSizeMin))
@@ -137,9 +134,17 @@ func header2data(hdr IPHeader, data []byte) ([]byte, error) {
 	copy(buf[IPHeaderSizeMin:], data)
 
 	// caluculate checksum
-	chksum := utils.CheckSum(buf[:IPHeaderSizeMin])
-	copy(buf[10:12], utils.Hton16(chksum))
+	chksum := CheckSum(buf[:IPHeaderSizeMin])
+	copy(buf[10:12], Hton16(chksum))
 	return buf, nil
+}
+
+var id uint16 = 0
+
+// generateId() generates id for IP header
+func generateId() uint16 {
+	id++
+	return id
 }
 
 /*
@@ -153,11 +158,11 @@ func (p *IPProtocol) Name() string {
 	return p.name
 }
 
-func (p *IPProtocol) Type() net.ProtocolType {
-	return net.ProtocolTypeIP
+func (p *IPProtocol) Type() ProtocolType {
+	return ProtocolTypeIP
 }
 
-func TxHandler(protocol IPProtocolType, data []byte, src IPAddr, dst IPAddr) error {
+func TxHandlerIP(protocol IPProtocolType, data []byte, src IPAddr, dst IPAddr) error {
 
 	// if dst is broadcast address, source is required
 	if src == IPAddrAny && dst == IPAddrBroadcast {
@@ -177,8 +182,9 @@ func TxHandler(protocol IPProtocolType, data []byte, src IPAddr, dst IPAddr) err
 
 	// search the interface whose address matches src
 	var ipIface *IPIface
-	for _, iface := range net.Interfaces {
-		ipIface, ok := iface.(*IPIface)
+	var ok bool
+	for _, iface := range Interfaces {
+		ipIface, ok = iface.(*IPIface)
 		if ok && src == ipIface.Unicast {
 			break
 		}
@@ -209,22 +215,22 @@ func TxHandler(protocol IPProtocolType, data []byte, src IPAddr, dst IPAddr) err
 		src:          src,
 		dst:          dst,
 	}
-	data, err = header2data(hdr, data)
+	data, err = header2dataIP(hdr, data)
 	if err != nil {
 		return err
 	}
 
-	// TODO:ARP
-	// use route.nexthop here (in the future)
 	// transmit data from device
-	var hwadddr net.HardwareAddress
-	err = ipIface.dev.Transmit(data, net.ProtocolTypeIP, hwadddr)
-
+	hwaddr, err := ArpResolve(ipIface, dst)
+	if err != nil {
+		return err
+	}
+	err = ipIface.dev.Transmit(data, ProtocolTypeIP, hwaddr)
 	return err
 }
 
-func (p *IPProtocol) RxHandler(ch chan net.ProtocolBuffer, done chan struct{}) {
-	var pb net.ProtocolBuffer
+func (p *IPProtocol) RxHandler(ch chan ProtocolBuffer, done chan struct{}) {
+	var pb ProtocolBuffer
 
 	for {
 
@@ -239,7 +245,7 @@ func (p *IPProtocol) RxHandler(ch chan net.ProtocolBuffer, done chan struct{}) {
 		pb = <-ch
 
 		// extract the header from the beginning of the data
-		ipHdr, data, err := data2header(pb.Data)
+		ipHdr, data, err := data2headerIP(pb.Data)
 		if err != nil {
 			log.Printf("[E] IP RxHandler %s", err.Error())
 			continue
@@ -284,7 +290,7 @@ func (p *IPProtocol) RxHandler(ch chan net.ProtocolBuffer, done chan struct{}) {
 type IPIface struct {
 
 	// device of the interface
-	dev net.Device
+	dev Device
 
 	// unicast address ex) 192.0.0.1
 	Unicast IPAddr
@@ -317,21 +323,21 @@ func NewIPIface(unicastStr string, netmaskStr string) (iface *IPIface, err error
 	return
 }
 
-func (i *IPIface) Dev() net.Device {
+func (i *IPIface) Dev() Device {
 	return i.dev
 }
 
-func (i *IPIface) SetDev(dev net.Device) {
+func (i *IPIface) SetDev(dev Device) {
 	i.dev = dev
 }
 
 func (i *IPIface) Family() int {
-	return net.NetIfaceFamilyIP
+	return NetIfaceFamilyIP
 }
 
 // IPIfaceRegister registers ipIface to dev
-func IPIfaceRegister(dev net.Device, ipIface *IPIface) {
-	net.IfaceRegister(dev, ipIface)
+func IPIfaceRegister(dev Device, ipIface *IPIface) {
+	IfaceRegister(dev, ipIface)
 
 	// register subnet's routing information to routing table
 	// this information is used when data is sent to the subnet's host
@@ -340,7 +346,7 @@ func IPIfaceRegister(dev net.Device, ipIface *IPIface) {
 
 // SearchIpIface searches an interface which has the IP address
 func SearchIPIface(addr IPAddr) (*IPIface, error) {
-	for _, iface := range net.Interfaces {
+	for _, iface := range Interfaces {
 		iface, ok := iface.(*IPIface)
 		if ok && iface.Unicast == addr {
 			return iface, nil

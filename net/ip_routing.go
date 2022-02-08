@@ -1,10 +1,8 @@
-package ip
+package net
 
 import (
 	"fmt"
 	"log"
-
-	"github.com/hedwig100/go-network/utils"
 )
 
 var routes []IPRoute
@@ -52,7 +50,7 @@ func LookupTable(dst IPAddr) (IPRoute, error) {
 		if uint32(dst)&uint32(route.netmask) == uint32(route.netmask) {
 
 			// longest match
-			if candidate == nil || utils.NtoH32(uint32(candidate.netmask)) < utils.NtoH32(uint32(route.netmask)) {
+			if candidate == nil || NtoH32(uint32(candidate.netmask)) < NtoH32(uint32(route.netmask)) {
 				candidate = &route
 			}
 		}

@@ -1,4 +1,4 @@
-package tcp
+package net
 
 type TcpProtocol struct {
 }
