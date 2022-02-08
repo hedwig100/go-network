@@ -129,30 +129,32 @@ func (h ICMPHeader) String() string {
 	}
 }
 
-func data2Header(b []byte) (ICMPHeader, []byte, error) {
+func data2Header(data []byte) (ICMPHeader, []byte, error) {
+
+	// read header in bigEndian
 	var hdr ICMPHeader
-	r := bytes.NewReader(b)
+	r := bytes.NewReader(data)
 	err := binary.Read(r, binary.BigEndian, &hdr)
-	return hdr, b[ICMPHeaderSize:], err
+
+	// return header and payload and error
+	return hdr, data[ICMPHeaderSize:], err
 }
 
 func header2data(hdr ICMPHeader, data []byte) ([]byte, error) {
 
+	// write header in bigEndian
 	w := bytes.NewBuffer(make([]byte, ICMPHeaderSize))
 	err := binary.Write(w, binary.BigEndian, hdr)
 	if err != nil {
 		return nil, err
 	}
-
 	buf := make([]byte, ICMPHeaderSize+len(data))
 	copy(buf[:ICMPHeaderSize], w.Bytes())
 	copy(buf[ICMPHeaderSize:], data)
 
 	// calculate checksum
 	chksum := utils.CheckSum(buf[:ICMPHeaderSize])
-	buf[2] = uint8(chksum >> 8)
-	buf[3] = uint8(chksum)
-
+	copy(buf[2:4], utils.Hton16(chksum))
 	return buf, nil
 }
 

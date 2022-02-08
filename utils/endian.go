@@ -9,6 +9,10 @@ func Hton16(v uint16) []byte {
 	return b
 }
 
+func Ntoh16(b []byte) uint16 {
+	return uint16(b[1])<<8 | uint16(b[0])
+}
+
 func NtoH32(v uint32) uint32 {
 	return (v&0xff)<<24 | (v&0xff00)<<8 | (v&0xff0000)>>8 | (v >> 24)
 }

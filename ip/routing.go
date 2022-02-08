@@ -33,7 +33,7 @@ func IPRouteAdd(network IPAddr, netmask IPAddr, nexthop IPAddr, ipIface *IPIface
 func SetDefaultGateway(ipIface *IPIface, gw string) error {
 
 	// convert to uint32
-	gwaddr, err := str2IPAddr(gw)
+	gwaddr, err := Str2IPAddr(gw)
 	if err != nil {
 		return err
 	}

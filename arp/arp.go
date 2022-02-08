@@ -15,8 +15,8 @@ const (
 	ArpHrdEther uint16 = 0x0001
 	ArpProIP    uint16 = 0x0800
 
-	ArpHeaderSizeMin  uint8 = 8
-	ArpIPEtherSizeMin uint8 = ArpHeaderSizeMin + 2*devices.EtherAddrLen + 2*ip.IPAddrLen
+	ArpHeaderSizeMin uint8 = 8
+	ArpIPEtherSize   uint8 = ArpHeaderSizeMin + 2*devices.EtherAddrLen + 2*ip.IPAddrLen
 
 	ArpOpRequest uint16 = 1
 	ArpOpReply   uint16 = 2
@@ -88,17 +88,20 @@ func (ae ArpEther) String() string {
 }
 
 // data2ArpHeader receives data and returns ARP header,the rest of data,error
-func data2ArpHeader(data []byte) (ArpEther, []byte, error) {
+func data2header(data []byte) (ArpEther, []byte, error) {
 
 	// only supports IPv4 and Ethernet address resolution
-	if len(data) < int(ArpIPEtherSizeMin) {
+	if len(data) < int(ArpIPEtherSize) {
 		return ArpEther{}, nil, fmt.Errorf("data size is too small for arp header")
 	}
 
-	// read header
+	// read header in bigEndian
 	var hdr ArpEther
 	r := bytes.NewReader(data)
-	binary.Read(r, binary.BigEndian, &hdr)
+	err := binary.Read(r, binary.BigEndian, &hdr)
+	if err != nil {
+		return ArpEther{}, nil, err
+	}
 
 	// only receive IPv4 and Ethernet
 	if hdr.hrd != ArpHrdEther || hdr.hln != devices.EtherAddrLen {
@@ -108,7 +111,7 @@ func data2ArpHeader(data []byte) (ArpEther, []byte, error) {
 		return ArpEther{}, nil, fmt.Errorf("arp only supports IP address")
 	}
 
-	return hdr, data[ArpIPEtherSizeMin:], nil
+	return hdr, data[ArpIPEtherSize:], nil
 }
 
 /*
@@ -144,7 +147,7 @@ func (p *ArpProtocol) RxHandler(ch chan net.ProtocolBuffer, done chan struct{}) 
 
 		// receive data from device and transform it to header
 		pb = <-ch
-		hdr, _, err := data2ArpHeader(pb.Data)
+		hdr, _, err := data2header(pb.Data)
 		if err != nil {
 			log.Printf("[E] %s", err.Error())
 		}
@@ -206,14 +209,13 @@ func ArpReply(ipIface *ip.IPIface, tha devices.EthernetAddress, tpa ip.IPAddr, d
 		tpa: tpa,
 	}
 
-	// write data with bigendian
-	w := bytes.NewBuffer(make([]byte, ArpIPEtherSizeMin))
-	binary.Write(w, binary.BigEndian, rep)
-	data := make([]byte, ArpIPEtherSizeMin)
-	_, err := w.Write(data)
+	// write data in bigDndian
+	w := bytes.NewBuffer(make([]byte, ArpIPEtherSize))
+	err := binary.Write(w, binary.BigEndian, rep)
 	if err != nil {
 		return err
 	}
+	data := w.Bytes()
 
 	log.Printf("[D] ARP reply, dev=%s,arp header=%s", dev.Name(), rep)
 	return net.DeviceOutput(dev, data, net.ProtocolTypeArp, dst)
@@ -277,14 +279,13 @@ func ArpRequest(ipIface *ip.IPIface, tpa ip.IPAddr) error {
 		tpa: tpa,
 	}
 
-	// write data with bigendian
-	w := bytes.NewBuffer(make([]byte, ArpIPEtherSizeMin))
-	binary.Write(w, binary.BigEndian, rep)
-	data := make([]byte, ArpIPEtherSizeMin)
-	_, err := w.Write(data)
+	// write data in bigEndian
+	w := bytes.NewBuffer(make([]byte, ArpIPEtherSize))
+	err := binary.Write(w, binary.BigEndian, rep)
 	if err != nil {
 		return err
 	}
+	data := w.Bytes()
 
 	log.Printf("[D] ARP request, dev=%s,arp header=%s", dev.Name(), rep)
 	return net.DeviceOutput(dev, data, net.ProtocolTypeArp, devices.EtherAddrBroadcast)

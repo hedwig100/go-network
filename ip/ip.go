@@ -5,8 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
-	"strconv"
-	"strings"
 
 	"github.com/hedwig100/go-network/net"
 	"github.com/hedwig100/go-network/utils"
@@ -91,77 +89,56 @@ func (h *IPHeader) String() string {
 }
 
 // data2IPHeader transforms byte strings to IP Header and the rest of the data
-func data2IPHeader(b []byte) (ipHdr IPHeader, data []byte, err error) {
+func data2header(data []byte) (IPHeader, []byte, error) {
 
-	if len(b) < IPHeaderSizeMin {
-		err = fmt.Errorf("data size is too small")
-		return
+	if len(data) < IPHeaderSizeMin {
+		return IPHeader{}, nil, fmt.Errorf("data size is too small")
 	}
 
-	r := bytes.NewReader(b)
-	binary.Read(r, binary.BigEndian, &ipHdr)
+	// read header in bigEndian
+	var ipHdr IPHeader
+	r := bytes.NewReader(data)
+	err := binary.Read(r, binary.BigEndian, &ipHdr)
+	if err != nil {
+		return IPHeader{}, nil, err
+	}
+
 	if (ipHdr.vhl >> 4) != IPVersionIPv4 {
-		err = fmt.Errorf("version is not valid")
-		return
+		return IPHeader{}, nil, err
 	}
 
-	hlen := ipHdr.vhl & 0x0f
-	if uint8(len(b)) < hlen {
-		err = fmt.Errorf("data length is smaller than IHL")
-		return
+	hlen := ipHdr.vhl & 0xf
+	if uint8(len(data)) < hlen {
+		return IPHeader{}, nil, fmt.Errorf("data length is smaller than IHL")
 	}
 
-	if uint16(len(b)) < ipHdr.tol {
-		err = fmt.Errorf("data length is smaller than Total Length")
-		return
+	if uint16(len(data)) < ipHdr.tol {
+		return IPHeader{}, nil, fmt.Errorf("data length is smaller than Total Length")
 	}
 
-	if utils.CheckSum(b[:hlen]) != 0 {
-		err = fmt.Errorf("checksum is not valid")
-		return
+	if utils.CheckSum(data[:hlen]) != 0 {
+		return IPHeader{}, nil, fmt.Errorf("checksum is not valid")
 	}
 
 	log.Printf("[D] ip header is received")
-	data = b[hlen:]
-	return
+	return ipHdr, data[hlen:], nil
 }
 
-var id uint16 = 0
+func header2data(hdr IPHeader, data []byte) ([]byte, error) {
 
-// generateId() generates id for IP header
-func generateId() uint16 {
-	id++
-	return id
-}
-
-// IPHead2byte encodes IP header data to a strings of bytes
-func IPHeader2byte(protocol IPProtocolType, src IPAddr, dst IPAddr, data []byte, flags uint16) ([]byte, error) {
-
-	// ip header
-	hdr := IPHeader{
-		vhl:          (IPVersionIPv4<<4 | IPHeaderSizeMin>>2),
-		tol:          uint16(IPHeaderSizeMin + len(data)),
-		id:           generateId(),
-		flags:        flags,
-		ttl:          0xff,
-		protocolType: protocol,
-		checksum:     0,
-		src:          src,
-		dst:          dst,
-	}
-
-	// encoding BigEndian
-	rdr := bytes.NewReader(make([]byte, IPHeaderSizeMin))
-	binary.Read(rdr, binary.BigEndian, hdr)
-	buf := make([]byte, IPHeaderSizeMin)
-	_, err := rdr.Read(buf)
+	// write header in bigEndian
+	w := bytes.NewBuffer(make([]byte, IPHeaderSizeMin))
+	err := binary.Write(w, binary.BigEndian, hdr)
 	if err != nil {
 		return nil, err
 	}
+	buf := make([]byte, IPHeaderSizeMin+len(data))
+	copy(buf[:IPHeaderSizeMin], w.Bytes())
+	copy(buf[IPHeaderSizeMin:], data)
 
 	// caluculate checksum
-	chs := utils.CheckSum(buf)
-	copy(buf[10:12], utils.Hton16(chs))
+	chksum := utils.CheckSum(buf[:IPHeaderSizeMin])
+	copy(buf[10:12], utils.Hton16(chksum))
 	return buf, nil
 }
 
@@ -220,12 +197,22 @@ func TxHandler(protocol IPProtocolType, data []byte, src IPAddr, dst IPAddr) err
 		return fmt.Errorf("dst(%v) IP address cannot be reachable(broadcast=%v)", dst, ipIface.broadcast)
 	}
 
-	// get IP header
-	hdr, err := IPHeader2byte(protocol, src, dst, data, 0)
+	// transform IP header to byte strings
+	hdr := IPHeader{
+		vhl:          (IPVersionIPv4<<4 | IPHeaderSizeMin>>2),
+		tol:          uint16(IPHeaderSizeMin + len(data)),
+		id:           generateId(),
+		flags:        0,
+		ttl:          0xff,
+		protocolType: protocol,
+		checksum:     0,
+		src:          src,
+		dst:          dst,
+	}
+	data, err = header2data(hdr, data)
 	if err != nil {
 		return err
 	}
-	data = append(hdr, data...) // more efficient implementation?
 
 	// TODO:ARP
 	// use route.nexthop here (in the future)
@@ -252,7 +239,7 @@ func (p *IPProtocol) RxHandler(ch chan net.ProtocolBuffer, done chan struct{}) {
 		pb = <-ch
 
 		// extract the header from the beginning of the data
-		ipHdr, data, err := data2IPHeader(pb.Data)
+		ipHdr, data, err := data2header(pb.Data)
 		if err != nil {
 			log.Printf("[E] IP RxHandler %s", err.Error())
 			continue
@@ -312,12 +299,12 @@ type IPIface struct {
 // NewIPIface returns IPIface whose address is unicastStr
 func NewIPIface(unicastStr string, netmaskStr string) (iface *IPIface, err error) {
 
-	unicast, err := str2IPAddr(unicastStr)
+	unicast, err := Str2IPAddr(unicastStr)
 	if err != nil {
 		return
 	}
 
-	netmask, err := str2IPAddr(unicastStr)
+	netmask, err := Str2IPAddr(unicastStr)
 	if err != nil {
 		return
 	}
@@ -360,18 +347,4 @@ func SearchIPIface(addr IPAddr) (*IPIface, error) {
 		}
 	}
 	return nil, fmt.Errorf("not found IP interface(addr=%d)", addr)
-}
-
-// ex) "127.0.0.1" -> 01111111 00000000 00000000 00000001
-func str2IPAddr(str string) (uint32, error) {
-	strs := strings.Split(str, ".")
-	var b uint32
-	for i, s := range strs {
-		n, err := strconv.Atoi(s)
-		if err != nil {
-			return 0, err
-		}
-		b |= uint32((n & 0xff) << (24 - 8*i))
-	}
-	return b, nil
 }

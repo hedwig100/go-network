@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/hedwig100/go-network/net"
-	"github.com/hedwig100/go-network/utils"
 )
 
 const (
@@ -61,7 +60,8 @@ func EtherInit(name string) (e *EthernetDevice, err error) {
 	Ethernet Address (MAC address)
 */
 
-// EthernetAddress implments net.HardwareAddress interface
+// EthernetAddress implments net.HardwareAddress interface.
+// EthernetAddress is written in bigEndian.
 type EthernetAddress struct {
 	addr [EtherAddrLen]byte
 }
@@ -89,6 +89,33 @@ type EthernetHdr struct {
 
 	// protocol type
 	Type net.ProtocolType
+}
+
+func data2header(data []byte) (EthernetHdr, []byte, error) {
+
+	// read header in bigEndian
+	var hdr EthernetHdr
+	r := bytes.NewReader(data[:EtherHdrSize])
+	err := binary.Read(r, binary.BigEndian, &hdr)
+
+	// return header and payload and error
+	return hdr, data[EtherHdrSize:], err
+}
+
+func header2data(hdr EthernetHdr, data []byte) ([]byte, error) {
+
+	// write header in bigEndian
+	w := bytes.NewBuffer(make([]byte, EtherHdrSize))
+	err := binary.Write(w, binary.BigEndian, hdr)
+	if err != nil {
+		return nil, err
+	}
+
+	// concatenate header and payload
+	buf := make([]byte, EtherHdrSize+len(data))
+	copy(buf[:EtherHdrSize], w.Bytes())
+	copy(buf[EtherHdrSize:], data)
+	return buf, nil
 }
 
 /*
@@ -155,14 +182,19 @@ func (e *EthernetDevice) Transmit(data []byte, typ net.ProtocolType, dst net.Har
 		return fmt.Errorf("ethernet device only supports ethernet address")
 	}
 
-	// put the status of the Ethernet header and data into the buffer
-	var buf = make([]byte, EtherFrameSizeMax)
-	copy(buf[:EtherAddrLen], etherDst.addr[:])
-	copy(buf[EtherAddrLen:2*EtherAddrLen], e.addr[:])
-	copy(buf[2*EtherAddrLen:EtherHdrSize], utils.Hton16(uint16(typ))) // littleEndian -> bigEndian
-	copy(buf[EtherHdrSize:], data)
+	// put header and data into the data
+	hdr := EthernetHdr{
+		Src:  e.EthernetAddress,
+		Dst:  etherDst,
+		Type: typ,
+	}
+	data, err := header2data(hdr, data)
+	if err != nil {
+		return err
+	}
 
-	_, err := e.file.Write(buf)
+	// write character file
+	_, err = e.file.Write(data)
 	if err != nil {
 		return err
 	}
@@ -173,8 +205,6 @@ func (e *EthernetDevice) Transmit(data []byte, typ net.ProtocolType, dst net.Har
 
 func (e *EthernetDevice) RxHandler(done chan struct{}) {
 	buf := make([]byte, EtherFrameSizeMax)
-	var rdr *bytes.Reader
-	var hdr EthernetHdr
 
 	for {
 
@@ -189,6 +219,7 @@ func (e *EthernetDevice) RxHandler(done chan struct{}) {
 		len, err := e.file.Read(buf)
 		if err != nil {
 			log.Printf("[E] dev=%s,%s", e.name, err.Error())
+			continue
 		}
 
 		if len == 0 {
@@ -200,14 +231,15 @@ func (e *EthernetDevice) RxHandler(done chan struct{}) {
 
 			// ignore the data if length is smaller than Ethernet Header Size
 			log.Printf("[E] frame size is too small")
+			time.Sleep(time.Microsecond)
 
 		} else {
 
-			// read data with bigEndian
-			rdr = bytes.NewReader(buf)
-			err = binary.Read(rdr, binary.BigEndian, &hdr)
+			// read data
+			hdr, data, err := data2header(buf)
 			if err != nil {
 				log.Printf("[E] dev=%s,%s", e.name, err.Error())
+				continue
 			}
 
 			// check if the address is for me
@@ -217,7 +249,7 @@ func (e *EthernetDevice) RxHandler(done chan struct{}) {
 
 			// pass the header and subsequent parts as data to the protocol
 			log.Printf("[D] dev=%s,protocolType=%s,len=%d", e.name, hdr.Type, len)
-			net.DeviceInputHanlder(hdr.Type, buf[14:len], e)
+			net.DeviceInputHanlder(hdr.Type, data, e)
 		}
 
 	}
