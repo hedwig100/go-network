@@ -4,8 +4,6 @@ import (
 	"errors"
 	"os"
 	"syscall"
-
-	"golang.org/x/sys/unix"
 )
 
 const (
@@ -18,19 +16,15 @@ func openTap(name string) (string, *os.File, error) {
 		return "", nil, errors.New("device name is too long")
 	}
 
-	fd, err := unix.Open(cloneDevice, os.O_RDWR, 0600)
+	file, err := os.OpenFile(cloneDevice, os.O_RDWR, 0600)
 	if err != nil {
 		return "", nil, err
 	}
 
-	name, err = TUNSETIFF(uintptr(fd), name)
+	name, err = TUNSETIFF(file.Fd(), name, syscall.IFF_TAP|syscall.IFF_NO_PI)
 	if err != nil {
 		return "", nil, err
 	}
-
-	// https://github.com/golang/go/issues/30426
-	unix.SetNonblock(fd, true)
-	file := os.NewFile(uintptr(fd), cloneDevice)
 
 	flags, err := SIOCGIFFLAGS(name)
 	if err != nil {

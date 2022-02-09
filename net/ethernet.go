@@ -22,8 +22,8 @@ const (
 )
 
 var (
-	EtherAddrAny       = EthernetAddress{addr: [EtherAddrLen]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}}
-	EtherAddrBroadcast = EthernetAddress{addr: [EtherAddrLen]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}}
+	EtherAddrAny       = EthernetAddress{Addr: [EtherAddrLen]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}}
+	EtherAddrBroadcast = EthernetAddress{Addr: [EtherAddrLen]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}}
 )
 
 // EtherInit setup ethernet device
@@ -45,7 +45,7 @@ func EtherInit(name string) (e *EthernetDevice, err error) {
 		name:  name,
 		flags: NetDeviceFlagBroadcast | NetDeviceFlagNeedARP | NetDeviceFlagUp,
 		EthernetAddress: EthernetAddress{
-			addr: addr,
+			Addr: addr,
 		},
 		file: file,
 	}
@@ -61,15 +61,15 @@ func EtherInit(name string) (e *EthernetDevice, err error) {
 // EthernetAddress implments net.HardwareAddress interface.
 // EthernetAddress is written in bigEndian.
 type EthernetAddress struct {
-	addr [EtherAddrLen]byte
+	Addr [EtherAddrLen]byte
 }
 
 func (a EthernetAddress) Address() []byte {
-	return a.addr[:]
+	return a.Addr[:]
 }
 
 func (a EthernetAddress) String() string {
-	return fmt.Sprintf("%x:%x:%x:%x:%x:%x", a.addr[0], a.addr[1], a.addr[2], a.addr[3], a.addr[4], a.addr[5])
+	return fmt.Sprintf("%x:%x:%x:%x:%x:%x", a.Addr[0], a.Addr[1], a.Addr[2], a.Addr[3], a.Addr[4], a.Addr[5])
 }
 
 /*
@@ -250,7 +250,7 @@ func (e *EthernetDevice) RxHandler(done chan struct{}) {
 			}
 
 			// check if the address is for me
-			if hdr.Dst.addr != e.addr && hdr.Dst != EtherAddrBroadcast {
+			if hdr.Dst.Addr != e.Addr && hdr.Dst != EtherAddrBroadcast {
 				continue
 			}
 
