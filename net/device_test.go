@@ -77,7 +77,7 @@ func TestEther(t *testing.T) {
 	}
 
 	for i := 0; i < 5; i++ {
-		time.Sleep(time.Millisecond)
+		time.Sleep(time.Second)
 		err = net.DeviceOutput(dev, []byte{0xff, 0xff, 0x11}, 0x0000, net.EtherAddrBroadcast)
 		if err != nil {
 			t.Error(err)

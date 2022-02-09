@@ -49,7 +49,7 @@ func LookupTable(dst IPAddr) (IPRoute, error) {
 	for _, route := range routes {
 
 		// check if dst is the subnet of the route
-		if uint32(dst)&uint32(route.netmask) == uint32(route.netmask) {
+		if uint32(dst)&uint32(route.netmask) == uint32(route.network) {
 
 			// longest match
 			if candidate == nil || NtoH32(uint32(candidate.netmask)) < NtoH32(uint32(route.netmask)) {

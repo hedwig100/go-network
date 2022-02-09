@@ -90,7 +90,7 @@ func DeviceInputHanlder(typ ProtocolType, data []byte, dev Device) {
 }
 
 // DeviceOutput outputs the data from the device
-func DeviceOutput(dev Device, data []byte, typ ProtocolType, dst HardwareAddress) (err error) {
+func DeviceOutput(dev Device, data []byte, typ ProtocolType, dst HardwareAddress) error {
 
 	// check if the device is opening
 	if !isUp(dev) {
@@ -102,9 +102,12 @@ func DeviceOutput(dev Device, data []byte, typ ProtocolType, dst HardwareAddress
 		return fmt.Errorf("data size is too large dev=%s,mtu=%v", dev.Name(), dev.MTU())
 	}
 
-	err = dev.Transmit(data, typ, dst)
+	err := dev.Transmit(data, typ, dst)
+	if err != nil {
+		return err
+	}
 	log.Printf("[I] device output, dev=%s,typ=%s", dev.Name(), typ)
-	return
+	return nil
 }
 
 // CloseDevices closes all the devices

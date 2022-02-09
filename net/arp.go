@@ -263,7 +263,7 @@ func ArpResolve(iface Interface, pa IPAddr) (HardwareAddress, error) {
 		ArpRequest(ipIface, pa)
 		mutex.Unlock()
 
-		return nil, err
+		return nil, fmt.Errorf("cache state is imcomplete")
 	}
 
 	// cache found and get hardware address

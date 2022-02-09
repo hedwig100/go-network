@@ -81,7 +81,7 @@ func TestICMP(t *testing.T) {
 	seq := uint32(0)
 
 	for i := 0; i < 5; i++ {
-		time.Sleep(time.Millisecond)
+		time.Sleep(time.Second)
 		err = net.TxHandlerICMP(net.ICMPTypeEcho, 0, (id<<16 | seq), testdata, src, net.IPAddr(dst))
 		seq++
 		if err != nil {

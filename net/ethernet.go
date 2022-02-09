@@ -184,6 +184,7 @@ func (e *EthernetDevice) Transmit(data []byte, typ ProtocolType, dst HardwareAdd
 
 	// dst must be Ethernet address
 	etherDst, ok := dst.(EthernetAddress)
+	log.Println(typ, dst)
 	if !ok {
 		return fmt.Errorf("ethernet device only supports ethernet address")
 	}

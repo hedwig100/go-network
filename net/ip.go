@@ -221,13 +221,20 @@ func TxHandlerIP(protocol IPProtocolType, data []byte, src IPAddr, dst IPAddr) e
 		return err
 	}
 
-	// transmit data from device
-	hwaddr, err := ArpResolve(ipIface, dst)
-	if err != nil {
-		return err
+	// transmit data from the device
+	var hwaddr HardwareAddress
+	if ipIface.dev.Flags()&NetDeviceFlagNeedARP > 0 { // check if arp is necessary
+		if dst == ipIface.broadcast || dst == IPAddrBroadcast {
+			hwaddr = EtherAddrBroadcast // TODO: not only ethernet
+		} else {
+			hwaddr, err = ArpResolve(ipIface, dst)
+			if err != nil {
+				return err
+			}
+		}
 	}
-	err = ipIface.dev.Transmit(data, ProtocolTypeIP, hwaddr)
-	return err
+
+	return ipIface.dev.Transmit(data, ProtocolTypeIP, hwaddr)
 }
 
 func (p *IPProtocol) RxHandler(ch chan ProtocolBuffer, done chan struct{}) {
@@ -311,7 +318,7 @@ func NewIPIface(unicastStr string, netmaskStr string) (iface *IPIface, err error
 		return
 	}
 
-	netmask, err := Str2IPAddr(unicastStr)
+	netmask, err := Str2IPAddr(netmaskStr)
 	if err != nil {
 		return
 	}
