@@ -13,19 +13,23 @@ const (
 
 	IPHeaderSizeMin = 20
 
-	IPAddrLen       uint8  = 4
-	IPAddrAny       IPAddr = 0x00000000
-	IPAddrBroadcast IPAddr = 0xffffffff
+	IPAddrLen uint8 = 4
 )
 
+// IPInit prepares the IP protocol
 func IPInit() error {
-	err := ProtocolRegister(&IPProtocol{name: "ip0"})
+	err := ProtocolRegister(&IPProtocol{})
 	return err
 }
 
 /*
 	IP address
 */
+
+const (
+	IPAddrAny       IPAddr = 0x00000000
+	IPAddrBroadcast IPAddr = 0xffffffff
+)
 
 // IPAddr is IP address
 type IPAddr uint32
@@ -162,18 +166,15 @@ func generateId() uint16 {
 /*
 	IP Protocol
 */
-type IPProtocol struct {
-	name string
-}
 
-func (p *IPProtocol) Name() string {
-	return p.name
-}
+// IPProtocol is struct for IP Protocol. This implements protocol interface.
+type IPProtocol struct{}
 
 func (p *IPProtocol) Type() ProtocolType {
 	return ProtocolTypeIP
 }
 
+// TxHandlerIP receives data from IPUpperProtocol and transmit the data with the device
 func TxHandlerIP(protocol IPProtocolType, data []byte, src IPAddr, dst IPAddr) error {
 
 	// if dst is broadcast address, source is required
@@ -324,6 +325,18 @@ type IPIface struct {
 	broadcast IPAddr
 }
 
+func (i *IPIface) Dev() Device {
+	return i.dev
+}
+
+func (i *IPIface) SetDev(dev Device) {
+	i.dev = dev
+}
+
+func (i *IPIface) Family() IfaceFamily {
+	return NetIfaceFamilyIP
+}
+
 // NewIPIface returns IPIface whose address is unicastStr
 func NewIPIface(unicastStr string, netmaskStr string) (iface *IPIface, err error) {
 
@@ -345,18 +358,6 @@ func NewIPIface(unicastStr string, netmaskStr string) (iface *IPIface, err error
 	return
 }
 
-func (i *IPIface) Dev() Device {
-	return i.dev
-}
-
-func (i *IPIface) SetDev(dev Device) {
-	i.dev = dev
-}
-
-func (i *IPIface) Family() int {
-	return NetIfaceFamilyIP
-}
-
 // IPIfaceRegister registers ipIface to dev
 func IPIfaceRegister(dev Device, ipIface *IPIface) {
 	IfaceRegister(dev, ipIface)
@@ -367,12 +368,12 @@ func IPIfaceRegister(dev Device, ipIface *IPIface) {
 }
 
 // SearchIpIface searches an interface which has the IP address
-func SearchIPIface(addr IPAddr) (*IPIface, error) {
-	for _, iface := range Interfaces {
-		iface, ok := iface.(*IPIface)
-		if ok && iface.Unicast == addr {
-			return iface, nil
-		}
-	}
-	return nil, fmt.Errorf("not found IP interface(addr=%d)", addr)
-}
+// func SearchIPIface(addr IPAddr) (*IPIface, error) {
+// 	for _, iface := range Interfaces {
+// 		iface, ok := iface.(*IPIface)
+// 		if ok && iface.Unicast == addr {
+// 			return iface, nil
+// 		}
+// 	}
+// 	return nil, fmt.Errorf("not found IP interface(addr=%d)", addr)
+// }

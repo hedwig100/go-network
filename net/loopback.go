@@ -6,18 +6,20 @@ import (
 	"time"
 )
 
+// Loopback is loopback device.
 type Loopback struct {
 	name  string
 	flags uint16
 }
 
-func LoopbackInit(name string) (l *Loopback, err error) {
-	l = &Loopback{
+// LoopbackInit reveices device name and returns loopback device.
+func LoopbackInit(name string) *Loopback {
+	l := &Loopback{
 		name:  name,
 		flags: NetDeviceFlagUp | NetDeviceFlagLoopback,
 	}
-	err = DeviceRegister(l)
-	return
+	DeviceRegister(l)
+	return l
 }
 
 func (l *Loopback) Name() string {
@@ -44,7 +46,7 @@ func (l *Loopback) AddIface(iface Interface) {
 }
 
 func (l *Loopback) Interfaces() []Interface {
-	return nil
+	return []Interface{}
 }
 
 func (l *Loopback) Close() error {

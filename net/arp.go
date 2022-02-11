@@ -19,9 +19,10 @@ const (
 	ArpOpReply   uint16 = 2
 )
 
+// ArpInit prepare the ARP protocol.
 func ArpInit(done chan struct{}) error {
 	go arpTimer(done)
-	err := ProtocolRegister(&ArpProtocol{name: "arp0"})
+	err := ProtocolRegister(&ArpProtocol{})
 	if err != nil {
 		return err
 	}
@@ -152,13 +153,7 @@ func header2dataARP(hdr ArpEther) ([]byte, error) {
 */
 
 // ArpProtocol implements net.Protocol interface.
-type ArpProtocol struct {
-	name string
-}
-
-func (p *ArpProtocol) Name() string {
-	return p.name
-}
+type ArpProtocol struct{}
 
 func (p *ArpProtocol) Type() ProtocolType {
 	return ProtocolTypeArp
@@ -193,13 +188,11 @@ func (p *ArpProtocol) RxHandler(ch chan ProtocolBuffer, done chan struct{}) {
 		mutex.Unlock()
 
 		// search the IP interface of the device
-		var ipIface *IPIface
-		var ok bool
-		for _, iface := range pb.Dev.Interfaces() {
-			if ipIface, ok = iface.(*IPIface); ok {
-				break
-			}
+		iface, err := GetIface(pb.Dev, NetIfaceFamilyIP)
+		if err != nil {
+			return // the data is to other host
 		}
+		ipIface := iface.(*IPIface)
 		if ipIface == nil || ipIface.Unicast != hdr.Tpa {
 			return // the data is to other host
 		}

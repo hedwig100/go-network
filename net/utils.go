@@ -20,6 +20,7 @@ func Str2IPAddr(str string) (uint32, error) {
 	return b, nil
 }
 
+// Hton16 transforms 16bit littleEndian number to 16bit bigEndian
 func Hton16(v uint16) []byte {
 	b := make([]byte, 2)
 	b[0] = byte(v >> 8)
@@ -27,15 +28,17 @@ func Hton16(v uint16) []byte {
 	return b
 }
 
+// Ntoh16 transforms 16bit bigEndian number to 16bit littleEndian
 func Ntoh16(b []byte) uint16 {
 	return uint16(b[1])<<8 | uint16(b[0])
 }
 
-func NtoH32(v uint32) uint32 {
+// Ntoh32 transforms 32bit bigEndian number to 32bit littleEndian
+func Ntoh32(v uint32) uint32 {
 	return (v&0xff)<<24 | (v&0xff00)<<8 | (v&0xff0000)>>8 | (v >> 24)
 }
 
-// the 16-bit 1's complement sum of 1's complement
+// Checksum calculates the 16-bit 1's complement sum of 1's complement.
 // https://datatracker.ietf.org/doc/html/rfc1071
 func CheckSum(b []byte) uint16 {
 	if len(b)%2 == 1 {

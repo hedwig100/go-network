@@ -30,6 +30,10 @@ func (p IPProtocolType) String() string {
 	}
 }
 
+/*
+	IP Protocols
+*/
+
 var IPProtocols []IPUpperProtocol
 
 // IP Upper Protocol is the upper protocol of IP such as TCP,UDP

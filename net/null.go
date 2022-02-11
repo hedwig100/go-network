@@ -11,13 +11,13 @@ type Null struct {
 	flags uint16
 }
 
-func NullInit(name string) (n *Null, err error) {
-	n = &Null{
+func NullInit(name string) *Null {
+	n := &Null{
 		name:  name,
 		flags: NetDeviceFlagUp,
 	}
-	err = DeviceRegister(n)
-	return
+	DeviceRegister(n)
+	return n
 }
 
 func (n *Null) Name() string {
@@ -44,7 +44,7 @@ func (n *Null) AddIface(iface Interface) {
 }
 
 func (n *Null) Interfaces() []Interface {
-	return nil
+	return []Interface{}
 }
 
 func (n *Null) Close() error {

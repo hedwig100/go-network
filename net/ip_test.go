@@ -11,14 +11,8 @@ func TestIP(t *testing.T) {
 	var err error
 
 	// devices
-	_, err = net.NullInit("null0")
-	if err != nil {
-		t.Error(err)
-	}
-	loop, err := net.LoopbackInit("loop0")
-	if err != nil {
-		t.Error(err)
-	}
+	_ = net.NullInit("null0")
+	loop := net.LoopbackInit("loop0")
 	ether, err := net.EtherInit("tap0")
 	if err != nil {
 		t.Error(err)

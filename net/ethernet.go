@@ -27,33 +27,32 @@ var (
 )
 
 // EtherInit setup ethernet device
-func EtherInit(name string) (e *EthernetDevice, err error) {
+func EtherInit(name string) (*EthernetDevice, error) {
 
 	// open tap
 	name, file, err := openTap(name)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	// get the hardware address
 	_addr, err := getAddr(name)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	// transform []byte to [EtherAddrLen]byte
 	var addr [EtherAddrLen]byte
 	copy(addr[:], _addr)
 
-	e = &EthernetDevice{
+	e := &EthernetDevice{
 		name:            name,
 		flags:           NetDeviceFlagBroadcast | NetDeviceFlagNeedARP | NetDeviceFlagUp,
 		EthernetAddress: EthernetAddress(addr),
 		file:            file,
 	}
-
-	err = DeviceRegister(e)
-	return
+	DeviceRegister(e)
+	return e, nil
 }
 
 /*
@@ -174,6 +173,9 @@ func (e *EthernetDevice) AddIface(iface Interface) {
 }
 
 func (e *EthernetDevice) Interfaces() []Interface {
+	if e.interfaces == nil {
+		return []Interface{}
+	}
 	return e.interfaces
 }
 

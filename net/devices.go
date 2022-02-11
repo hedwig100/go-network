@@ -63,15 +63,9 @@ func isUp(d Device) bool {
 }
 
 // DeviceRegister registers the device
-func DeviceRegister(dev Device) (err error) {
-
-	// add the device
+func DeviceRegister(dev Device) {
 	Devices = append(Devices, dev)
-
-	// activate the receive handler
-	go dev.RxHandler(done)
 	log.Printf("[I] registerd dev=%s", dev.Name())
-	return
 }
 
 // DeviceInputHandler receives data from the device and passes it to the protocol.

@@ -7,6 +7,7 @@ import (
 	"log"
 )
 
+// ICMPInit prepare the ICMP protocol
 func ICMPInit() error {
 	err := IPProtocolRegister(&ICMPProtocol{})
 	return err
@@ -216,8 +217,7 @@ func header2dataICMP(hdr *ICMPHeader, payload []byte) ([]byte, error) {
 /*
 	ICMP Protocol
 */
-type ICMPProtocol struct {
-}
+type ICMPProtocol struct{}
 
 func (p *ICMPProtocol) Type() IPProtocolType {
 	return IPProtocolICMP
@@ -236,7 +236,7 @@ func TxHandlerICMP(typ ICMPMessageType, code ICMPMessageCode, values uint32, dat
 		return err
 	}
 
-	log.Printf("[D] ICMP TxHanlder: %s => %s,header=%s", src, dst, hdr) // TODO hdr.checksum should be set
+	log.Printf("[D] ICMP TxHanlder: %s => %s,header=%s", src, dst, hdr)
 
 	return TxHandlerIP(IPProtocolICMP, data, src, dst)
 }

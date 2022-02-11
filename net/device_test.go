@@ -11,10 +11,7 @@ func TestNull(t *testing.T) {
 	t.Skip()
 	var err error
 
-	dev, err := net.NullInit("null0")
-	if err != nil {
-		t.Error(err)
-	}
+	dev := net.NullInit("null0")
 
 	err = net.NetInit()
 	if err != nil {
@@ -39,10 +36,7 @@ func TestLoopback(t *testing.T) {
 	t.Skip()
 	var err error
 
-	dev, err := net.LoopbackInit("loopback0")
-	if err != nil {
-		t.Error(err)
-	}
+	dev := net.LoopbackInit("loopback0")
 
 	err = net.NetInit()
 	if err != nil {
