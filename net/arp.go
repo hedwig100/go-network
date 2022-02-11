@@ -13,7 +13,7 @@ const (
 	ArpProIP    uint16 = 0x0800
 
 	ArpHeaderSizeMin uint8 = 8
-	ArpIPEtherSize   uint8 = ArpHeaderSizeMin + 2*EtherAddrLen + 2*IPAddrLen
+	ArpEtherSize     uint8 = ArpHeaderSizeMin + 2*EtherAddrLen + 2*IPAddrLen
 
 	ArpOpRequest uint16 = 1
 	ArpOpReply   uint16 = 2
@@ -104,19 +104,20 @@ func (ae ArpEther) String() string {
 		Hln: %d,
 		Pln: %d,
 		Op: %s,
-		sha: %s,
-		spa: %s,
-		tha: %s,
-		tpa: %s,
+		Sha: %s,
+		Spa: %s,
+		Tha: %s,
+		Tpa: %s,
 	`, Hrd, Pro, ae.Hln, ae.Pln, Op, ae.Sha, ae.Spa, ae.Tha, ae.Tpa)
 }
 
 // data2ArpHeader receives data and returns ARP header,the rest of data,error
-func data2headerARP(data []byte) (ArpEther, []byte, error) {
+// now this function only supports IPv4 and Ethernet address resolution
+func data2headerARP(data []byte) (ArpEther, error) {
 
 	// only supports IPv4 and Ethernet address resolution
-	if len(data) < int(ArpIPEtherSize) {
-		return ArpEther{}, nil, fmt.Errorf("data size is too small for arp header")
+	if len(data) < int(ArpEtherSize) {
+		return ArpEther{}, fmt.Errorf("data size is too small for arp header")
 	}
 
 	// read header in bigEndian
@@ -124,18 +125,17 @@ func data2headerARP(data []byte) (ArpEther, []byte, error) {
 	r := bytes.NewReader(data)
 	err := binary.Read(r, binary.BigEndian, &hdr)
 	if err != nil {
-		return ArpEther{}, nil, err
+		return ArpEther{}, err
 	}
 
 	// only receive IPv4 and Ethernet
 	if hdr.Hrd != ArpHrdEther || hdr.Hln != EtherAddrLen {
-		return ArpEther{}, nil, fmt.Errorf("arp resolves only Ethernet address")
+		return ArpEther{}, fmt.Errorf("arp resolves only Ethernet address")
 	}
 	if hdr.Pro != ArpProIP || hdr.Pln != IPAddrLen {
-		return ArpEther{}, nil, fmt.Errorf("arp only supports IP address")
+		return ArpEther{}, fmt.Errorf("arp only supports IP address")
 	}
-
-	return hdr, data[ArpIPEtherSize:], nil
+	return hdr, nil
 }
 
 func header2dataARP(hdr ArpEther) ([]byte, error) {
@@ -166,7 +166,7 @@ func (p *ArpProtocol) Type() ProtocolType {
 
 func (p *ArpProtocol) RxHandler(ch chan ProtocolBuffer, done chan struct{}) {
 	var pb ProtocolBuffer
-	var marge bool
+	var merge bool
 
 	for {
 
@@ -175,20 +175,20 @@ func (p *ArpProtocol) RxHandler(ch chan ProtocolBuffer, done chan struct{}) {
 		case <-done:
 			return
 		default:
-			marge = false
+			merge = false
 		}
 
 		// receive data from device and transform it to header
 		pb = <-ch
-		hdr, _, err := data2headerARP(pb.Data)
+		hdr, err := data2headerARP(pb.Data)
 		if err != nil {
-			log.Printf("[E] %s", err.Error())
+			log.Printf("[E] ARP RxHandler: %s", err.Error())
 		}
 
 		// update arp cache table
 		mutex.Lock()
 		if err := arpCacheUpdate(hdr.Spa, hdr.Sha); err == nil {
-			marge = true
+			merge = true
 		}
 		mutex.Unlock()
 
@@ -205,16 +205,19 @@ func (p *ArpProtocol) RxHandler(ch chan ProtocolBuffer, done chan struct{}) {
 		}
 
 		// insert cache entry if entry is not updated before
-		if !marge {
+		if !merge {
 			mutex.Lock()
 			arpCacheInsert(hdr.Spa, hdr.Sha)
 			mutex.Unlock()
 		}
 
-		log.Printf("[D] Rx dev=%s,arp header=%s", pb.Dev.Name(), hdr)
+		log.Printf("[D] ARP RxHandler: dev=%s,arp header=%s", pb.Dev.Name(), hdr)
 
 		if hdr.Op == ArpOpRequest {
-			ArpReply(ipIface, hdr.Sha, hdr.Spa, hdr.Sha) // reply arp message
+			err = ArpReply(ipIface, hdr.Sha, hdr.Spa, hdr.Sha) // reply arp message
+			if err != nil {
+				log.Printf("[E] ARP RxHandler: %s", err.Error())
+			}
 		}
 	}
 }
@@ -247,7 +250,7 @@ func ArpReply(ipIface *IPIface, tha EthernetAddress, tpa IPAddr, dst EthernetAdd
 		return err
 	}
 
-	log.Printf("[D] Tx ARP reply, dev=%s,arp header=%s", dev.Name(), rep)
+	log.Printf("[D] ARP TxHandler(reply): dev=%s,arp header=%s", dev.Name(), rep)
 	return DeviceOutput(dev, data, ProtocolTypeArp, dst)
 }
 
@@ -281,7 +284,6 @@ func ArpResolve(iface Interface, pa IPAddr) (HardwareAddress, error) {
 		ArpRequest(ipIface, pa)
 		mutex.Unlock()
 
-		log.Printf("[D] could not be found,pa = %s", pa)
 		return nil, err
 	}
 
@@ -329,6 +331,6 @@ func ArpRequest(ipIface *IPIface, tpa IPAddr) error {
 		return err
 	}
 
-	log.Printf("[D] Tx ARP request, dev=%s,arp header=%s", dev.Name(), rep)
+	log.Printf("[D] ARP TxHandler(request): dev=%s,arp header=%s", dev.Name(), rep)
 	return DeviceOutput(dev, data, ProtocolTypeArp, EtherAddrBroadcast)
 }

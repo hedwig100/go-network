@@ -53,6 +53,6 @@ func IPProtocolRegister(iproto IPUpperProtocol) error {
 	}
 
 	IPProtocols = append(IPProtocols, iproto)
-	log.Printf("[I] proto=%s is registerd", iproto.Type())
+	log.Printf("[I] registered proto=%s", iproto.Type())
 	return nil
 }

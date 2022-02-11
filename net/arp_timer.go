@@ -17,7 +17,7 @@ func arpTimer(done chan struct{}) {
 
 		now := time.Now()
 		for i, cache := range caches {
-			if cache.timeval.Add(ArpCacheTimeout).After(now) {
+			if cache.state != ArpCacheStateFree && cache.timeval.Add(ArpCacheTimeout).Before(now) {
 				arpCacheDelete(i) // no error
 			}
 		}

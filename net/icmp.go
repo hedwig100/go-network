@@ -87,6 +87,52 @@ const (
 
 type ICMPMessageCode uint8
 
+func code2string(t ICMPMessageType, c ICMPMessageCode) string {
+	switch t {
+	case ICMPTypeDestUnreach:
+		switch c {
+		case ICMPCodeNetUnreach:
+			return fmt.Sprintf("ICMPCodeNetUnreach(%d)", c)
+		case ICMPCodeHostUnreach:
+			return fmt.Sprintf("ICMPCodeHostUnreach(%d)", c)
+		case ICMPCodeProtoUnreach:
+			return fmt.Sprintf("ICMPCodeProtoUnreach(%d)", c)
+		case ICMPCodePortUnreach:
+			return fmt.Sprintf("ICMPCodePortUnreach(%d)", c)
+		case ICMPCodeFragmentNeeded:
+			return fmt.Sprintf("ICMPCodeFragmentNeeded(%d)", c)
+		case ICMPCodeSourceRouteFailed:
+			return fmt.Sprintf("ICMPCodeSourceRouteFailed(%d)", c)
+		default:
+			return fmt.Sprintf("UNKNOWN(%d)", c)
+		}
+	case ICMPTypeRedirect:
+		switch c {
+		case ICMPCodeRedirectNet:
+			return fmt.Sprintf("ICMPCodeRedirectNet(%d)", c)
+		case ICMPCodeRedirectHost:
+			return fmt.Sprintf("ICMPCodeRedirectHost(%d)", c)
+		case ICMPCodeRedirectTosNet:
+			return fmt.Sprintf("ICMPCodeRedirectTosNet(%d)", c)
+		case ICMPCodeRedirectTosHost:
+			return fmt.Sprintf("ICMPCodeRedirectTosHost(%d)", c)
+		default:
+			return fmt.Sprintf("UNKNOWN(%d)", c)
+		}
+	case ICMPTypeTimeExceeded:
+		switch c {
+		case ICMPCodeExceededTTL:
+			return fmt.Sprintf("ICMPCodeExceededTTL(%d)", c)
+		case ICMPCodeExceededFragment:
+			return fmt.Sprintf("ICMPCodeExceededFragment(%d)", c)
+		default:
+			return fmt.Sprintf("UNKNOWN(%d)", c)
+		}
+	default:
+		return fmt.Sprintf("UNKNOWN(%d)", c)
+	}
+}
+
 /*
 	ICMP Header
 */
@@ -116,18 +162,18 @@ func (h ICMPHeader) String() string {
 	case ICMPTypeEchoReply, ICMPTypeEcho:
 		return fmt.Sprintf(`
 		typ: %s, 
-		code: %d,
-		checksum: %d,
+		code: %s,
+		checksum: %x,
 		id: %d,
 		seq: %d,
-	`, h.Typ, h.Code, h.Checksum, h.Values>>16, h.Values&0xff)
+	`, h.Typ, code2string(h.Typ, h.Code), h.Checksum, h.Values>>16, h.Values&0xff)
 	default:
 		return fmt.Sprintf(`
 		typ: %s,
-		code: %d,
-		checksum: %d,
+		code: %s,
+		checksum: %x,
 		values: %x,
-	`, h.Typ, h.Code, h.Checksum, h.Values)
+	`, h.Typ, code2string(h.Typ, h.Code), h.Checksum, h.Values)
 	}
 }
 
@@ -190,7 +236,7 @@ func TxHandlerICMP(typ ICMPMessageType, code ICMPMessageCode, values uint32, dat
 		return err
 	}
 
-	log.Printf("[D] ICMP output: %s => %s,header=%s", src, dst, hdr) // TODO hdr.checksum should be set
+	log.Printf("[D] ICMP TxHanlder: %s => %s,header=%s", src, dst, hdr) // TODO hdr.checksum should be set
 
 	return TxHandlerIP(IPProtocolICMP, data, src, dst)
 }
@@ -201,17 +247,17 @@ func (p *ICMPProtocol) RxHandler(data []byte, src IPAddr, dst IPAddr, ipIface *I
 		return fmt.Errorf("data size is too small for ICMP header")
 	}
 
-	chksum := CheckSum(data[:ICMPHeaderSize])
-	if chksum != 0 {
+	chksum := CheckSum(data)
+	if chksum != 0 && chksum != 0xffff { // 0 or -0
 		return fmt.Errorf("checksum error in ICMP header")
 	}
 
-	hdr, data, err := data2headerICMP(data)
+	hdr, payload, err := data2headerICMP(data)
 	if err != nil {
 		return err
 	}
 
-	log.Printf("[D] ICMP received: iface=%d,header=%s", ipIface.Family(), hdr)
+	log.Printf("[D] ICMP RxHandler: iface=%d,header=%s", ipIface.Family(), hdr)
 
 	switch hdr.Typ {
 	case ICMPTypeEcho:
@@ -219,7 +265,7 @@ func (p *ICMPProtocol) RxHandler(data []byte, src IPAddr, dst IPAddr, ipIface *I
 			// message addressed to broadcast address. responds with the address of the received interface
 			dst = ipIface.Unicast
 		}
-		return TxHandlerICMP(ICMPTypeEchoReply, 0, hdr.Values, data, dst, src)
+		return TxHandlerICMP(ICMPTypeEchoReply, 0, hdr.Values, payload, dst, src)
 	default:
 		return fmt.Errorf("ICMP header type is unknown")
 	}

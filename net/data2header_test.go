@@ -110,7 +110,7 @@ func Test2ARP(t *testing.T) {
 		t.Error(err)
 	}
 
-	new_hdr, _, err := data2headerARP(data)
+	new_hdr, err := data2headerARP(data)
 	if err != nil {
 		t.Error(err)
 	}

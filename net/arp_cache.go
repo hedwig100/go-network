@@ -115,6 +115,7 @@ func arpCacheDelete(index int) error {
 		return fmt.Errorf("cache table index out of range")
 	}
 
+	log.Printf("[D] ARP cache delete ps=%s,ha=%s", caches[index].pa, caches[index].ha)
 	caches[index] = arpCacheEntry{
 		state: ArpCacheStateFree,
 	}

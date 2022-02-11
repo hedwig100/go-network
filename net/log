@@ -1,0 +1,427 @@
+=== RUN   TestICMP
+2022/02/11 06:55:57 [I] registerd dev=null0
+2022/02/11 06:55:57 [I] registerd dev=loop0
+2022/02/11 06:55:57 [I] registerd dev=tap0
+2022/02/11 06:55:57 [I] iface=1 is registerd dev=loop0
+2022/02/11 06:55:57 [I] route added,network=127.0.0.0,netmask=255.0.0.0,nexthop=0.0.0.0,iface=127.0.0.1,dev=loop0
+2022/02/11 06:55:57 [I] iface=1 is registerd dev=tap0
+2022/02/11 06:55:57 [I] route added,network=192.0.2.0,netmask=255.255.255.0,nexthop=0.0.0.0,iface=192.0.2.2,dev=tap0
+2022/02/11 06:55:57 [I] route added,network=0.0.0.0,netmask=0.0.0.0,nexthop=192.0.2.1,iface=192.0.2.2,dev=tap0
+2022/02/11 06:55:57 [I] registerd proto=arp0
+2022/02/11 06:55:57 [I] registerd proto=ip0
+2022/02/11 06:55:57 [I] registered proto=ICMP
+2022/02/11 06:56:11 [D] Ether RxHandler: dev=tap0,protocolType=ARP,len=42,header=
+		Src: ff:ff:ff:ff:ff:ff,
+		Dst: 9e:66:f2:fc:95:3b,
+		Type: ARP
+	
+2022/02/11 06:56:11 [I] input data dev=9e:66:f2:fc:95:3b,typ=ARP,data:[0 1 8 0 6 4 0 1 158 102 242 252 149 59 192 0 2 1 0 0 0 0 0 0 192 0 2 2]
+2022/02/11 06:56:11 [D] ARP cache insert pa=192.0.2.1,ha=9e:66:f2:fc:95:3b,timeval=2022-02-11 06:56:11.9692941 +0000 UTC m=+14.617779201
+2022/02/11 06:56:11 [D] ARP RxHandler: dev=tap0,arp header=
+		Hrd: Ethernet(1),
+		Pro: IPv4(2048),
+		Hln: 6,
+		Pln: 4,
+		Op: Request(1),
+		Sha: 9e:66:f2:fc:95:3b,
+		Spa: 192.0.2.1,
+		Tha: 0:0:0:0:0:0,
+		Tpa: 192.0.2.2,
+	
+2022/02/11 06:56:11 [D] ARP TxHandler(reply): dev=tap0,arp header=
+		Hrd: Ethernet(1),
+		Pro: IPv4(2048),
+		Hln: 6,
+		Pln: 4,
+		Op: Reply(2),
+		Sha: 9e:66:f2:fc:95:3b,
+		Spa: 192.0.2.2,
+		Tha: 9e:66:f2:fc:95:3b,
+		Tpa: 192.0.2.1,
+	
+2022/02/11 06:56:11 ARP 9e:66:f2:fc:95:3b
+2022/02/11 06:56:11 [D] Ether RxHandler: dev=tap0,protocolType=IP,len=98,header=
+		Src: 9e:66:f2:fc:95:3b,
+		Dst: 9e:66:f2:fc:95:3b,
+		Type: IP
+	
+2022/02/11 06:56:11 [I] input data dev=9e:66:f2:fc:95:3b,typ=IP,data:[69 0 0 84 249 182 64 0 64 1 188 238 192 0 2 1 192 0 2 2 8 0 251 249 220 5 0 1 139 8 6 98 0 0 0 0 193 193 14 0 0 0 0 0 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55]
+2022/02/11 06:56:11 [D] IP RxHandler: iface=192.0.2.2,protocol=ICMP,header=
+		Version: 4,
+		Header Length: 20,
+		Total Length: 84,
+		Tos: 0,
+		Id: 63926,
+		Flags: 2,
+		Fragment Offset: 0,
+		TTL: 64,
+		ProtocolType: ICMP,
+		Checksum: bcee,
+		Src: 192.0.2.1,
+		Dst: 192.0.2.2,
+	
+2022/02/11 06:56:11 [D] ICMP RxHandler: iface=1,header=
+		typ: ICMPTypeEcho, 
+		code: UNKNOWN(0),
+		checksum: fbf9,
+		id: 56325,
+		seq: 1,
+	
+2022/02/11 06:56:11 [D] ICMP TxHanlder: 192.0.2.2 => 192.0.2.1,header=
+		typ: ICMPTypeEchoReply, 
+		code: UNKNOWN(0),
+		checksum: 23f9,
+		id: 56325,
+		seq: 1,
+	
+2022/02/11 06:56:11 [D] IP TxHandler: iface=1,dev=tap0,header=
+		Version: 4,
+		Header Length: 20,
+		Total Length: 84,
+		Tos: 0,
+		Id: 1,
+		Flags: 0,
+		Fragment Offset: 0,
+		TTL: 255,
+		ProtocolType: ICMP,
+		Checksum: 37a4,
+		Src: 192.0.2.2,
+		Dst: 192.0.2.1,
+	
+2022/02/11 06:56:11 IP 9e:66:f2:fc:95:3b
+2022/02/11 06:56:11 [D] Ether TxHandler: data is trasmitted by ethernet-device(name=tap0),header=
+		Src: 9e:66:f2:fc:95:3b,
+		Dst: 9e:66:f2:fc:95:3b,
+		Type: ARP
+	
+2022/02/11 06:56:11 [I] device output, dev=tap0,typ=ARP
+2022/02/11 06:56:11 [D] Ether TxHandler: data is trasmitted by ethernet-device(name=tap0),header=
+		Src: 9e:66:f2:fc:95:3b,
+		Dst: 9e:66:f2:fc:95:3b,
+		Type: IP
+	
+2022/02/11 06:56:12 [D] Ether RxHandler: dev=tap0,protocolType=IP,len=98,header=
+		Src: 9e:66:f2:fc:95:3b,
+		Dst: 9e:66:f2:fc:95:3b,
+		Type: IP
+	
+2022/02/11 06:56:12 [I] input data dev=9e:66:f2:fc:95:3b,typ=IP,data:[69 0 0 84 252 18 64 0 64 1 186 146 192 0 2 1 192 0 2 2 8 0 87 233 220 5 0 2 140 8 6 98 0 0 0 0 100 209 14 0 0 0 0 0 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55]
+2022/02/11 06:56:12 [D] IP RxHandler: iface=192.0.2.2,protocol=ICMP,header=
+		Version: 4,
+		Header Length: 20,
+		Total Length: 84,
+		Tos: 0,
+		Id: 64530,
+		Flags: 2,
+		Fragment Offset: 0,
+		TTL: 64,
+		ProtocolType: ICMP,
+		Checksum: ba92,
+		Src: 192.0.2.1,
+		Dst: 192.0.2.2,
+	
+2022/02/11 06:56:12 [D] ICMP RxHandler: iface=1,header=
+		typ: ICMPTypeEcho, 
+		code: UNKNOWN(0),
+		checksum: 57e9,
+		id: 56325,
+		seq: 2,
+	
+2022/02/11 06:56:12 [D] ICMP TxHanlder: 192.0.2.2 => 192.0.2.1,header=
+		typ: ICMPTypeEchoReply, 
+		code: UNKNOWN(0),
+		checksum: 23f8,
+		id: 56325,
+		seq: 2,
+	
+2022/02/11 06:56:12 [D] IP TxHandler: iface=1,dev=tap0,header=
+		Version: 4,
+		Header Length: 20,
+		Total Length: 84,
+		Tos: 0,
+		Id: 2,
+		Flags: 0,
+		Fragment Offset: 0,
+		TTL: 255,
+		ProtocolType: ICMP,
+		Checksum: 37a3,
+		Src: 192.0.2.2,
+		Dst: 192.0.2.1,
+	
+2022/02/11 06:56:12 IP 9e:66:f2:fc:95:3b
+2022/02/11 06:56:12 [D] Ether TxHandler: data is trasmitted by ethernet-device(name=tap0),header=
+		Src: 9e:66:f2:fc:95:3b,
+		Dst: 9e:66:f2:fc:95:3b,
+		Type: IP
+	
+2022/02/11 06:56:13 [D] Ether RxHandler: dev=tap0,protocolType=IP,len=98,header=
+		Src: 9e:66:f2:fc:95:3b,
+		Dst: 9e:66:f2:fc:95:3b,
+		Type: IP
+	
+2022/02/11 06:56:13 [I] input data dev=9e:66:f2:fc:95:3b,typ=IP,data:[69 0 0 84 254 227 64 0 64 1 183 193 192 0 2 1 192 0 2 2 8 0 231 95 220 5 0 3 141 8 6 98 0 0 0 0 212 89 14 0 0 0 0 0 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55]
+2022/02/11 06:56:13 [D] IP RxHandler: iface=192.0.2.2,protocol=ICMP,header=
+		Version: 4,
+		Header Length: 20,
+		Total Length: 84,
+		Tos: 0,
+		Id: 65251,
+		Flags: 2,
+		Fragment Offset: 0,
+		TTL: 64,
+		ProtocolType: ICMP,
+		Checksum: b7c1,
+		Src: 192.0.2.1,
+		Dst: 192.0.2.2,
+	
+2022/02/11 06:56:13 [D] ICMP RxHandler: iface=1,header=
+		typ: ICMPTypeEcho, 
+		code: UNKNOWN(0),
+		checksum: e75f,
+		id: 56325,
+		seq: 3,
+	
+2022/02/11 06:56:13 [D] ICMP TxHanlder: 192.0.2.2 => 192.0.2.1,header=
+		typ: ICMPTypeEchoReply, 
+		code: UNKNOWN(0),
+		checksum: 23f7,
+		id: 56325,
+		seq: 3,
+	
+2022/02/11 06:56:13 [D] IP TxHandler: iface=1,dev=tap0,header=
+		Version: 4,
+		Header Length: 20,
+		Total Length: 84,
+		Tos: 0,
+		Id: 3,
+		Flags: 0,
+		Fragment Offset: 0,
+		TTL: 255,
+		ProtocolType: ICMP,
+		Checksum: 37a2,
+		Src: 192.0.2.2,
+		Dst: 192.0.2.1,
+	
+2022/02/11 06:56:13 IP 9e:66:f2:fc:95:3b
+2022/02/11 06:56:13 [D] Ether TxHandler: data is trasmitted by ethernet-device(name=tap0),header=
+		Src: 9e:66:f2:fc:95:3b,
+		Dst: 9e:66:f2:fc:95:3b,
+		Type: IP
+	
+2022/02/11 06:56:14 [D] Ether RxHandler: dev=tap0,protocolType=IP,len=98,header=
+		Src: 9e:66:f2:fc:95:3b,
+		Dst: 9e:66:f2:fc:95:3b,
+		Type: IP
+	
+2022/02/11 06:56:14 [I] input data dev=9e:66:f2:fc:95:3b,typ=IP,data:[69 0 0 84 1 43 64 0 64 1 181 122 192 0 2 1 192 0 2 2 8 0 46 75 220 5 0 4 142 8 6 98 0 0 0 0 140 109 14 0 0 0 0 0 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55]
+2022/02/11 06:56:14 [D] IP RxHandler: iface=192.0.2.2,protocol=ICMP,header=
+		Version: 4,
+		Header Length: 20,
+		Total Length: 84,
+		Tos: 0,
+		Id: 299,
+		Flags: 2,
+		Fragment Offset: 0,
+		TTL: 64,
+		ProtocolType: ICMP,
+		Checksum: b57a,
+		Src: 192.0.2.1,
+		Dst: 192.0.2.2,
+	
+2022/02/11 06:56:14 [D] ICMP RxHandler: iface=1,header=
+		typ: ICMPTypeEcho, 
+		code: UNKNOWN(0),
+		checksum: 2e4b,
+		id: 56325,
+		seq: 4,
+	
+2022/02/11 06:56:14 [D] ICMP TxHanlder: 192.0.2.2 => 192.0.2.1,header=
+		typ: ICMPTypeEchoReply, 
+		code: UNKNOWN(0),
+		checksum: 23f6,
+		id: 56325,
+		seq: 4,
+	
+2022/02/11 06:56:14 [D] IP TxHandler: iface=1,dev=tap0,header=
+		Version: 4,
+		Header Length: 20,
+		Total Length: 84,
+		Tos: 0,
+		Id: 4,
+		Flags: 0,
+		Fragment Offset: 0,
+		TTL: 255,
+		ProtocolType: ICMP,
+		Checksum: 37a1,
+		Src: 192.0.2.2,
+		Dst: 192.0.2.1,
+	
+2022/02/11 06:56:14 IP 9e:66:f2:fc:95:3b
+2022/02/11 06:56:14 [D] Ether TxHandler: data is trasmitted by ethernet-device(name=tap0),header=
+		Src: 9e:66:f2:fc:95:3b,
+		Dst: 9e:66:f2:fc:95:3b,
+		Type: IP
+	
+2022/02/11 06:56:15 [D] Ether RxHandler: dev=tap0,protocolType=IP,len=98,header=
+		Src: 9e:66:f2:fc:95:3b,
+		Dst: 9e:66:f2:fc:95:3b,
+		Type: IP
+	
+2022/02/11 06:56:15 [I] input data dev=9e:66:f2:fc:95:3b,typ=IP,data:[69 0 0 84 2 26 64 0 64 1 180 139 192 0 2 1 192 0 2 2 8 0 209 56 220 5 0 5 143 8 6 98 0 0 0 0 232 126 14 0 0 0 0 0 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55]
+2022/02/11 06:56:15 [D] IP RxHandler: iface=192.0.2.2,protocol=ICMP,header=
+		Version: 4,
+		Header Length: 20,
+		Total Length: 84,
+		Tos: 0,
+		Id: 538,
+		Flags: 2,
+		Fragment Offset: 0,
+		TTL: 64,
+		ProtocolType: ICMP,
+		Checksum: b48b,
+		Src: 192.0.2.1,
+		Dst: 192.0.2.2,
+	
+2022/02/11 06:56:15 [D] ICMP RxHandler: iface=1,header=
+		typ: ICMPTypeEcho, 
+		code: UNKNOWN(0),
+		checksum: d138,
+		id: 56325,
+		seq: 5,
+	
+2022/02/11 06:56:15 [D] ICMP TxHanlder: 192.0.2.2 => 192.0.2.1,header=
+		typ: ICMPTypeEchoReply, 
+		code: UNKNOWN(0),
+		checksum: 23f5,
+		id: 56325,
+		seq: 5,
+	
+2022/02/11 06:56:15 [D] IP TxHandler: iface=1,dev=tap0,header=
+		Version: 4,
+		Header Length: 20,
+		Total Length: 84,
+		Tos: 0,
+		Id: 5,
+		Flags: 0,
+		Fragment Offset: 0,
+		TTL: 255,
+		ProtocolType: ICMP,
+		Checksum: 37a0,
+		Src: 192.0.2.2,
+		Dst: 192.0.2.1,
+	
+2022/02/11 06:56:15 IP 9e:66:f2:fc:95:3b
+2022/02/11 06:56:15 [D] Ether TxHandler: data is trasmitted by ethernet-device(name=tap0),header=
+		Src: 9e:66:f2:fc:95:3b,
+		Dst: 9e:66:f2:fc:95:3b,
+		Type: IP
+	
+2022/02/11 06:56:16 [D] Ether RxHandler: dev=tap0,protocolType=IP,len=98,header=
+		Src: 9e:66:f2:fc:95:3b,
+		Dst: 9e:66:f2:fc:95:3b,
+		Type: IP
+	
+2022/02/11 06:56:16 [I] input data dev=9e:66:f2:fc:95:3b,typ=IP,data:[69 0 0 84 4 117 64 0 64 1 178 48 192 0 2 1 192 0 2 2 8 0 15 48 220 5 0 6 144 8 6 98 0 0 0 0 169 134 14 0 0 0 0 0 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55]
+2022/02/11 06:56:16 [D] IP RxHandler: iface=192.0.2.2,protocol=ICMP,header=
+		Version: 4,
+		Header Length: 20,
+		Total Length: 84,
+		Tos: 0,
+		Id: 1141,
+		Flags: 2,
+		Fragment Offset: 0,
+		TTL: 64,
+		ProtocolType: ICMP,
+		Checksum: b230,
+		Src: 192.0.2.1,
+		Dst: 192.0.2.2,
+	
+2022/02/11 06:56:16 [D] ICMP RxHandler: iface=1,header=
+		typ: ICMPTypeEcho, 
+		code: UNKNOWN(0),
+		checksum: f30,
+		id: 56325,
+		seq: 6,
+	
+2022/02/11 06:56:16 [D] ICMP TxHanlder: 192.0.2.2 => 192.0.2.1,header=
+		typ: ICMPTypeEchoReply, 
+		code: UNKNOWN(0),
+		checksum: 23f4,
+		id: 56325,
+		seq: 6,
+	
+2022/02/11 06:56:16 [D] IP TxHandler: iface=1,dev=tap0,header=
+		Version: 4,
+		Header Length: 20,
+		Total Length: 84,
+		Tos: 0,
+		Id: 6,
+		Flags: 0,
+		Fragment Offset: 0,
+		TTL: 255,
+		ProtocolType: ICMP,
+		Checksum: 379f,
+		Src: 192.0.2.2,
+		Dst: 192.0.2.1,
+	
+2022/02/11 06:56:16 IP 9e:66:f2:fc:95:3b
+2022/02/11 06:56:16 [D] Ether TxHandler: data is trasmitted by ethernet-device(name=tap0),header=
+		Src: 9e:66:f2:fc:95:3b,
+		Dst: 9e:66:f2:fc:95:3b,
+		Type: IP
+	
+2022/02/11 06:56:17 [D] Ether RxHandler: dev=tap0,protocolType=IP,len=98,header=
+		Src: 9e:66:f2:fc:95:3b,
+		Dst: 9e:66:f2:fc:95:3b,
+		Type: IP
+	
+2022/02/11 06:56:17 [I] input data dev=9e:66:f2:fc:95:3b,typ=IP,data:[69 0 0 84 4 210 64 0 64 1 177 211 192 0 2 1 192 0 2 2 8 0 8 44 220 5 0 7 145 8 6 98 0 0 0 0 175 137 14 0 0 0 0 0 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55]
+2022/02/11 06:56:17 [D] IP RxHandler: iface=192.0.2.2,protocol=ICMP,header=
+		Version: 4,
+		Header Length: 20,
+		Total Length: 84,
+		Tos: 0,
+		Id: 1234,
+		Flags: 2,
+		Fragment Offset: 0,
+		TTL: 64,
+		ProtocolType: ICMP,
+		Checksum: b1d3,
+		Src: 192.0.2.1,
+		Dst: 192.0.2.2,
+	
+2022/02/11 06:56:17 [D] ICMP RxHandler: iface=1,header=
+		typ: ICMPTypeEcho, 
+		code: UNKNOWN(0),
+		checksum: 82c,
+		id: 56325,
+		seq: 7,
+	
+2022/02/11 06:56:17 [D] ICMP TxHanlder: 192.0.2.2 => 192.0.2.1,header=
+		typ: ICMPTypeEchoReply, 
+		code: UNKNOWN(0),
+		checksum: 23f3,
+		id: 56325,
+		seq: 7,
+	
+2022/02/11 06:56:17 [D] IP TxHandler: iface=1,dev=tap0,header=
+		Version: 4,
+		Header Length: 20,
+		Total Length: 84,
+		Tos: 0,
+		Id: 7,
+		Flags: 0,
+		Fragment Offset: 0,
+		TTL: 255,
+		ProtocolType: ICMP,
+		Checksum: 379e,
+		Src: 192.0.2.2,
+		Dst: 192.0.2.1,
+	
+2022/02/11 06:56:17 IP 9e:66:f2:fc:95:3b
+2022/02/11 06:56:17 [D] Ether TxHandler: data is trasmitted by ethernet-device(name=tap0),header=
+		Src: 9e:66:f2:fc:95:3b,
+		Dst: 9e:66:f2:fc:95:3b,
+		Type: IP
+	
+2022/02/11 06:56:42 [D] ARP cache delete ps=192.0.2.1,ha=9e:66:f2:fc:95:3b

@@ -208,7 +208,7 @@ func (e *EthernetDevice) Transmit(data []byte, typ ProtocolType, dst HardwareAdd
 		return err
 	}
 
-	log.Printf("[D] Tx data is trasmitted by ethernet-device(name=%s),header=%s", e.name, hdr)
+	log.Printf("[D] Ether TxHandler: data is trasmitted by ethernet-device(name=%s),header=%s", e.name, hdr)
 	return nil
 }
 
@@ -227,7 +227,7 @@ func (e *EthernetDevice) RxHandler(done chan struct{}) {
 		// read from device file (character file)
 		len, err := e.file.Read(buf)
 		if err != nil {
-			log.Printf("[E] dev=%s,%s", e.name, err.Error())
+			log.Printf("[E] Ether RxHandler: dev=%s,%s", e.name, err.Error())
 			continue
 		}
 
@@ -239,13 +239,13 @@ func (e *EthernetDevice) RxHandler(done chan struct{}) {
 		} else if len < EtherHdrSize {
 
 			// ignore the data if length is smaller than Ethernet Header Size
-			log.Printf("[E] frame size is too small")
+			log.Printf("[E] Ether RxHandler: frame size is too small")
 			time.Sleep(time.Microsecond)
 
 		} else {
 
 			// read data
-			hdr, data, err := data2headerEther(buf)
+			hdr, payload, err := data2headerEther(buf)
 			if err != nil {
 				log.Printf("[E] dev=%s,%s", e.name, err.Error())
 				continue
@@ -257,8 +257,8 @@ func (e *EthernetDevice) RxHandler(done chan struct{}) {
 			}
 
 			// pass the header and subsequent parts as data to the protocol
-			log.Printf("[D] Rx dev=%s,protocolType=%s,len=%d,header=%s", e.name, hdr.Type, len, hdr)
-			DeviceInputHanlder(hdr.Type, data[:len], e)
+			log.Printf("[D] Ether RxHandler: dev=%s,protocolType=%s,len=%d,header=%s", e.name, hdr.Type, len, hdr)
+			DeviceInputHanlder(hdr.Type, payload[:len-EtherHdrSize], e)
 		}
 
 	}
