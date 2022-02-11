@@ -1,6 +1,9 @@
 package net_test
 
 import (
+	"os"
+	"os/signal"
+	"syscall"
 	"testing"
 	"time"
 
@@ -33,6 +36,11 @@ var testdata = []byte{
 }
 
 func TestICMP(t *testing.T) {
+
+	// catch CTRL+C
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+
 	var err error
 
 	// devices
@@ -40,26 +48,26 @@ func TestICMP(t *testing.T) {
 	loop := net.LoopbackInit("loop0")
 	ether, err := net.EtherInit("tap0")
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	// iface
 	iface0, err := net.NewIPIface(loopbackIPAddr, loopbackNetmask)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	net.IPIfaceRegister(loop, iface0)
 
 	iface1, err := net.NewIPIface(etherTapIPAddr, etherTapNetmask)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	net.IPIfaceRegister(ether, iface1)
 
 	// default gateway
 	err = net.SetDefaultGateway(iface1, defaultGateway)
 	if err != nil {
-		return
+		t.Error(err)
 	}
 
 	err = net.NetInit()
@@ -69,22 +77,29 @@ func TestICMP(t *testing.T) {
 
 	net.NetRun()
 
-	for {
-		time.Sleep(time.Second)
-	}
-	// src := iface1.Unicast
-	// dst, _ := net.Str2IPAddr(defaultGateway)
-	// id := uint32(109)
-	// seq := uint32(0)
+	src := iface1.Unicast
+	dst, _ := net.Str2IPAddr(defaultGateway)
+	id := uint32(109)
+	seq := uint32(0)
 
-	// for i := 0; i < 5; i++ {
-	// 	time.Sleep(time.Second)
-	// 	err = net.TxHandlerICMP(net.ICMPTypeEcho, 0, (id<<16 | seq), testdata, src, net.IPAddr(dst))
-	// 	seq++
-	// 	if err != nil {
-	// 		t.Error(err)
-	// 	}
-	// }
+	func() {
+		for {
+
+			// finish if interrupted
+			select {
+			case <-sig:
+				return
+			default:
+			}
+
+			time.Sleep(time.Second)
+			err = net.TxHandlerICMP(net.ICMPTypeEcho, 0, (id<<16 | seq), testdata, src, net.IPAddr(dst))
+			seq++
+			if seq > 1 && err != nil { // when seq=1(first time),we get cache not found error. this is not the error
+				t.Error(err)
+			}
+		}
+	}()
 
 	err = net.NetShutdown()
 	if err != nil {

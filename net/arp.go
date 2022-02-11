@@ -161,7 +161,6 @@ func (p *ArpProtocol) Type() ProtocolType {
 
 func (p *ArpProtocol) RxHandler(ch chan ProtocolBuffer, done chan struct{}) {
 	var pb ProtocolBuffer
-	var merge bool
 
 	for {
 
@@ -170,7 +169,6 @@ func (p *ArpProtocol) RxHandler(ch chan ProtocolBuffer, done chan struct{}) {
 		case <-done:
 			return
 		default:
-			merge = false
 		}
 
 		// receive data from device and transform it to header
@@ -182,9 +180,7 @@ func (p *ArpProtocol) RxHandler(ch chan ProtocolBuffer, done chan struct{}) {
 
 		// update arp cache table
 		mutex.Lock()
-		if err := arpCacheUpdate(hdr.Spa, hdr.Sha); err == nil {
-			merge = true
-		}
+		merge := arpCacheUpdate(hdr.Spa, hdr.Sha)
 		mutex.Unlock()
 
 		// search the IP interface of the device

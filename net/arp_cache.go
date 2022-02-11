@@ -89,12 +89,14 @@ func arpCacheSelect(pa IPAddr) (int, error) {
 }
 
 // arpCacheUpdate updates cache entry in the cache table
-func arpCacheUpdate(pa IPAddr, ha EthernetAddress) error {
+// return true if cache was inserted before and update is successful
+// return false if cache was not there and update is unsuccessful
+func arpCacheUpdate(pa IPAddr, ha EthernetAddress) bool {
 
 	// get cache index
 	index, err := arpCacheSelect(pa)
 	if err != nil {
-		return err
+		return false
 	}
 
 	// update
@@ -106,7 +108,7 @@ func arpCacheUpdate(pa IPAddr, ha EthernetAddress) error {
 		timeval: timeval,
 	}
 	log.Printf("[D] ARP cache update ps=%s,ha=%s,timeval=%s", pa, ha, timeval)
-	return nil
+	return true
 }
 
 // arpCacheDelete deletes cache entry from the cache table
