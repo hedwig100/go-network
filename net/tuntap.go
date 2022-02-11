@@ -40,11 +40,10 @@ func openTap(name string) (string, *os.File, error) {
 	return name, file, nil
 }
 
-func getAddr(name string) (addr [EtherAddrLen]byte, err error) {
-	_addr, err := SIOCGIFHWADDR(name)
+func getAddr(name string) ([]byte, error) {
+	addr, err := SIOCGIFHWADDR(name)
 	if err != nil {
-		return
+		return nil, err
 	}
-	copy(addr[:], _addr)
-	return
+	return addr, nil
 }

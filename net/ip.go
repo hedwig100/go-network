@@ -43,47 +43,47 @@ func (a IPAddr) String() string {
 type IPHeader struct {
 
 	// Version and Internet Header Length (4bit and 4bit)
-	vhl uint8
+	Vhl uint8
 
 	// Type Of Service
-	tos uint8
+	Tos uint8
 
 	// Total Length
-	tol uint16
+	Tol uint16
 
 	// Identification
-	id uint16
+	Id uint16
 
 	// flags and flagment offset (3bit and 13bit)
-	flags uint16
+	Flags uint16
 
 	// Time To Live
-	ttl uint8
+	Ttl uint8
 
 	// protocol Type
-	protocolType IPProtocolType
+	ProtocolType IPProtocolType
 
 	// checksum
-	checksum uint16
+	Checksum uint16
 
 	// source IP address and destination IP address
-	src IPAddr
-	dst IPAddr
+	Src IPAddr
+	Dst IPAddr
 }
 
-func (h *IPHeader) String() string {
+func (h IPHeader) String() string {
 	return fmt.Sprintf(`
-		version: %d,
-		header length: %d,
-		tos: %d,
-		id: %d,
-		flags: %x,
-		ttl: %d,
-		protocolType: %s,
-		checksum: %x,
-		src: %s,
-		dst: %s,
-	`, h.vhl>>4, h.vhl&0xf<<2, h.tos, h.id, h.flags, h.ttl, h.protocolType, h.checksum, h.src, h.dst)
+		Version: %d,
+		Header Length: %d,
+		Tos: %d,
+		Id: %d,
+		Flags: %x,
+		Ttl: %d,
+		ProtocolType: %s,
+		Checksum: %x,
+		Src: %s,
+		Dst: %s,
+	`, h.Vhl>>4, h.Vhl&0xf<<2, h.Tos, h.Id, h.Flags, h.Ttl, h.ProtocolType, h.Checksum, h.Src, h.Dst)
 }
 
 // data2IPHeader transforms byte strings to IP Header and the rest of the data
@@ -101,20 +101,23 @@ func data2headerIP(data []byte) (IPHeader, []byte, error) {
 		return IPHeader{}, nil, err
 	}
 
-	if (ipHdr.vhl >> 4) != IPVersionIPv4 {
+	// check if the packet is iPv4
+	if (ipHdr.Vhl >> 4) != IPVersionIPv4 {
 		return IPHeader{}, nil, err
 	}
 
-	hlen := ipHdr.vhl & 0xf
+	// check header length and total length
+	hlen := (ipHdr.Vhl & 0xf) << 2
 	if uint8(len(data)) < hlen {
 		return IPHeader{}, nil, fmt.Errorf("data length is smaller than IHL")
 	}
-
-	if uint16(len(data)) < ipHdr.tol {
+	if uint16(len(data)) < ipHdr.Tol {
 		return IPHeader{}, nil, fmt.Errorf("data length is smaller than Total Length")
 	}
 
-	if CheckSum(data[:hlen]) != 0 {
+	// calculate checksum
+	chksum := CheckSum(data[:hlen])
+	if chksum != 0 && chksum != 0xffff { // 0 or -0
 		return IPHeader{}, nil, fmt.Errorf("checksum is not valid")
 	}
 
@@ -122,21 +125,28 @@ func data2headerIP(data []byte) (IPHeader, []byte, error) {
 	return ipHdr, data[hlen:], nil
 }
 
-func header2dataIP(hdr IPHeader, data []byte) ([]byte, error) {
+func header2dataIP(hdr *IPHeader, payload []byte) ([]byte, error) {
 
 	// write header in bigEndian
-	w := bytes.NewBuffer(make([]byte, IPHeaderSizeMin))
-	err := binary.Write(w, binary.BigEndian, hdr)
+	var w bytes.Buffer
+	err := binary.Write(&w, binary.BigEndian, hdr)
 	if err != nil {
 		return nil, err
 	}
-	buf := make([]byte, IPHeaderSizeMin+len(data))
-	copy(buf[:IPHeaderSizeMin], w.Bytes())
-	copy(buf[IPHeaderSizeMin:], data)
+
+	// write payload as it is
+	_, err = w.Write(payload)
+	if err != nil {
+		return nil, err
+	}
 
 	// caluculate checksum
+	buf := w.Bytes()
 	chksum := CheckSum(buf[:IPHeaderSizeMin])
 	copy(buf[10:12], Hton16(chksum))
+
+	// set checksum in the header (for debug)
+	hdr.Checksum = chksum
 	return buf, nil
 }
 
@@ -206,17 +216,17 @@ func TxHandlerIP(protocol IPProtocolType, data []byte, src IPAddr, dst IPAddr) e
 
 	// transform IP header to byte strings
 	hdr := IPHeader{
-		vhl:          (IPVersionIPv4<<4 | IPHeaderSizeMin>>2),
-		tol:          uint16(IPHeaderSizeMin + len(data)),
-		id:           generateId(),
-		flags:        0,
-		ttl:          0xff,
-		protocolType: protocol,
-		checksum:     0,
-		src:          src,
-		dst:          dst,
+		Vhl:          (IPVersionIPv4<<4 | IPHeaderSizeMin>>2),
+		Tol:          uint16(IPHeaderSizeMin + len(data)),
+		Id:           generateId(),
+		Flags:        0,
+		Ttl:          0xff,
+		ProtocolType: protocol,
+		Checksum:     0,
+		Src:          src,
+		Dst:          dst,
 	}
-	data, err = header2dataIP(hdr, data)
+	data, err = header2dataIP(&hdr, data)
 	if err != nil {
 		return err
 	}
@@ -259,7 +269,7 @@ func (p *IPProtocol) RxHandler(ch chan ProtocolBuffer, done chan struct{}) {
 			continue
 		}
 
-		if ipHdr.flags&0x2000 > 0 || ipHdr.flags&0x1fff > 0 {
+		if ipHdr.Flags&0x2000 > 0 || ipHdr.Flags&0x1fff > 0 {
 			log.Printf("[E] IP RxHandler does not support fragments")
 			continue
 		}
@@ -268,19 +278,19 @@ func (p *IPProtocol) RxHandler(ch chan ProtocolBuffer, done chan struct{}) {
 		var ipIface *IPIface
 		for _, iface := range pb.Dev.Interfaces() {
 			ipIface, ok := iface.(*IPIface)
-			if ok && (ipIface.Unicast == ipHdr.dst || ipIface.broadcast == IPAddrBroadcast || ipIface.broadcast == ipHdr.dst) {
+			if ok && (ipIface.Unicast == ipHdr.Dst || ipIface.broadcast == IPAddrBroadcast || ipIface.broadcast == ipHdr.Dst) {
 				break
 			}
 		}
 		if ipIface == nil {
 			return // the packet is to other host
 		}
-		log.Printf("[D] IP header=%v,iface=%v,protocol=%s", ipHdr, ipIface, ipHdr.protocolType)
+		log.Printf("[D] IP header=%v,iface=%v,protocol=%s", ipHdr, ipIface, ipHdr.ProtocolType)
 
 		// search the protocol whose type is the same as the header's one
 		for _, proto := range IPProtocols {
-			if proto.Type() == ipHdr.protocolType {
-				err = proto.RxHandler(data, ipHdr.src, ipHdr.dst, ipIface)
+			if proto.Type() == ipHdr.ProtocolType {
+				err = proto.RxHandler(data, ipHdr.Src, ipHdr.Dst, ipIface)
 				if err != nil {
 					log.Printf("[E] %s", err.Error())
 				}

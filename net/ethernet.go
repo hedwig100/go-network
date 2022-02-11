@@ -22,8 +22,8 @@ const (
 )
 
 var (
-	EtherAddrAny       = EthernetAddress{Addr: [EtherAddrLen]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}}
-	EtherAddrBroadcast = EthernetAddress{Addr: [EtherAddrLen]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}}
+	EtherAddrAny       = EthernetAddress([EtherAddrLen]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00})
+	EtherAddrBroadcast = EthernetAddress([EtherAddrLen]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff})
 )
 
 // EtherInit setup ethernet device
@@ -36,18 +36,20 @@ func EtherInit(name string) (e *EthernetDevice, err error) {
 	}
 
 	// get the hardware address
-	addr, err := getAddr(name)
+	_addr, err := getAddr(name)
 	if err != nil {
 		return
 	}
 
+	// transform []byte to [EtherAddrLen]byte
+	var addr [EtherAddrLen]byte
+	copy(addr[:], _addr)
+
 	e = &EthernetDevice{
-		name:  name,
-		flags: NetDeviceFlagBroadcast | NetDeviceFlagNeedARP | NetDeviceFlagUp,
-		EthernetAddress: EthernetAddress{
-			Addr: addr,
-		},
-		file: file,
+		name:            name,
+		flags:           NetDeviceFlagBroadcast | NetDeviceFlagNeedARP | NetDeviceFlagUp,
+		EthernetAddress: EthernetAddress(addr),
+		file:            file,
 	}
 
 	err = DeviceRegister(e)
@@ -60,16 +62,14 @@ func EtherInit(name string) (e *EthernetDevice, err error) {
 
 // EthernetAddress implments net.HardwareAddress interface.
 // EthernetAddress is written in bigEndian.
-type EthernetAddress struct {
-	Addr [EtherAddrLen]byte
-}
+type EthernetAddress [EtherAddrLen]byte
 
 func (a EthernetAddress) Address() []byte {
-	return a.Addr[:]
+	return a[:]
 }
 
 func (a EthernetAddress) String() string {
-	return fmt.Sprintf("%x:%x:%x:%x:%x:%x", a.Addr[0], a.Addr[1], a.Addr[2], a.Addr[3], a.Addr[4], a.Addr[5])
+	return fmt.Sprintf("%x:%x:%x:%x:%x:%x", a[0], a[1], a[2], a[3], a[4], a[5])
 }
 
 /*
@@ -91,9 +91,9 @@ type EthernetHdr struct {
 
 func (h EthernetHdr) String() string {
 	return fmt.Sprintf(`
-		src: %s,
-		dst: %s.
-		type: %x
+		Src: %s,
+		Dst: %s,
+		Type: %s
 	`, h.Src, h.Dst, h.Type)
 }
 
@@ -108,20 +108,22 @@ func data2headerEther(data []byte) (EthernetHdr, []byte, error) {
 	return hdr, data[EtherHdrSize:], err
 }
 
-func header2dataEther(hdr EthernetHdr, data []byte) ([]byte, error) {
+func header2dataEther(hdr EthernetHdr, payload []byte) ([]byte, error) {
 
 	// write header in bigEndian
-	w := bytes.NewBuffer(make([]byte, EtherHdrSize))
-	err := binary.Write(w, binary.BigEndian, hdr)
+	var w bytes.Buffer
+	err := binary.Write(&w, binary.BigEndian, hdr)
 	if err != nil {
 		return nil, err
 	}
 
-	// concatenate header and payload
-	buf := make([]byte, EtherHdrSize+len(data))
-	copy(buf[:EtherHdrSize], w.Bytes())
-	copy(buf[EtherHdrSize:], data)
-	return buf, nil
+	// write payload as it is
+	_, err = w.Write(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	return w.Bytes(), nil
 }
 
 /*
@@ -206,7 +208,7 @@ func (e *EthernetDevice) Transmit(data []byte, typ ProtocolType, dst HardwareAdd
 		return err
 	}
 
-	log.Printf("[D] data is trasmitted by ethernet-device(name=%s),header=%s", e.name, hdr)
+	log.Printf("[D] Tx data is trasmitted by ethernet-device(name=%s),header=%s", e.name, hdr)
 	return nil
 }
 
@@ -250,13 +252,13 @@ func (e *EthernetDevice) RxHandler(done chan struct{}) {
 			}
 
 			// check if the address is for me
-			if hdr.Dst.Addr != e.Addr && hdr.Dst != EtherAddrBroadcast {
+			if hdr.Dst != e.EthernetAddress && hdr.Dst != EtherAddrBroadcast {
 				continue
 			}
 
 			// pass the header and subsequent parts as data to the protocol
-			log.Printf("[D] dev=%s,protocolType=%s,len=%d,header=%s", e.name, hdr.Type, len, hdr)
-			DeviceInputHanlder(hdr.Type, data, e)
+			log.Printf("[D] Rx dev=%s,protocolType=%s,len=%d,header=%s", e.name, hdr.Type, len, hdr)
+			DeviceInputHanlder(hdr.Type, data[:len], e)
 		}
 
 	}

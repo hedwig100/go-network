@@ -99,20 +99,20 @@ const (
 type ICMPHeader struct {
 
 	// ICMP message type
-	typ ICMPMessageType
+	Typ ICMPMessageType
 
 	// code
-	code ICMPMessageCode
+	Code ICMPMessageCode
 
 	// checksum
-	checksum uint16
+	Checksum uint16
 
 	// message specific field
-	values uint32
+	Values uint32
 }
 
 func (h ICMPHeader) String() string {
-	switch h.typ {
+	switch h.Typ {
 	case ICMPTypeEchoReply, ICMPTypeEcho:
 		return fmt.Sprintf(`
 		typ: %s, 
@@ -120,18 +120,18 @@ func (h ICMPHeader) String() string {
 		checksum: %d,
 		id: %d,
 		seq: %d,
-	`, h.typ, h.code, h.checksum, h.values>>16, h.values&0xff)
+	`, h.Typ, h.Code, h.Checksum, h.Values>>16, h.Values&0xff)
 	default:
 		return fmt.Sprintf(`
 		typ: %s,
 		code: %d,
 		checksum: %d,
 		values: %x,
-	`, h.typ, h.code, h.checksum, h.values)
+	`, h.Typ, h.Code, h.Checksum, h.Values)
 	}
 }
 
-func data2HeaderICMP(data []byte) (ICMPHeader, []byte, error) {
+func data2headerICMP(data []byte) (ICMPHeader, []byte, error) {
 
 	// read header in bigEndian
 	var hdr ICMPHeader
@@ -142,21 +142,28 @@ func data2HeaderICMP(data []byte) (ICMPHeader, []byte, error) {
 	return hdr, data[ICMPHeaderSize:], err
 }
 
-func header2dataICMP(hdr ICMPHeader, data []byte) ([]byte, error) {
+func header2dataICMP(hdr *ICMPHeader, payload []byte) ([]byte, error) {
 
 	// write header in bigEndian
-	w := bytes.NewBuffer(make([]byte, ICMPHeaderSize))
-	err := binary.Write(w, binary.BigEndian, hdr)
+	var w bytes.Buffer
+	err := binary.Write(&w, binary.BigEndian, hdr)
 	if err != nil {
 		return nil, err
 	}
-	buf := make([]byte, ICMPHeaderSize+len(data))
-	copy(buf[:ICMPHeaderSize], w.Bytes())
-	copy(buf[ICMPHeaderSize:], data)
+
+	// write payload as it is
+	_, err = w.Write(payload)
+	if err != nil {
+		return nil, err
+	}
 
 	// calculate checksum
+	buf := w.Bytes()
 	chksum := CheckSum(buf[:ICMPHeaderSize])
 	copy(buf[2:4], Hton16(chksum))
+
+	// set checksum in the header (for debug)
+	hdr.Checksum = chksum
 	return buf, nil
 }
 
@@ -173,12 +180,12 @@ func (p *ICMPProtocol) Type() IPProtocolType {
 func TxHandlerICMP(typ ICMPMessageType, code ICMPMessageCode, values uint32, data []byte, src IPAddr, dst IPAddr) error {
 
 	hdr := ICMPHeader{
-		typ:    typ,
-		code:   code,
-		values: values,
+		Typ:    typ,
+		Code:   code,
+		Values: values,
 	}
 
-	data, err := header2dataICMP(hdr, data)
+	data, err := header2dataICMP(&hdr, data)
 	if err != nil {
 		return err
 	}
@@ -199,20 +206,20 @@ func (p *ICMPProtocol) RxHandler(data []byte, src IPAddr, dst IPAddr, ipIface *I
 		return fmt.Errorf("checksum error in ICMP header")
 	}
 
-	hdr, data, err := data2HeaderICMP(data)
+	hdr, data, err := data2headerICMP(data)
 	if err != nil {
 		return err
 	}
 
 	log.Printf("[D] ICMP received: iface=%d,header=%s", ipIface.Family(), hdr)
 
-	switch hdr.typ {
+	switch hdr.Typ {
 	case ICMPTypeEcho:
 		if dst != ipIface.Unicast {
 			// message addressed to broadcast address. responds with the address of the received interface
 			dst = ipIface.Unicast
 		}
-		return TxHandlerICMP(ICMPTypeEchoReply, 0, hdr.values, data, dst, src)
+		return TxHandlerICMP(ICMPTypeEchoReply, 0, hdr.Values, data, dst, src)
 	default:
 		return fmt.Errorf("ICMP header type is unknown")
 	}

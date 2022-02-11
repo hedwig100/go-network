@@ -36,19 +36,19 @@ func ArpInit(done chan struct{}) error {
 type ArpHeader struct {
 
 	// hardware type
-	hrd uint16
+	Hrd uint16
 
 	// protocol type
-	pro uint16
+	Pro uint16
 
 	// hardware address length
-	hln uint8
+	Hln uint8
 
 	// protocol address length
-	pln uint8
+	Pln uint8
 
 	// opcode
-	op uint16
+	Op uint16
 }
 
 // ArpEther is arp header for IPv4 and Ethernet
@@ -58,30 +58,57 @@ type ArpEther struct {
 	ArpHeader
 
 	// source hardware address
-	sha EthernetAddress
+	Sha EthernetAddress
 
 	// source protocol address
-	spa IPAddr
+	Spa IPAddr
 
 	// target hardware address
-	tha EthernetAddress
+	Tha EthernetAddress
 
 	// target protocol address
-	tpa IPAddr
+	Tpa IPAddr
 }
 
 func (ae ArpEther) String() string {
+
+	var Hrd string
+	switch ae.Hrd {
+	case ArpHrdEther:
+		Hrd = fmt.Sprintf("Ethernet(%d)", ArpHrdEther)
+	default:
+		Hrd = "UNKNOWN"
+	}
+
+	var Pro string
+	switch ae.Pro {
+	case ArpProIP:
+		Pro = fmt.Sprintf("IPv4(%d)", ArpProIP)
+	default:
+		Pro = "UNKNOWN"
+	}
+
+	var Op string
+	switch ae.Op {
+	case ArpOpReply:
+		Op = fmt.Sprintf("Reply(%d)", ArpOpReply)
+	case ArpOpRequest:
+		Op = fmt.Sprintf("Request(%d)", ArpOpRequest)
+	default:
+		Op = "UNKNOWN"
+	}
+
 	return fmt.Sprintf(`
-		hrd: %d,
-		pro: %d,
-		hln: %d,
-		pln: %d,
-		op: %d,
+		Hrd: %s,
+		Pro: %s,
+		Hln: %d,
+		Pln: %d,
+		Op: %s,
 		sha: %s,
 		spa: %s,
 		tha: %s,
 		tpa: %s,
-	`, ae.hrd, ae.pro, ae.hln, ae.pln, ae.op, ae.sha, ae.spa, ae.tha, ae.tpa)
+	`, Hrd, Pro, ae.Hln, ae.Pln, Op, ae.Sha, ae.Spa, ae.Tha, ae.Tpa)
 }
 
 // data2ArpHeader receives data and returns ARP header,the rest of data,error
@@ -101,20 +128,22 @@ func data2headerARP(data []byte) (ArpEther, []byte, error) {
 	}
 
 	// only receive IPv4 and Ethernet
-	if hdr.hrd != ArpHrdEther || hdr.hln != EtherAddrLen {
+	if hdr.Hrd != ArpHrdEther || hdr.Hln != EtherAddrLen {
 		return ArpEther{}, nil, fmt.Errorf("arp resolves only Ethernet address")
 	}
-	if hdr.pro != ArpProIP || hdr.pln != IPAddrLen {
+	if hdr.Pro != ArpProIP || hdr.Pln != IPAddrLen {
 		return ArpEther{}, nil, fmt.Errorf("arp only supports IP address")
 	}
 
 	return hdr, data[ArpIPEtherSize:], nil
 }
 
-func header2data(hdr ArpEther) ([]byte, error) {
+func header2dataARP(hdr ArpEther) ([]byte, error) {
+
 	// write data in bigDndian
-	w := bytes.NewBuffer(make([]byte, ArpIPEtherSize))
-	err := binary.Write(w, binary.BigEndian, hdr)
+	var w bytes.Buffer
+	err := binary.Write(&w, binary.BigEndian, hdr)
+
 	return w.Bytes(), err
 }
 
@@ -158,7 +187,7 @@ func (p *ArpProtocol) RxHandler(ch chan ProtocolBuffer, done chan struct{}) {
 
 		// update arp cache table
 		mutex.Lock()
-		if err := arpCacheUpdate(hdr.spa, hdr.sha); err == nil {
+		if err := arpCacheUpdate(hdr.Spa, hdr.Sha); err == nil {
 			marge = true
 		}
 		mutex.Unlock()
@@ -171,21 +200,21 @@ func (p *ArpProtocol) RxHandler(ch chan ProtocolBuffer, done chan struct{}) {
 				break
 			}
 		}
-		if ipIface == nil || ipIface.Unicast != hdr.tpa {
+		if ipIface == nil || ipIface.Unicast != hdr.Tpa {
 			return // the data is to other host
 		}
 
 		// insert cache entry if entry is not updated before
 		if !marge {
 			mutex.Lock()
-			arpCacheInsert(hdr.spa, hdr.sha)
+			arpCacheInsert(hdr.Spa, hdr.Sha)
 			mutex.Unlock()
 		}
 
-		log.Printf("[D] dev=%s,arpheader=%s", pb.Dev.Name(), hdr)
+		log.Printf("[D] Rx dev=%s,arp header=%s", pb.Dev.Name(), hdr)
 
-		if hdr.op == ArpOpRequest {
-			ArpReply(ipIface, hdr.sha, hdr.spa, hdr.sha) // reply arp message
+		if hdr.Op == ArpOpRequest {
+			ArpReply(ipIface, hdr.Sha, hdr.Spa, hdr.Sha) // reply arp message
 		}
 	}
 }
@@ -201,24 +230,24 @@ func ArpReply(ipIface *IPIface, tha EthernetAddress, tpa IPAddr, dst EthernetAdd
 	// create arp header
 	rep := ArpEther{
 		ArpHeader: ArpHeader{
-			hrd: ArpHrdEther,
-			pro: ArpProIP,
-			hln: EtherAddrLen,
-			pln: IPAddrLen,
-			op:  ArpOpReply,
+			Hrd: ArpHrdEther,
+			Pro: ArpProIP,
+			Hln: EtherAddrLen,
+			Pln: IPAddrLen,
+			Op:  ArpOpReply,
 		},
-		sha: dev.EthernetAddress,
-		spa: ipIface.Unicast,
-		tha: tha,
-		tpa: tpa,
+		Sha: dev.EthernetAddress,
+		Spa: ipIface.Unicast,
+		Tha: tha,
+		Tpa: tpa,
 	}
 
-	data, err := header2data(rep)
+	data, err := header2dataARP(rep)
 	if err != nil {
 		return err
 	}
 
-	log.Printf("[D] ARP reply, dev=%s,arp header=%s", dev.Name(), rep)
+	log.Printf("[D] Tx ARP reply, dev=%s,arp header=%s", dev.Name(), rep)
 	return DeviceOutput(dev, data, ProtocolTypeArp, dst)
 }
 
@@ -283,23 +312,23 @@ func ArpRequest(ipIface *IPIface, tpa IPAddr) error {
 	// create arp header
 	rep := ArpEther{
 		ArpHeader: ArpHeader{
-			hrd: ArpHrdEther,
-			pro: ArpProIP,
-			hln: EtherAddrLen,
-			pln: IPAddrLen,
-			op:  ArpOpRequest,
+			Hrd: ArpHrdEther,
+			Pro: ArpProIP,
+			Hln: EtherAddrLen,
+			Pln: IPAddrLen,
+			Op:  ArpOpRequest,
 		},
-		sha: dev.EthernetAddress,
-		spa: ipIface.Unicast,
-		tha: EtherAddrAny,
-		tpa: tpa,
+		Sha: dev.EthernetAddress,
+		Spa: ipIface.Unicast,
+		Tha: EtherAddrAny,
+		Tpa: tpa,
 	}
 
-	data, err := header2data(rep)
+	data, err := header2dataARP(rep)
 	if err != nil {
 		return err
 	}
 
-	log.Printf("[D] ARP request, dev=%s,arp header=%s", dev.Name(), rep)
+	log.Printf("[D] Tx ARP request, dev=%s,arp header=%s", dev.Name(), rep)
 	return DeviceOutput(dev, data, ProtocolTypeArp, EtherAddrBroadcast)
 }

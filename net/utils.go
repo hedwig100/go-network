@@ -1,7 +1,6 @@
 package net
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 )
@@ -44,9 +43,8 @@ func CheckSum(b []byte) uint16 {
 	}
 
 	var ret uint32
-	fmt.Printf("%x\n", ret)
 	for i := 0; i < len(b); i += 2 {
-		ret += 0xffff ^ (uint32(b[i])<<8 | uint32(b[i+1]))
+		ret += (uint32(b[i])<<8 | uint32(b[i+1]))
 	}
 
 	for (ret >> 16) > 0 {

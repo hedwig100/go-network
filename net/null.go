@@ -52,7 +52,7 @@ func (n *Null) Close() error {
 }
 
 func (n *Null) Transmit(data []byte, typ ProtocolType, dst HardwareAddress) error {
-	log.Printf("[I] data(%v) is trasmitted by null-device(name=%s)", data, n.name)
+	log.Printf("[I] Tx data(%v) is trasmitted by null-device(name=%s)", data, n.name)
 	return nil
 }
 
