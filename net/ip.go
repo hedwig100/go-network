@@ -189,26 +189,16 @@ func TxHandlerIP(protocol IPProtocolType, data []byte, src IPAddr, dst IPAddr) e
 	}
 
 	// source address must be the same as interface's one
-	if src != IPAddrAny && src != route.ipIface.Unicast {
+	ipIface := route.ipIface
+	if src != IPAddrAny && src != ipIface.Unicast {
 		return fmt.Errorf("unable to output with specified source address,addr=%s", src)
 	}
 
-	// search the interface whose address matches src
-	var ipIface *IPIface
-	var ok bool
-	for _, iface := range Interfaces {
-		ipIface, ok = iface.(*IPIface)
-		if ok && src == ipIface.Unicast {
-			break
-		}
-	}
-	if ipIface == nil {
-		return fmt.Errorf("IP interface whose address is %v is not found", src)
-	}
-
-	// check if dst is broadcast address of IP interface broadcast address
-	if dst != IPAddrBroadcast && (uint32(dst)|uint32(ipIface.broadcast)) != uint32(ipIface.broadcast) {
-		return fmt.Errorf("dst(%v) IP address cannot be reachable(broadcast=%v)", dst, ipIface.broadcast)
+	var nexthop IPAddr
+	if route.nexthop != IPAddrAny {
+		nexthop = route.nexthop
+	} else {
+		nexthop = dst
 	}
 
 	// does not support fragmentation
@@ -225,7 +215,7 @@ func TxHandlerIP(protocol IPProtocolType, data []byte, src IPAddr, dst IPAddr) e
 		Ttl:          0xff,
 		ProtocolType: protocol,
 		Checksum:     0,
-		Src:          src,
+		Src:          ipIface.Unicast,
 		Dst:          dst,
 	}
 	data, err = header2dataIP(&hdr, data)
@@ -236,10 +226,10 @@ func TxHandlerIP(protocol IPProtocolType, data []byte, src IPAddr, dst IPAddr) e
 	// transmit data from the device
 	var hwaddr HardwareAddress
 	if ipIface.dev.Flags()&NetDeviceFlagNeedARP > 0 { // check if arp is necessary
-		if dst == ipIface.broadcast || dst == IPAddrBroadcast {
+		if nexthop == ipIface.broadcast || nexthop == IPAddrBroadcast {
 			hwaddr = EtherAddrBroadcast // TODO: not only ethernet
 		} else {
-			hwaddr, err = ArpResolve(ipIface, dst)
+			hwaddr, err = ArpResolve(ipIface, nexthop)
 			if err != nil {
 				return err
 			}

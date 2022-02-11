@@ -78,7 +78,7 @@ func TestICMP(t *testing.T) {
 	net.NetRun()
 
 	src := iface1.Unicast
-	dst, _ := net.Str2IPAddr(defaultGateway)
+	dst, _ := net.Str2IPAddr("8.8.8.8") //net.Str2IPAddr(defaultGateway)
 	id := uint32(109)
 	seq := uint32(0)
 
