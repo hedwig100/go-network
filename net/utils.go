@@ -33,6 +33,16 @@ func Ntoh16(b []byte) uint16 {
 	return uint16(b[1])<<8 | uint16(b[0])
 }
 
+// Hton32 transforms 32bit littleEndian number to 32bit bigEndian
+func Hton32(v uint32) []byte {
+	b := make([]byte, 4)
+	b[0] = byte(v >> 24)
+	b[1] = byte(v >> 16)
+	b[2] = byte(v >> 8)
+	b[3] = byte(v)
+	return b
+}
+
 // Ntoh32 transforms 32bit bigEndian number to 32bit littleEndian
 func Ntoh32(v uint32) uint32 {
 	return (v&0xff)<<24 | (v&0xff00)<<8 | (v&0xff0000)>>8 | (v >> 24)

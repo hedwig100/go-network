@@ -8,7 +8,7 @@ import (
 const (
 	IPProtocolICMP IPProtocolType = 1
 	IPProtocolTCP  IPProtocolType = 6
-	IPProtocolUDP  IPProtocolType = 11
+	IPProtocolUDP  IPProtocolType = 17
 )
 
 /*
