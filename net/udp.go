@@ -7,6 +7,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // UDPInit prepare the UDP protocol.
@@ -17,6 +18,12 @@ func UDPInit() error {
 /*
 	UDP endpoint
 */
+
+const (
+	UDPPortMin uint16 = 49152
+	UDPPortMax uint16 = 65535
+)
+
 // UDPEndpoint is IP address and port number combination
 type UDPEndpoint struct {
 
@@ -103,9 +110,6 @@ type UDPPseudoHeader struct {
 
 	// UDP packet length
 	Len uint16
-
-	// reald UDP header
-	UDPHeader
 }
 
 // data2headerUDP transforms data to UDP header
@@ -129,19 +133,24 @@ func data2headerUDP(data []byte, src IPAddr, dst IPAddr) (UDPHeader, []byte, err
 		return UDPHeader{}, nil, fmt.Errorf("data length is not the same as that written in header")
 	}
 
+	// checksum not supported to other host
+	if hdr.Checksum == 0 {
+		return hdr, data[UDPHeaderSize:], nil
+	}
+
 	// caluculate checksum
 	pseudoHdr := UDPPseudoHeader{
-		Src:       src,
-		Dst:       dst,
-		Type:      17,
-		Len:       uint16(len(data)),
-		UDPHeader: hdr,
+		Src:  src,
+		Dst:  dst,
+		Type: IPProtocolUDP,
+		Len:  hdr.Len,
 	}
 	var w bytes.Buffer
 	binary.Write(&w, binary.BigEndian, pseudoHdr)
-	chksum := CheckSum(w.Bytes())
+	chksum := CheckSum(w.Bytes(), 0)
+	chksum = CheckSum(data, uint32(^chksum))
 	if chksum != 0 && chksum != 0xffff {
-		return UDPHeader{}, nil, fmt.Errorf("checksum error")
+		return UDPHeader{}, nil, fmt.Errorf("checksum error (UDP)")
 	}
 
 	return hdr, data[UDPHeaderSize:], nil
@@ -151,16 +160,19 @@ func header2dataUDP(hdr *UDPHeader, payload []byte, src IPAddr, dst IPAddr) ([]b
 
 	// pseudo header for caluculating checksum afterwards
 	pseudoHdr := UDPPseudoHeader{
-		Src:       src,
-		Dst:       dst,
-		Type:      17,
-		Len:       uint16(UDPHeaderSize + len(payload)),
-		UDPHeader: *hdr,
+		Src:  src,
+		Dst:  dst,
+		Type: IPProtocolUDP,
+		Len:  uint16(UDPHeaderSize + len(payload)),
 	}
 
 	// write header in bigEndian
 	var w bytes.Buffer
 	err := binary.Write(&w, binary.BigEndian, pseudoHdr)
+	if err != nil {
+		return nil, err
+	}
+	err = binary.Write(&w, binary.BigEndian, hdr)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +185,7 @@ func header2dataUDP(hdr *UDPHeader, payload []byte, src IPAddr, dst IPAddr) ([]b
 
 	// caluculate checksum
 	buf := w.Bytes()
-	chksum := CheckSum(buf[:UDPPseudoHeaderSize])
+	chksum := CheckSum(buf, 0)
 	copy(buf[18:20], Hton16(chksum))
 
 	// set checksum in the header (for debug)
@@ -197,7 +209,23 @@ func (p *UDPProtocol) RxHandler(data []byte, src IPAddr, dst IPAddr, ipIface *IP
 	if err != nil {
 		return err
 	}
-	log.Printf("[D] UDP RxHandler: src=%d,dst=%s,iface=%s,udp header=%s,payload=%v", src, dst, ipIface.Family(), hdr, payload)
+	log.Printf("[D] UDP RxHandler: src=%s:%d,dst=%s:%d,iface=%s,udp header=%s,payload=%v", src, hdr.Src, dst, hdr.Dst, ipIface.Family(), hdr, payload)
+
+	// search udp pcb whose address is dst
+	udpMutex.Lock()
+	defer udpMutex.Unlock()
+	pcb := udpPCBSelect(dst, hdr.Dst)
+	if pcb == nil {
+		return fmt.Errorf("destination UDP protocol control block not found")
+	}
+
+	pcb.rxQueue <- udpBuffer{
+		foreign: UDPEndpoint{
+			Address: src,
+			Port:    hdr.Src,
+		},
+		data: payload,
+	}
 	return nil
 }
 
@@ -221,4 +249,143 @@ func TxHandlerUDP(src UDPEndpoint, dst UDPEndpoint, data []byte) error {
 
 	log.Printf("[D] UDP TxHandler: src=%s,dst=%s,udp header=%s", src, dst, hdr)
 	return TxHandlerIP(IPProtocolUDP, data, src.Address, dst.Address)
+}
+
+/*
+	Protocol Control Block (for socket API)
+*/
+
+const (
+	udpPCBStateFree    = 0
+	udpPCBStateOpen    = 1
+	udpPCBStateClosing = 2
+)
+
+var (
+	udpMutex sync.Mutex
+	pcbs     []*udpPCB
+)
+
+// udpPCB is protocol control block for UDP
+type udpPCB struct {
+
+	// pcb state
+	state int
+
+	// our UDP endpoint
+	local UDPEndpoint
+
+	// receive queue
+	rxQueue chan udpBuffer
+}
+
+// udpBuffer is
+type udpBuffer struct {
+
+	// UDP endpoint of the source
+	foreign UDPEndpoint
+
+	// data sent to us
+	data []byte
+}
+
+func udpPCBSelect(address IPAddr, port uint16) *udpPCB {
+	for _, p := range pcbs {
+		if p.local.Address == address && p.local.Port == port {
+			return p
+		}
+	}
+	return nil
+}
+
+func OpenUDP() *udpPCB {
+	pcb := &udpPCB{
+		state: udpPCBStateOpen,
+		local: UDPEndpoint{
+			Address: IPAddrAny,
+		},
+		rxQueue: make(chan udpBuffer),
+	}
+	udpMutex.Lock()
+	pcbs = append(pcbs, pcb)
+	udpMutex.Unlock()
+	return pcb
+}
+
+func Close(pcb *udpPCB) error {
+
+	index := -1
+	for i, p := range pcbs {
+		if p == pcb {
+			index = i
+			break
+		}
+	}
+	if index < 0 {
+		return fmt.Errorf("pcb not found")
+	}
+
+	pcbs = append(pcbs[:index], pcbs[index+1:]...)
+	return nil
+}
+
+func (pcb *udpPCB) Bind(local UDPEndpoint) error {
+
+	// check if the same address has not been bound
+	udpMutex.Lock()
+	defer udpMutex.Unlock()
+	for _, p := range pcbs {
+		if p.local == local {
+			return fmt.Errorf("local address(%s) is already binded", local)
+		}
+	}
+	pcb.local = local
+	log.Printf("[I] bound address local=%s", local)
+	return nil
+}
+
+func (pcb *udpPCB) Send(data []byte, dst UDPEndpoint) error {
+
+	local := pcb.local
+
+	if local.Address == IPAddrAny {
+		route, err := LookupTable(dst.Address)
+		if err != nil {
+			return err
+		}
+		local.Address = route.ipIface.Unicast
+	}
+
+	if local.Port == 0 { // zero value of Port (uint16)
+		for p := UDPPortMin; p <= UDPPortMax; p++ {
+			if udpPCBSelect(local.Address, p) != nil {
+				local.Port = p
+				log.Printf("[D] registered UDP :address=%s,port=%d", local.Address, local.Port)
+				break
+			}
+		}
+		if local.Port == 0 {
+			return fmt.Errorf("there is no port number to assign")
+		}
+	}
+
+	return TxHandlerUDP(local, dst, data)
+}
+
+// Listen listens data and write data to 'data'. if 'block' is false, there is no blocking I/O.
+// This function returns data size,data,and source UDP endpoint.
+func (pcb *udpPCB) Listen(block bool) (int, []byte, UDPEndpoint) {
+
+	if block {
+		buf := <-pcb.rxQueue
+		return len(buf.data), buf.data, buf.foreign
+	}
+
+	// no blocking
+	select {
+	case buf := <-pcb.rxQueue:
+		return len(buf.data), buf.data, buf.foreign
+	default:
+		return 0, []byte{}, UDPEndpoint{}
+	}
 }
