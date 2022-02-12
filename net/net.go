@@ -19,6 +19,11 @@ func NetInit() error {
 		return err
 	}
 
+	err = UDPInit()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

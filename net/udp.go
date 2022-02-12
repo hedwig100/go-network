@@ -4,11 +4,52 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"log"
+	"strconv"
+	"strings"
 )
 
 // UDPInit prepare the UDP protocol.
-func UDPInit() {
+func UDPInit() error {
+	return IPProtocolRegister(&UDPProtocol{})
+}
 
+/*
+	UDP endpoint
+*/
+// UDPEndpoint is IP address and port number combination
+type UDPEndpoint struct {
+
+	// IP address
+	Address IPAddr
+
+	// port number
+	Port uint16
+}
+
+func (e UDPEndpoint) String() string {
+	return fmt.Sprintf("%s:%d", e.Address, e.Port)
+}
+
+// Str2UDPEndpoint encodes str to UDPEndpoint
+// ex) str="8.8.8.8:80"
+func Str2UDPEndpoint(str string) (UDPEndpoint, error) {
+	tmp := strings.Split(str, ":")
+	if len(tmp) != 2 {
+		return UDPEndpoint{}, fmt.Errorf("str is not correect")
+	}
+	addr, err := Str2IPAddr(tmp[0])
+	if err != nil {
+		return UDPEndpoint{}, err
+	}
+	port, err := strconv.Atoi(tmp[1])
+	if err != nil {
+		return UDPEndpoint{}, err
+	}
+	return UDPEndpoint{
+		Address: IPAddr(addr),
+		Port:    uint16(port),
+	}, nil
 }
 
 /*
@@ -72,7 +113,7 @@ type UDPPseudoHeader struct {
 func data2headerUDP(data []byte, src IPAddr, dst IPAddr) (UDPHeader, []byte, error) {
 
 	if len(data) < UDPHeaderSize {
-		return UDPHeader{}, nil, fmt.Errorf("data size is too small for udp header.")
+		return UDPHeader{}, nil, fmt.Errorf("data size is too small for udp header")
 	}
 
 	// read header in bigEndian
@@ -151,11 +192,33 @@ func (p *UDPProtocol) Type() IPProtocolType {
 	return IPProtocolUDP
 }
 
-// func (p *UDPProtocol) RxHandler(data []byte, src IPAddr, dst IPAddr, ipIface *IPIface) error {
+func (p *UDPProtocol) RxHandler(data []byte, src IPAddr, dst IPAddr, ipIface *IPIface) error {
+	hdr, payload, err := data2headerUDP(data, src, dst)
+	if err != nil {
+		return err
+	}
+	log.Printf("[D] UDP RxHandler: src=%d,dst=%s,iface=%s,udp header=%s,payload=%v", src, dst, ipIface.Family(), hdr, payload)
+	return nil
+}
 
-// }
+// TxHandlerUDP transmits UDP datagram to the other host.
+func TxHandlerUDP(src UDPEndpoint, dst UDPEndpoint, data []byte) error {
 
-// // TxHandlerUDP transmits UDP datagram to the other host.
-// func TxHandlerUDP() {
+	if len(data)+UDPHeaderSize > IPPayloadSizeMax {
+		return fmt.Errorf("data size is too large for UDP payload")
+	}
 
-// }
+	// transform UDP header to byte strings
+	hdr := UDPHeader{
+		Src: src.Port,
+		Dst: dst.Port,
+		Len: uint16(UDPHeaderSize + len(data)),
+	}
+	data, err := header2dataUDP(&hdr, data, src.Address, dst.Address)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("[D] UDP TxHandler: src=%s,dst=%s,udp header=%s", src, dst, hdr)
+	return TxHandlerIP(IPProtocolUDP, data, src.Address, dst.Address)
+}

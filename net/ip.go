@@ -5,15 +5,16 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
+	"math"
 )
 
 const (
 	IPVersionIPv4 = 4
 	IPVersionIPv6 = 6
 
-	IPHeaderSizeMin = 20
-
-	IPAddrLen uint8 = 4
+	IPHeaderSizeMin        = 20
+	IPPayloadSizeMax       = math.MaxUint16 - IPHeaderSizeMin
+	IPAddrLen        uint8 = 4
 )
 
 // IPInit prepares the IP protocol
