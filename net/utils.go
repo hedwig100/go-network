@@ -50,12 +50,12 @@ func Ntoh32(v uint32) uint32 {
 
 // Checksum calculates the 16-bit 1's complement sum of 1's complement.
 // https://datatracker.ietf.org/doc/html/rfc1071
-func CheckSum(b []byte) uint16 {
+func CheckSum(b []byte, base uint32) uint16 {
 	if len(b)%2 == 1 {
 		b = append(b, 0)
 	}
 
-	var ret uint32
+	ret := base
 	for i := 0; i < len(b); i += 2 {
 		ret += (uint32(b[i])<<8 | uint32(b[i+1]))
 	}

@@ -123,9 +123,9 @@ func data2headerIP(data []byte) (IPHeader, []byte, error) {
 	}
 
 	// calculate checksum
-	chksum := CheckSum(data[:hlen])
+	chksum := CheckSum(data[:hlen], 0)
 	if chksum != 0 && chksum != 0xffff { // 0 or -0
-		return IPHeader{}, nil, fmt.Errorf("checksum is not valid")
+		return IPHeader{}, nil, fmt.Errorf("checksum error (IP)")
 	}
 
 	return ipHdr, data[hlen:], nil
@@ -148,7 +148,7 @@ func header2dataIP(hdr *IPHeader, payload []byte) ([]byte, error) {
 
 	// caluculate checksum
 	buf := w.Bytes()
-	chksum := CheckSum(buf[:IPHeaderSizeMin])
+	chksum := CheckSum(buf[:IPHeaderSizeMin], 0)
 	copy(buf[10:12], Hton16(chksum))
 
 	// set checksum in the header (for debug)

@@ -206,7 +206,7 @@ func header2dataICMP(hdr *ICMPHeader, payload []byte) ([]byte, error) {
 
 	// calculate checksum
 	buf := w.Bytes()
-	chksum := CheckSum(buf[:ICMPHeaderSize])
+	chksum := CheckSum(buf[:ICMPHeaderSize], 0)
 	copy(buf[2:4], Hton16(chksum))
 
 	// set checksum in the header (for debug)
@@ -247,7 +247,7 @@ func (p *ICMPProtocol) RxHandler(data []byte, src IPAddr, dst IPAddr, ipIface *I
 		return fmt.Errorf("data size is too small for ICMP header")
 	}
 
-	chksum := CheckSum(data)
+	chksum := CheckSum(data, 0)
 	if chksum != 0 && chksum != 0xffff { // 0 or -0
 		return fmt.Errorf("checksum error in ICMP header")
 	}
