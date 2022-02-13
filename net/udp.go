@@ -65,7 +65,7 @@ func Str2UDPEndpoint(str string) (UDPEndpoint, error) {
 
 const (
 	UDPHeaderSize       = 8
-	UDPPseudoHeaderSize = 20 // only supports IPv4 now
+	UDPPseudoHeaderSize = 12 // only supports IPv4 now
 )
 
 // UDPHeader is header for UDP.
@@ -190,7 +190,7 @@ func header2dataUDP(hdr *UDPHeader, payload []byte, src IPAddr, dst IPAddr) ([]b
 
 	// set checksum in the header (for debug)
 	hdr.Checksum = chksum
-	return buf[UDPPseudoHeaderSize-UDPHeaderSize:], nil
+	return buf[UDPPseudoHeaderSize:], nil
 }
 
 /*
