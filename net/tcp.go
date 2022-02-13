@@ -4,7 +4,12 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"log"
 )
+
+func TCPInit() error {
+	return IPProtocolRegister(&TCPProtocol{})
+}
 
 /*
 	TCP endpoint
@@ -200,4 +205,26 @@ func header2dataTCP(hdr *TCPHeader, payload []byte, src IPAddr, dst IPAddr) ([]b
 	// set checksum in the header (for debug)
 	hdr.Checksum = chksum
 	return buf[TCPPseudoHeaderSize:], nil
+}
+
+/*
+	TCP Protocol
+*/
+// TCPProtocol is struct for TCP protocol handler.
+// This implements IPUpperProtocol interface.
+type TCPProtocol struct{}
+
+func (p *TCPProtocol) Type() IPProtocolType {
+	return IPProtocolTCP
+}
+
+func (p *TCPProtocol) RxHandler(data []byte, src IPAddr, dst IPAddr, ipIface *IPIface) error {
+
+	hdr, payload, err := data2headerTCP(data, src, dst)
+	if err != nil {
+		return err
+	}
+	log.Printf("[D] TCP RxHandler: src=%s:%d,dst=%s:%d,iface=%s,tcp header=%s,payload=%v", src, hdr.Src, dst, hdr.Dst, ipIface.Family(), hdr, payload)
+
+	return nil
 }

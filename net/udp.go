@@ -265,11 +265,11 @@ const (
 
 var (
 	udpMutex sync.Mutex
-	pcbs     []*udpPCB
+	pcbs     []*UDPpcb
 )
 
-// udpPCB is protocol control block for UDP
-type udpPCB struct {
+// UDPpcb is protocol control block for UDP
+type UDPpcb struct {
 
 	// pcb state
 	state int
@@ -291,7 +291,7 @@ type udpBuffer struct {
 	data []byte
 }
 
-func udpPCBSelect(address IPAddr, port uint16) *udpPCB {
+func udpPCBSelect(address IPAddr, port uint16) *UDPpcb {
 	for _, p := range pcbs {
 		if p.local.Address == address && p.local.Port == port {
 			return p
@@ -300,8 +300,8 @@ func udpPCBSelect(address IPAddr, port uint16) *udpPCB {
 	return nil
 }
 
-func OpenUDP() *udpPCB {
-	pcb := &udpPCB{
+func OpenUDP() *UDPpcb {
+	pcb := &UDPpcb{
 		state: udpPCBStateOpen,
 		local: UDPEndpoint{
 			Address: IPAddrAny,
@@ -314,9 +314,11 @@ func OpenUDP() *udpPCB {
 	return pcb
 }
 
-func Close(pcb *udpPCB) error {
+func Close(pcb *UDPpcb) error {
 
 	index := -1
+	udpMutex.Lock()
+	defer udpMutex.Unlock()
 	for i, p := range pcbs {
 		if p == pcb {
 			index = i
@@ -331,7 +333,7 @@ func Close(pcb *udpPCB) error {
 	return nil
 }
 
-func (pcb *udpPCB) Bind(local UDPEndpoint) error {
+func (pcb *UDPpcb) Bind(local UDPEndpoint) error {
 
 	// check if the same address has not been bound
 	udpMutex.Lock()
@@ -346,7 +348,7 @@ func (pcb *udpPCB) Bind(local UDPEndpoint) error {
 	return nil
 }
 
-func (pcb *udpPCB) Send(data []byte, dst UDPEndpoint) error {
+func (pcb *UDPpcb) Send(data []byte, dst UDPEndpoint) error {
 
 	local := pcb.local
 
@@ -376,7 +378,7 @@ func (pcb *udpPCB) Send(data []byte, dst UDPEndpoint) error {
 
 // Listen listens data and write data to 'data'. if 'block' is false, there is no blocking I/O.
 // This function returns data size,data,and source UDP endpoint.
-func (pcb *udpPCB) Listen(block bool) (int, []byte, UDPEndpoint) {
+func (pcb *UDPpcb) Listen(block bool) (int, []byte, UDPEndpoint) {
 
 	if block {
 		buf := <-pcb.rxQueue
