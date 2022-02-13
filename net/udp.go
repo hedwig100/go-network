@@ -259,6 +259,8 @@ const (
 	udpPCBStateFree    = 0
 	udpPCBStateOpen    = 1
 	udpPCBStateClosing = 2
+
+	udpPCBBufSize = 100
 )
 
 var (
@@ -304,7 +306,7 @@ func OpenUDP() *udpPCB {
 		local: UDPEndpoint{
 			Address: IPAddrAny,
 		},
-		rxQueue: make(chan udpBuffer),
+		rxQueue: make(chan udpBuffer, udpPCBBufSize),
 	}
 	udpMutex.Lock()
 	pcbs = append(pcbs, pcb)
