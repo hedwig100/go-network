@@ -10,7 +10,8 @@ import (
 	"time"
 )
 
-func TCPInit() error {
+func TCPInit(done chan struct{}) error {
+	go tcpTimer(done)
 	rand.Seed(time.Now().UnixNano())
 	return IPProtocolRegister(&TCPProtocol{})
 }
@@ -212,20 +213,41 @@ func header2dataTCP(hdr *TCPHeader, payload []byte, src IPAddr, dst IPAddr) ([]b
 /*
 	Retransmition Queue entry
 */
+const (
+	maxRetxCount uint8 = 3
+)
+
 type retxEntry struct {
-	data []byte
-	seq  uint32
-	flag ControlFlag
+	data      []byte
+	seq       uint32
+	flag      ControlFlag
+	txTime    time.Time
+	retxCount uint8
 }
 
 func removeQueue(q []retxEntry, una uint32) []retxEntry {
 	index := -1
 	for i, entry := range q {
+
 		// not acknowledge yet
 		if entry.seq >= una {
 			index = i
 			break
 		}
+
+		// acknowledge and update rto
+		// ALPHA=0.9,BETA=1.7
+		rtt := time.Since(entry.txTime)
+		srtt = 9*srtt/10 + rtt/10
+		srtt = 17 * srtt / 10
+		if srtt < lbound {
+			rtt = lbound
+		} else if srtt > ubound {
+			rtt = ubound
+		} else {
+			rto = srtt
+		}
+
 	}
 	if index < 0 {
 		return q
@@ -475,7 +497,13 @@ func (tcb *TCPpcb) Send(data []byte) error {
 			return fmt.Errorf("insufficient resources")
 		}
 		copy(tcb.txQueue[tcb.txLen:], data)
+		tcb.txLen += uint16(len(data))
 		defer func() {
+			tcb.retxQueue = append(tcb.retxQueue, retxEntry{
+				data: tcb.txQueue[:tcb.txLen],
+				seq:  tcb.snd.nxt,
+				flag: ACK,
+			})
 			tcb.snd.nxt += uint32(tcb.txLen) // TODO:window size?
 			tcb.txLen = 0
 		}()
@@ -707,6 +735,11 @@ func segmentArrives(tcb *TCPpcb, hdr TCPHeader, data []byte, len uint32, src IPA
 			if tcb.snd.una > tcb.una {
 				tcb.state = TCPpcbStateEstablished
 				defer func() {
+					tcb.retxQueue = append(tcb.retxQueue, retxEntry{
+						data: tcb.txQueue[:tcb.txLen],
+						seq:  tcb.snd.nxt,
+						flag: ACK,
+					})
 					tcb.snd.nxt += uint32(tcb.txLen)
 					tcb.txLen = 0
 				}()
@@ -976,4 +1009,67 @@ func TxHandlerTCP(src TCPEndpoint, dst TCPEndpoint, data []byte, seq uint32, ack
 
 	log.Printf("[D] TCP TxHandler: src=%s,dst=%s,tcp header=%s", src, dst, hdr)
 	return TxHandlerIP(IPProtocolTCP, data, src.Address, dst.Address)
+}
+
+/*
+	TCP timer
+*/
+
+const (
+	// lower bound and upper bound of RTO
+	lbound time.Duration = time.Second      // 1s
+	ubound time.Duration = 60 * time.Second // 60s
+)
+
+var (
+	// smoothed round trip time
+	srtt time.Duration = 10 * time.Second
+
+	// the retransmission timeout
+	rto time.Duration = 10 * time.Second
+)
+
+func tcpTimer(done chan struct{}) {
+
+	for {
+
+		// check if process finishes or not
+		select {
+		case <-done:
+			return
+		default:
+		}
+
+		time.Sleep(time.Second)
+		tcpMutex.Lock()
+		for _, tcb := range tcbs {
+			tcb.retxQueue = removeQueue(tcb.retxQueue, tcb.snd.una)
+			var deleteIndex []int
+			for i, entry := range tcb.retxQueue {
+				// retransmittion timeout
+				if entry.txTime.Add(rto).Before(time.Now()) {
+					entry.retxCount++
+					if entry.retxCount >= maxRetxCount {
+						// TODO:
+						// notify user that retransmit time is over.
+						deleteIndex = append(deleteIndex, i)
+						log.Printf("[E] retransmission count is over, network may be not connected")
+					}
+					err := TxHandlerTCP(tcb.local, tcb.foreign, entry.data, entry.seq, 0, entry.flag, tcb.snd.wnd, 0)
+					if err != nil {
+						log.Printf("[E] : retransmit error %s", err)
+					}
+				}
+			}
+			if len(deleteIndex) > 0 {
+				orgQueue := tcb.retxQueue
+				tcb.retxQueue = orgQueue[:deleteIndex[0]]
+				for i := 1; i < len(deleteIndex); i++ {
+					tcb.retxQueue = append(tcb.retxQueue, orgQueue[deleteIndex[i-1]+1:deleteIndex[i]]...)
+				}
+				tcb.retxQueue = append(tcb.retxQueue, orgQueue[deleteIndex[len(deleteIndex)-1]+1:]...)
+			}
+		}
+		tcpMutex.Unlock()
+	}
 }

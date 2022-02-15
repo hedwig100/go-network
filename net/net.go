@@ -24,7 +24,7 @@ func NetInit() error {
 		return err
 	}
 
-	err = TCPInit()
+	err = TCPInit(done)
 	if err != nil {
 		return err
 	}
