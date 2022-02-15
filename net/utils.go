@@ -5,6 +5,13 @@ import (
 	"strings"
 )
 
+func max(a uint16, b uint16) uint16 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 // Str2IPAddr transforms IP address string to 32bit address
 // ex) "127.0.0.1" -> 01111111 00000000 00000000 00000001
 func Str2IPAddr(str string) (uint32, error) {

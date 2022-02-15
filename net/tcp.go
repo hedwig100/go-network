@@ -5,9 +5,13 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
+	"math/rand"
+	"sync"
+	"time"
 )
 
 func TCPInit() error {
+	rand.Seed(time.Now().UnixNano())
 	return IPProtocolRegister(&TCPProtocol{})
 }
 
@@ -40,27 +44,25 @@ const (
 
 type ControlFlag uint8
 
-func (f ControlFlag) String() string {
-	switch f {
-	case CWR:
-		return "CWR"
-	case ECE:
-		return "ECE"
-	case URG:
-		return "URG"
-	case ACK:
-		return "ACK"
-	case PSH:
-		return "PSH"
-	case RST:
-		return "RST"
-	case SYN:
-		return "SYN"
-	case FIN:
-		return "FIN"
-	default:
-		return "UNKNOWN"
+func up(a ControlFlag, b ControlFlag, str string) string {
+	if a&b > 0 {
+		return str
 	}
+	return ""
+}
+
+func (f ControlFlag) String() string {
+	return fmt.Sprintf(
+		"%s%s%s%s%s%s%s%s",
+		up(f, CWR, "CWR "),
+		up(f, ECE, "ECE "),
+		up(f, URG, "URG "),
+		up(f, ACK, "ACK "),
+		up(f, PSH, "PSH "),
+		up(f, RST, "RST "),
+		up(f, SYN, "SYN "),
+		up(f, FIN, "FIN "),
+	)
 }
 
 const (
@@ -208,6 +210,382 @@ func header2dataTCP(hdr *TCPHeader, payload []byte, src IPAddr, dst IPAddr) ([]b
 }
 
 /*
+	Retransmition Queue entry
+*/
+type retxEntry struct {
+	data []byte
+	seq  uint32
+	flag ControlFlag
+}
+
+func removeQueue(q []retxEntry, una uint32) []retxEntry {
+	index := -1
+	for i, entry := range q {
+		// not acknowledge yet
+		if entry.seq >= una {
+			index = i
+			break
+		}
+	}
+	if index < 0 {
+		return q
+	}
+	return q[index:]
+}
+
+/*
+	TCP Protocol Control Block (Transmission Control Block)
+*/
+
+const (
+	TCPpcbStateListen      TCPpcbState = 0
+	TCPpcbStateSYNSent     TCPpcbState = 1
+	TCPpcbStateSYNReceived TCPpcbState = 2
+	TCPpcbStateEstablished TCPpcbState = 3
+	TCPpcbStateFINWait1    TCPpcbState = 4
+	TCPpcbStateFINWait2    TCPpcbState = 5
+	TCPpcbStateCloseWait   TCPpcbState = 6
+	TCPpcbStateClosing     TCPpcbState = 7
+	TCPpcbStateLastACK     TCPpcbState = 8
+	TCPpcbStateTimeWait    TCPpcbState = 9
+	TCPpcbStateClosed      TCPpcbState = 10
+)
+
+type TCPpcbState uint32
+
+func (s TCPpcbState) String() string {
+	switch s {
+	case TCPpcbStateListen:
+		return "LISTEN"
+	case TCPpcbStateSYNSent:
+		return "SYN-SENT"
+	case TCPpcbStateSYNReceived:
+		return "SYN-RECEIVED"
+	case TCPpcbStateEstablished:
+		return "ESTABLISHED"
+	case TCPpcbStateFINWait1:
+		return "FIN-WAIT-1"
+	case TCPpcbStateFINWait2:
+		return "FIN-WAIT-2"
+	case TCPpcbStateCloseWait:
+		return "CLOSE-WAIT"
+	case TCPpcbStateClosing:
+		return "CLOSING"
+	case TCPpcbStateLastACK:
+		return "LAST-ACK"
+	case TCPpcbStateTimeWait:
+		return "TIME-WAIT"
+	case TCPpcbStateClosed:
+		return "CLOSED"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+func createISS() uint32 {
+	return rand.Uint32()
+}
+
+// Send Sequence Variables
+type snd struct {
+
+	// send unacknowledged
+	una uint32
+
+	// send next
+	nxt uint32
+
+	// send window
+	wnd uint16
+
+	// send urgent pointer
+	up uint16
+
+	// segment sequence number used for last window update
+	wl1 uint32
+
+	// segment acknowledgment number used for last window update
+	wl2 uint32
+}
+
+// Receive Sequence Variables
+type rcv struct {
+
+	// receive next
+	nxt uint32
+
+	// receive window
+	wnd uint16
+
+	// receive urgent pointer
+	up uint16
+}
+
+const (
+	bufferSize = 65535
+)
+
+var (
+	tcpMutex sync.Mutex
+	tcbs     []*TCPpcb
+)
+
+type TCPpcb struct {
+
+	// pcb state
+	state TCPpcbState
+
+	// TCP endpoint
+	local   TCPEndpoint
+	foreign TCPEndpoint
+
+	// Send Sequence Variables
+	snd
+
+	// initial send sequence number
+	iss uint32
+
+	// Receive Sequence Variables
+	rcv
+
+	// initial receive sequence number
+	irs uint32
+
+	// maximum segment size
+	mss uint16
+
+	// queue
+	rxQueue   [bufferSize]byte // receive buffer
+	rxLen     uint16
+	txQueue   [bufferSize]byte // transmit buffer
+	txLen     uint16
+	retxQueue []retxEntry // retransmit queue
+}
+
+// NewTCPpcb returns *TCBpcb if there is no *TCPpcb whose address is not the same as local
+func NewTCPpcb(local TCPEndpoint) (*TCPpcb, error) {
+	// check if the same local address has not been used
+	tcpMutex.Lock()
+	defer tcpMutex.Unlock()
+	for _, t := range tcbs {
+		if t.local == local {
+			return nil, fmt.Errorf("the same local address(%s) is already used", local)
+		}
+	}
+
+	tcb := &TCPpcb{
+		state: TCPpcbStateClosed,
+		local: local,
+	}
+	tcbs = append(tcbs, tcb)
+	return tcb, nil
+}
+
+func tcbSelect(address IPAddr, port uint16) *TCPpcb {
+	tcpMutex.Lock()
+	defer tcpMutex.Unlock()
+	for _, t := range tcbs {
+		if t.local.Address == address && t.local.Port == port {
+			return t
+		}
+	}
+	return nil
+}
+
+func DeleteTCPpcb(tcb *TCPpcb) error {
+	tcpMutex.Lock()
+	defer tcpMutex.Unlock()
+	for i, t := range tcbs {
+		if t == tcb {
+			tcbs = append(tcbs[:i], tcbs[i+1:]...)
+			return nil
+		}
+	}
+	return fmt.Errorf("tcb not found, and cannot be deleted")
+}
+
+func (tcb *TCPpcb) Open(foreign TCPEndpoint, isActive bool) error {
+
+	switch tcb.state {
+	case TCPpcbStateClosed:
+		// passive open
+		if !isActive {
+			tcb.state = TCPpcbStateListen
+			return nil
+		}
+		// active open
+		if foreign.Address == IPAddrAny {
+			return fmt.Errorf("foreign socket unspecified")
+		}
+
+		tcb.foreign = foreign
+		iss := createISS()
+		tcb.iss = iss
+		tcb.snd.una = iss
+		tcb.snd.nxt = iss + 1
+		tcb.state = TCPpcbStateSYNSent
+		return TxHandlerTCP(tcb.local, foreign, []byte{}, iss, 0, SYN, bufferSize, 0)
+	case TCPpcbStateListen:
+		// passive open
+		if !isActive {
+			return nil
+		}
+		// active open
+		if foreign.Address == IPAddrAny {
+			return fmt.Errorf("foreign socket unspecified")
+		}
+
+		tcb.foreign = foreign
+		iss := createISS()
+		tcb.iss = iss
+		tcb.snd.una = iss
+		tcb.snd.nxt = iss + 1
+		tcb.state = TCPpcbStateSYNSent
+		// TODO:usertimer
+		return TxHandlerTCP(tcb.local, foreign, []byte{}, iss, 0, SYN, bufferSize, 0)
+	default:
+		return fmt.Errorf("connection already exists")
+	}
+}
+
+func (tcb *TCPpcb) Send(data []byte) error {
+	switch tcb.state {
+	case TCPpcbStateClosed:
+		return fmt.Errorf("connection does not exist")
+	case TCPpcbStateListen:
+		if tcb.foreign.Address == IPAddrAny {
+			return fmt.Errorf("foreign socket unspecified")
+		}
+
+		iss := createISS()
+		tcb.iss = iss
+		tcb.snd.una = iss
+		tcb.snd.nxt = iss + 1
+		tcb.state = TCPpcbStateSYNSent
+		copy(tcb.txQueue[:], data)
+		return TxHandlerTCP(tcb.local, tcb.foreign, []byte{}, iss, 0, SYN, bufferSize, 0)
+	case TCPpcbStateSYNSent, TCPpcbStateSYNReceived:
+		if int(tcb.txLen)+len(data) >= bufferSize {
+			return fmt.Errorf("insufficient resources")
+		}
+		copy(tcb.txQueue[tcb.txLen:], data)
+		return nil
+	case TCPpcbStateEstablished, TCPpcbStateCloseWait:
+		if int(tcb.txLen)+len(data) >= bufferSize {
+			return fmt.Errorf("insufficient resources")
+		}
+		copy(tcb.txQueue[tcb.txLen:], data)
+		defer func() {
+			tcb.snd.nxt += uint32(tcb.txLen) // TODO:window size?
+			tcb.txLen = 0
+		}()
+		return TxHandlerTCP(tcb.local, tcb.foreign, tcb.txQueue[:tcb.txLen], tcb.snd.nxt, tcb.rcv.nxt, ACK, bufferSize-tcb.rxLen, 0)
+	default:
+		return fmt.Errorf("connection closing")
+	}
+}
+
+func (tcb *TCPpcb) Receive() ([]byte, error) {
+	switch tcb.state {
+	case TCPpcbStateClosed:
+		return nil, fmt.Errorf("connection does not exist")
+	case TCPpcbStateListen, TCPpcbStateSYNSent, TCPpcbStateSYNReceived:
+		return nil, fmt.Errorf("connnection not established")
+	case TCPpcbStateEstablished, TCPpcbStateFINWait1, TCPpcbStateFINWait2:
+		defer func() {
+			tcb.rxLen = 0
+		}()
+		return tcb.rxQueue[:tcb.rxLen], nil
+	case TCPpcbStateCloseWait:
+		// no remaining data
+		if tcb.rxLen == 0 {
+			return nil, fmt.Errorf("connection closing")
+		}
+		// remaining data
+		defer func() {
+			tcb.rxLen = 0
+		}()
+		return tcb.rxQueue[:tcb.rxLen], nil
+	default:
+		return nil, fmt.Errorf("connection closing")
+	}
+}
+
+func (tcb *TCPpcb) Close() error {
+	switch tcb.state {
+	case TCPpcbStateClosed:
+		return fmt.Errorf("connection does not exist")
+	case TCPpcbStateListen:
+		tcb.state = TCPpcbStateClosed
+		return nil
+	case TCPpcbStateSYNSent:
+		tcb.state = TCPpcbStateClosed
+		return nil
+	case TCPpcbStateSYNReceived:
+		// TODO:
+		// If no SENDs have been issued and there is no pending data to send,
+		// then form a FIN segment and send it, and enter FIN-WAIT-1 state;
+		// otherwise queue for processing after entering ESTABLISHED state.
+		return nil
+	case TCPpcbStateEstablished:
+		// TODO:
+		// Queue this until all preceding SENDs have been segmentized, then
+		// form a FIN segment and send it.  In any case, enter FIN-WAIT-1
+		// state.
+		return nil
+	case TCPpcbStateFINWait1, TCPpcbStateFINWait2:
+		return fmt.Errorf("connection closing")
+	case TCPpcbStateCloseWait:
+		// TODO:
+		// Queue this request until all preceding SENDs have been
+		// segmentized; then send a FIN segment, enter CLOSING state.
+		return nil
+	default:
+		return fmt.Errorf("connection closing")
+	}
+}
+
+func (tcb *TCPpcb) Abort() error {
+	switch tcb.state {
+	case TCPpcbStateClosed:
+		return fmt.Errorf("connection does not exist")
+	case TCPpcbStateListen:
+		// TODO:
+		// Any outstanding RECEIVEs should be returned with "error:
+		// connection reset" responses
+		tcb.state = TCPpcbStateClosed
+		return nil
+	case TCPpcbStateSYNSent:
+		// TODO:
+		// All queued SENDs and RECEIVEs should be given "connection reset"
+		// notification,
+		tcb.state = TCPpcbStateClosed
+		return nil
+	case TCPpcbStateSYNReceived, TCPpcbStateEstablished, TCPpcbStateFINWait1, TCPpcbStateFINWait2, TCPpcbStateCloseWait:
+		// TODO:
+		// All queued SENDs and RECEIVEs should be given "connection reset"
+		// notification; all segments queued for transmission (except for the
+		// RST formed above) or retransmission should be flushed
+		defer func() {
+			tcb.state = TCPpcbStateClosed
+		}()
+		return TxHandlerTCP(tcb.local, tcb.foreign, []byte{}, tcb.snd.nxt, 0, RST, 0, 0)
+	default:
+		tcb.state = TCPpcbStateClosed
+		return nil
+	}
+}
+
+func (tcb *TCPpcb) Status() (string, error) {
+	switch tcb.state {
+	case TCPpcbStateClosed:
+		return "", fmt.Errorf("connection does not exist")
+	default:
+		return fmt.Sprintf("state = %s", tcb.state), nil
+	}
+}
+
+/*
 	TCP Protocol
 */
 // TCPProtocol is struct for TCP protocol handler.
@@ -226,5 +604,376 @@ func (p *TCPProtocol) RxHandler(data []byte, src IPAddr, dst IPAddr, ipIface *IP
 	}
 	log.Printf("[D] TCP RxHandler: src=%s:%d,dst=%s:%d,iface=%s,tcp header=%s,payload=%v", src, hdr.Src, dst, hdr.Dst, ipIface.Family(), hdr, payload)
 
+	// search TCP pcb
+	tcb := tcbSelect(dst, hdr.Dst)
+	if tcb == nil {
+		return fmt.Errorf("destination TCP protocol control block not found")
+	}
+
+	return segmentArrives(tcb, hdr, payload, uint32(len(payload)), src)
+}
+
+func segmentArrives(tcb *TCPpcb, hdr TCPHeader, data []byte, len uint32, src IPAddr) error {
+	switch tcb.state {
+	case TCPpcbStateClosed:
+		if hdr.Flag&RST > 0 {
+			// An incoming segment containing a RST is discarded
+			return nil
+		}
+		// ACK bit is off
+		if hdr.Flag&ACK == 0 {
+			return TxHandlerTCP(tcb.local, tcb.foreign, []byte{}, 0, hdr.Seq+len, RST|ACK, 0, 0)
+		}
+		// ACK bit is on
+		return TxHandlerTCP(tcb.local, tcb.foreign, []byte{}, hdr.Ack, 0, RST, 0, 0)
+
+	case TCPpcbStateListen:
+		// first check for an RST
+		if hdr.Flag&RST > 0 {
+			// An incoming RST should be ignored
+			return nil
+		}
+
+		// second check for an ACK
+		if hdr.Flag&ACK > 0 {
+			// Any acknowledgment is bad if it arrives on a connection still in the LISTEN state.
+			// An acceptable reset segment should be formed for any arriving ACK-bearing segment.
+			return TxHandlerTCP(tcb.local, tcb.foreign, []byte{}, hdr.Ack, 0, RST, 0, 0)
+		}
+
+		// third check for a SYN
+		if hdr.Flag&SYN > 0 {
+			// ignore security check
+
+			tcb.rcv.nxt = hdr.Seq + 1
+			tcb.irs = hdr.Seq
+
+			tcb.iss = createISS()
+			tcb.snd.nxt = tcb.iss + 1
+			tcb.snd.una = tcb.iss
+			tcb.state = TCPpcbStateSYNReceived
+
+			tcb.foreign = TCPEndpoint{
+				Address: src,
+				Port:    hdr.Src,
+			}
+
+			copy(tcb.rxQueue[tcb.rxLen:], data)
+			tcb.rxLen += uint16(len)
+			return TxHandlerTCP(tcb.local, tcb.foreign, []byte{}, tcb.iss, tcb.rcv.nxt, SYN|ACK, 0, 0)
+		}
+
+		// fourth other text or control
+		log.Printf("[D] TCP segment discarded, tcp header=%s", hdr)
+		return nil
+
+	case TCPpcbStateSYNSent:
+		// first check the ACK bit
+		if hdr.Flag&ACK > 0 {
+			// If SEG.ACK =< ISS, or SEG.ACK > SND.NXT, send a reset (unless
+			// the RST bit is set, if so drop the segment and return)
+			if hdr.Flag&RST > 0 {
+				log.Printf("[D] TCP segment discarded, tcp header=%s", hdr)
+				return nil
+			}
+			if hdr.Ack <= tcb.iss || hdr.Ack > tcb.snd.nxt {
+				return TxHandlerTCP(tcb.local, tcb.foreign, []byte{}, hdr.Ack, 0, RST, 0, 0)
+			}
+			if tcb.snd.una > hdr.Ack || hdr.Ack > tcb.snd.nxt {
+				// this ACK is not acceptable
+				return fmt.Errorf("unacceptable ACK is sent")
+			}
+		}
+
+		// second check the RST bit
+		if hdr.Flag&RST > 0 {
+			tcb.state = TCPpcbStateClosed
+			return fmt.Errorf("connection reset")
+		}
+
+		// third check the security and precedence
+		// ignore
+
+		// fourth check the SYN bit
+		if hdr.Flag&SYN > 0 {
+			tcb.rcv.nxt = hdr.Seq + 1
+			tcb.irs = hdr.Seq
+
+			if hdr.Flag&ACK > 0 { // our SYN has been ACKed
+				tcb.snd.una = hdr.Ack
+				tcb.retxQueue = removeQueue(tcb.retxQueue, tcb.snd.una)
+			}
+
+			if tcb.snd.una > tcb.una {
+				tcb.state = TCPpcbStateEstablished
+				defer func() {
+					tcb.snd.nxt += uint32(tcb.txLen)
+					tcb.txLen = 0
+				}()
+				return TxHandlerTCP(tcb.local, tcb.foreign, tcb.txQueue[:tcb.txLen], tcb.snd.nxt, tcb.rcv.nxt, ACK, bufferSize-tcb.rxLen, 0)
+			}
+
+			tcb.state = TCPpcbStateSYNReceived
+			// TODO:
+			// If there are other controls or text in the
+			// segment, queue them for processing after the ESTABLISHED state
+			// has been reached
+			return TxHandlerTCP(tcb.local, tcb.foreign, []byte{}, tcb.iss, tcb.rcv.nxt, SYN|ACK, bufferSize-tcb.rxLen, 0)
+		}
+
+		// fifth, if neither of the SYN or RST bits is set then drop the segment and return.
+		log.Printf("[D] TCP segment discarded tcp header=%s", hdr)
+		return nil
+
+	default:
+		// first check sequence number
+		var acceptable bool
+		if tcb.rcv.wnd == 0 {
+			if len == 0 && hdr.Seq == tcb.rcv.nxt {
+				acceptable = true
+			}
+			if len > 0 {
+				acceptable = true
+			}
+		} else {
+			if len == 0 && (tcb.rcv.nxt <= hdr.Seq && hdr.Seq < tcb.rcv.nxt+uint32(tcb.rcv.wnd)) {
+				acceptable = true
+			}
+			if len > 0 && (tcb.rcv.nxt <= hdr.Seq || hdr.Seq < tcb.rcv.nxt+uint32(tcb.rcv.wnd)) || (tcb.rcv.nxt <= hdr.Seq+len-1 && hdr.Seq+len-1 < tcb.rcv.nxt+uint32(tcb.rcv.wnd)) {
+				acceptable = true
+			}
+		}
+		if !acceptable {
+			if hdr.Flag&RST > 0 {
+				return nil
+			}
+			return TxHandlerTCP(tcb.local, tcb.foreign, []byte{}, tcb.snd.nxt, tcb.rcv.nxt, ACK, bufferSize-tcb.rxLen, 0)
+		}
+		// In the following it is assumed that the segment is the idealized
+		// segment that begins at RCV.NXT and does not exceed the window.
+		data = data[tcb.rcv.nxt-hdr.Seq : tcb.rcv.nxt+uint32(tcb.rcv.wnd)-hdr.Seq]
+
+		// second check the RST bit
+		switch tcb.state {
+		case TCPpcbStateSYNReceived:
+			if hdr.Flag&RST > 0 {
+				// TODO:
+				// If this connection was initiated with an active OPEN (i.e., came
+				// from SYN-SENT state) then the connection was refused, signal
+				// the user "connection refused".
+				tcb.state = TCPpcbStateClosed
+				return nil
+			}
+		case TCPpcbStateEstablished, TCPpcbStateFINWait1, TCPpcbStateFINWait2, TCPpcbStateCloseWait:
+			if hdr.Flag&RST > 0 {
+				// TODO:
+				// any outstanding RECEIVEs and SEND should receive "reset" responses
+				// TODO:
+				// Users should also receive an unsolicited general "connection reset" signal
+				tcb.state = TCPpcbStateClosed
+				return nil
+			}
+		case TCPpcbStateClosing, TCPpcbStateLastACK, TCPpcbStateTimeWait:
+			if hdr.Flag&RST > 0 {
+				tcb.state = TCPpcbStateClosed
+				return nil
+			}
+		}
+
+		// third check security and precedence
+		// ignore
+
+		// fourth, check the SYN bit
+		switch tcb.state {
+		case TCPpcbStateSYNReceived, TCPpcbStateEstablished, TCPpcbStateFINWait1, TCPpcbStateFINWait2,
+			TCPpcbStateCloseWait, TCPpcbStateClosing, TCPpcbStateLastACK, TCPpcbStateTimeWait:
+			if hdr.Flag&SYN > 0 {
+				// TODO:
+				// any outstanding RECEIVEs and SEND should receive "reset" responses,
+				// all segment queues should be flushed, the user should also
+				// receive an unsolicited general "connection reset" signal
+				tcb.state = TCPpcbStateClosed
+				return TxHandlerTCP(tcb.local, tcb.foreign, []byte{}, tcb.snd.nxt, tcb.rcv.nxt, RST, bufferSize-tcb.rxLen, 0)
+			}
+		}
+
+		// fifth check the ACK field
+		if hdr.Flag&ACK == 0 {
+			log.Printf("[D] TCP segment discarded tcp header=%s", hdr)
+			return nil
+		}
+		switch tcb.state {
+		case TCPpcbStateSYNReceived:
+			if tcb.snd.una <= hdr.Ack && hdr.Ack <= tcb.snd.nxt {
+				tcb.state = TCPpcbStateEstablished
+			} else {
+				log.Printf("unacceptable ACK is sent")
+				return TxHandlerTCP(tcb.local, tcb.foreign, []byte{}, hdr.Ack, 0, RST, 0, 0)
+			}
+		case TCPpcbStateEstablished, TCPpcbStateFINWait1, TCPpcbStateFINWait2, TCPpcbStateCloseWait, TCPpcbStateClosing:
+			if tcb.snd.una < hdr.Ack && hdr.Ack <= tcb.snd.nxt {
+				tcb.snd.una = hdr.Ack
+				tcb.retxQueue = removeQueue(tcb.retxQueue, tcb.snd.una)
+
+				// TODO:
+				// Users should receive
+				// positive acknowledgments for buffers which have been SENT and
+				// fully acknowledged (i.e., SEND buffer should be returned with
+				// "ok" response)
+
+				// Note that SND.WND is an offset from SND.UNA, that SND.WL1
+				// records the sequence number of the last segment used to update
+				// SND.WND, and that SND.WL2 records the acknowledgment number of
+				// the last segment used to update SND.WND.  The check here
+				// prevents using old segments to update the window.
+				if tcb.snd.wl1 < hdr.Seq || (tcb.snd.wl1 == hdr.Seq && tcb.snd.wl2 <= hdr.Ack) {
+					tcb.snd.wnd = hdr.Window
+					tcb.snd.wl1 = hdr.Seq
+					tcb.snd.wl2 = hdr.Ack
+				}
+			} else if hdr.Ack < tcb.snd.una {
+				// If the ACK is a duplicate (SEG.ACK < SND.UNA), it can be ignored.
+				return nil
+			} else if hdr.Ack > tcb.snd.nxt {
+				// ??
+				// If the ACK acks something not yet sent (SEG.ACK > SND.NXT) then send an ACK, drop the segment, and return.
+				return TxHandlerTCP(tcb.local, tcb.foreign, []byte{}, tcb.snd.nxt, tcb.rcv.nxt, ACK, 0, 0)
+			}
+
+			switch tcb.state {
+			case TCPpcbStateFINWait1:
+				// In addition to the processing for the ESTABLISHED state,
+				// if our FIN is now acknowledged then enter FIN-WAIT-2 and continue processing in that state.
+				tcb.state = TCPpcbStateFINWait2
+				return nil
+			case TCPpcbStateFINWait2:
+				// TODO:
+				// if the retransmission queue is empty, the user’s CLOSE can be
+				// acknowledged ("ok")
+				return nil
+			case TCPpcbStateEstablished, TCPpcbStateCloseWait:
+				// Do the same processing as for the ESTABLISHED state.
+				return nil
+			case TCPpcbStateClosing:
+				// In addition to the processing for the ESTABLISHED state,
+				// if the ACK acknowledges our FIN then enter the TIME-WAIT state, otherwise ignore the segment.
+				tcb.state = TCPpcbStateTimeWait
+				return nil
+			case TCPpcbStateLastACK:
+				// The only thing that can arrive in this state is an
+				// acknowledgment of our FIN.  If our FIN is now acknowledged,
+				// delete the TCB, enter the CLOSED state, and return.
+				tcb.state = TCPpcbStateClosed
+				return nil
+			case TCPpcbStateTimeWait:
+				// TODO:
+				// The only thing that can arrive in this state is a
+				// retransmission of the remote FIN.  Acknowledge it, and restart
+				// the 2 MSL timeout.
+				return nil
+			}
+		}
+
+		// sixth, check the URG bit,
+		switch tcb.state {
+		case TCPpcbStateEstablished, TCPpcbStateFINWait1, TCPpcbStateFINWait2:
+			if hdr.Flag&URG > 0 {
+				tcb.rcv.up = max(tcb.rcv.up, hdr.Urgent)
+				// TODO:
+				// signal the user that the remote side has urgent data if the urgent
+				// pointer (RCV.UP) is in advance of the data consumed.  If the
+				// user has already been signaled (or is still in the "urgent
+				// mode") for this continuous sequence of urgent data, do not
+				// signal the user again.
+			}
+		case TCPpcbStateCloseWait, TCPpcbStateClosing, TCPpcbStateLastACK, TCPpcbStateTimeWait:
+			// ignore
+		}
+
+		// seventh, process the segment text
+		switch tcb.state {
+		case TCPpcbStateEstablished, TCPpcbStateFINWait1, TCPpcbStateFINWait2:
+			// TODO:
+			// Once in the ESTABLISHED state, it is possible to deliver segment
+			// text to user RECEIVE buffers.  Text from segments can be moved
+			// into buffers until either the buffer is full or the segment is
+			// empty.  If the segment empties and carries an PUSH flag, then
+			// the user is informed, when the buffer is returned, that a PUSH
+			// has been received.
+			copy(tcb.rxQueue[tcb.rxLen:], data)
+			tcb.rxLen += uint16(len)
+			tcb.rcv.nxt = hdr.Seq + len
+			tcb.rcv.wnd = bufferSize - tcb.rxLen
+
+			// TODO:
+			// This acknowledgment should be piggybacked on a segment being
+			// transmitted if possible without incurring undue delay.
+			return TxHandlerTCP(tcb.local, tcb.foreign, []byte{}, tcb.snd.nxt, tcb.rcv.nxt, ACK, tcb.rcv.wnd, 0)
+		case TCPpcbStateCloseWait, TCPpcbStateClosing, TCPpcbStateLastACK, TCPpcbStateTimeWait:
+			// ignore
+		}
+
+		// eighth, check the FIN bit,
+		switch tcb.state {
+		case TCPpcbStateClosed, TCPpcbStateListen, TCPpcbStateSYNSent:
+			// drop the segment and return.
+			return nil
+		default:
+		}
+
+		if hdr.Flag&FIN > 0 {
+			// FIN bit is set
+			// TODO:
+			// signal the user "connection closing" and return any pending RECEIVEs with same message,
+			switch tcb.state {
+			case TCPpcbStateSYNReceived, TCPpcbStateEstablished:
+				tcb.state = TCPpcbStateCloseWait
+				return TxHandlerTCP(tcb.local, tcb.foreign, []byte{}, tcb.snd.nxt, tcb.rcv.nxt, ACK, 0, 0)
+			case TCPpcbStateFINWait1:
+				tcb.state = TCPpcbStateTimeWait
+				// TODO:
+				// time-wait timer, turn off the other timers; otherwise enter the CLOSING state.
+				return TxHandlerTCP(tcb.local, tcb.foreign, []byte{}, tcb.snd.nxt, tcb.rcv.nxt, ACK, 0, 0)
+			case TCPpcbStateFINWait2:
+				tcb.state = TCPpcbStateTimeWait
+				// TODO:
+				// time-wait timer, turn off the other timers
+				return TxHandlerTCP(tcb.local, tcb.foreign, []byte{}, tcb.snd.nxt, tcb.rcv.nxt, ACK, 0, 0)
+			case TCPpcbStateCloseWait, TCPpcbStateClosing, TCPpcbStateLastACK:
+				// remain
+				return TxHandlerTCP(tcb.local, tcb.foreign, []byte{}, tcb.snd.nxt, tcb.rcv.nxt, ACK, 0, 0)
+			case TCPpcbStateTimeWait:
+				// TODO:
+				// Restart the 2 MSL time-wait timeout.
+				return TxHandlerTCP(tcb.local, tcb.foreign, []byte{}, tcb.snd.nxt, tcb.rcv.nxt, ACK, 0, 0)
+			}
+		}
+	}
 	return nil
+}
+
+func TxHandlerTCP(src TCPEndpoint, dst TCPEndpoint, data []byte, seq uint32, ack uint32, flag ControlFlag, wnd uint16, up uint16) error {
+
+	if len(data)+TCPHeaderSizeMin > IPPayloadSizeMax {
+		return fmt.Errorf("data size is too large for TCP payload")
+	}
+
+	// transform TCP header to byte strings
+	hdr := TCPHeader{
+		Src:    src.Port,
+		Dst:    dst.Port,
+		Seq:    seq,
+		Ack:    ack,
+		Offset: (TCPHeaderSizeMin >> 2) << 4,
+		Flag:   flag,
+		Window: wnd,
+		Urgent: up,
+	}
+	data, err := header2dataTCP(&hdr, data, src.Address, dst.Address)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("[D] TCP TxHandler: src=%s,dst=%s,tcp header=%s", src, dst, hdr)
+	return TxHandlerIP(IPProtocolTCP, data, src.Address, dst.Address)
 }
