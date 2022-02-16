@@ -7,6 +7,12 @@ import (
 	"github.com/hedwig100/go-network/net"
 )
 
+/*
+
+nc -l 192.0.2.1 8080&
+go test -v -run TestTCPSend > log
+
+*/
 // TODO: Close doesn't succeed (FIN segment doesn't reach?)
 func TestTCPActiveOpenClose(t *testing.T) {
 	var err error
@@ -46,7 +52,7 @@ func TestTCPActiveOpenClose(t *testing.T) {
 	net.NetRun()
 
 	src, _ := net.Str2TCPEndpoint("192.0.2.2:8080")
-	dst, _ := net.Str2TCPEndpoint("192.0.2.1:100")
+	dst, _ := net.Str2TCPEndpoint("192.0.2.1:8080")
 
 	soc, err := net.NewTCPpcb(src)
 	if err != nil {

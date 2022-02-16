@@ -35,6 +35,14 @@ var testdata = []byte{
 	0x26, 0x2a, 0x28, 0x29,
 }
 
+/*
+
+go test -v -run TestICMP > log&
+ping 192.0.2.2
+...
+
+*/
+
 func TestICMP(t *testing.T) {
 
 	// catch CTRL+C
