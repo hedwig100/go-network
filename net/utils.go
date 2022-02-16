@@ -5,6 +5,31 @@ import (
 	"strings"
 )
 
+// NOTE: more sophisticated solution,generics? or simply use a linked-list
+func removeRetx(data []retxEntry, indexs []int) []retxEntry {
+	if len(indexs) == 0 {
+		return data
+	}
+	ret := data[:indexs[0]]
+	for i := 1; i < len(indexs); i++ {
+		ret = append(ret, data[indexs[i-1]+1:indexs[i]]...)
+	}
+	ret = append(ret, data[indexs[len(indexs)-1]+1:]...)
+	return ret
+}
+
+func removeCmd(data []cmdEntry, indexs []int) []cmdEntry {
+	if len(indexs) == 0 {
+		return data
+	}
+	ret := data[:indexs[0]]
+	for i := 1; i < len(indexs); i++ {
+		ret = append(ret, data[indexs[i-1]+1:indexs[i]]...)
+	}
+	ret = append(ret, data[indexs[len(indexs)-1]+1:]...)
+	return ret
+}
+
 func max(a uint16, b uint16) uint16 {
 	if a > b {
 		return a
