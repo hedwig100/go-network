@@ -241,8 +241,8 @@ func (p *TCPProtocol) RxHandler(data []byte, src IPAddr, dst IPAddr, ipIface *IP
 }
 
 func segmentArrives(tcb *TCPpcb, hdr TCPHeader, data []byte, dataLen uint32, src IPAddr) error {
-	tcb.mutex.Lock()
-	defer tcb.mutex.Unlock()
+	tcpMutex.Lock()
+	defer tcpMutex.Unlock()
 
 	switch tcb.state {
 	case TCPpcbStateClosed:
@@ -572,6 +572,7 @@ func segmentArrives(tcb *TCPpcb, hdr TCPHeader, data []byte, dataLen uint32, src
 				// The only thing that can arrive in this state is an
 				// acknowledgment of our FIN.  If our FIN is now acknowledged,
 				// delete the TCB, enter the CLOSED state, and return.
+				tcb.queueFlush("connection closed")
 				tcb.transition(TCPpcbStateClosed)
 				return nil
 			case TCPpcbStateTimeWait:

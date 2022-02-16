@@ -228,9 +228,6 @@ type TCPpcb struct {
 
 	// for time-wait state
 	lastTxTime time.Time
-
-	// mutex
-	mutex sync.Mutex
 }
 
 func (tcb *TCPpcb) transition(state TCPpcbState) {
@@ -253,6 +250,10 @@ func (tcb *TCPpcb) signalErr(msg string) {
 			ch <- err
 		}
 	}
+
+	tcb.cmdQueue = nil
+	tcb.rcvQueue = nil
+	tcb.retxQueue = nil
 }
 
 func (tcb *TCPpcb) queueFlush(msg string) {
@@ -260,9 +261,6 @@ func (tcb *TCPpcb) queueFlush(msg string) {
 
 	tcb.txLen = 0
 	tcb.rxLen = 0
-	tcb.cmdQueue = nil
-	tcb.rcvQueue = nil
-	tcb.retxQueue = nil
 }
 
 // NewTCPpcb returns *TCBpcb if there is no *TCPpcb whose address is not the same as local
@@ -309,8 +307,8 @@ func DeleteTCPpcb(tcb *TCPpcb) error {
 }
 
 func (tcb *TCPpcb) Open(errCh chan error, foreign TCPEndpoint, isActive bool, timeout time.Duration) {
-	tcb.mutex.Lock()
-	defer tcb.mutex.Unlock()
+	tcpMutex.Lock()
+	defer tcpMutex.Unlock()
 
 	switch tcb.state {
 	case TCPpcbStateClosed:
@@ -395,8 +393,8 @@ func (tcb *TCPpcb) Open(errCh chan error, foreign TCPEndpoint, isActive bool, ti
 }
 
 func (tcb *TCPpcb) Send(errCh chan error, data []byte) {
-	tcb.mutex.Lock()
-	defer tcb.mutex.Unlock()
+	tcpMutex.Lock()
+	defer tcpMutex.Unlock()
 
 	switch tcb.state {
 	case TCPpcbStateClosed:
@@ -407,20 +405,29 @@ func (tcb *TCPpcb) Send(errCh chan error, data []byte) {
 		}
 
 		iss := createISS()
-		tcb.iss = iss
-		tcb.snd.una = iss
-		tcb.snd.nxt = iss + 1
-		tcb.transition(TCPpcbStateSYNSent)
+		var err error
+		for i := 0; i < 3; i++ { // try to send SYN at most three time ( because of ARP cache specification of this package).
+			if err = TxHandlerTCP(tcb.local, tcb.foreign, []byte{}, iss, 0, SYN, tcb.rcv.wnd, 0); err != nil {
+				log.Printf("[E] TCP OPEN call error %s", err.Error())
+				time.Sleep(20 * time.Millisecond)
+			} else {
 
-		tcb.cmdQueue = append(tcb.cmdQueue, cmdEntry{
-			typ:       cmdSend,
-			entryTime: time.Now(),
-			errCh:     errCh,
-		})
-		copy(tcb.txQueue[:], data)
-		if err := TxHandlerTCP(tcb.local, tcb.foreign, []byte{}, iss, 0, SYN, tcb.rcv.wnd, 0); err != nil {
-			errCh <- err
+				tcb.iss = iss
+				tcb.snd.una = iss
+				tcb.snd.nxt = iss + 1
+				tcb.transition(TCPpcbStateSYNSent)
+
+				tcb.cmdQueue = append(tcb.cmdQueue, cmdEntry{
+					typ:       cmdSend,
+					entryTime: time.Now(),
+					errCh:     errCh,
+				})
+				copy(tcb.txQueue[:], data)
+				log.Printf("[D] active open: local=%s,foreign=%s,connecting...", tcb.local, tcb.foreign)
+				return
+			}
 		}
+		errCh <- err
 	case TCPpcbStateSYNSent, TCPpcbStateSYNReceived:
 		if int(tcb.txLen)+len(data) >= bufferSize {
 			errCh <- fmt.Errorf("insufficient resources")
@@ -435,10 +442,6 @@ func (tcb *TCPpcb) Send(errCh chan error, data []byte) {
 	case TCPpcbStateEstablished, TCPpcbStateCloseWait:
 		if int(tcb.txLen)+len(data) >= bufferSize {
 			errCh <- fmt.Errorf("insufficient resources")
-		}
-
-		if tcb.txLen == 0 {
-			errCh <- nil
 		}
 
 		copy(tcb.txQueue[tcb.txLen:], data)
@@ -492,8 +495,8 @@ func (tcb *TCPpcb) Send(errCh chan error, data []byte) {
 }
 
 func (tcb *TCPpcb) Receive(rcvCh chan ReceiveData) {
-	tcb.mutex.Lock()
-	defer tcb.mutex.Unlock()
+	tcpMutex.Lock()
+	defer tcpMutex.Unlock()
 
 	switch tcb.state {
 	case TCPpcbStateClosed:
@@ -533,42 +536,21 @@ func (tcb *TCPpcb) Receive(rcvCh chan ReceiveData) {
 }
 
 func (tcb *TCPpcb) Close(errCh chan error) {
-	tcb.mutex.Lock()
-	defer tcb.mutex.Unlock()
+	tcpMutex.Lock()
+	defer tcpMutex.Unlock()
 
 	switch tcb.state {
 	case TCPpcbStateClosed:
 		errCh <- fmt.Errorf("connection does not exist")
 	case TCPpcbStateListen:
 		// Any outstanding RECEIVEs are returned with "error:  closing" responses.
-		for _, rcv := range tcb.rcvQueue {
-			rcv.rcvCh <- ReceiveData{
-				err: fmt.Errorf("closing responses"),
-			}
-		}
-		tcb.rcvQueue = nil
+		tcb.queueFlush("closing")
 		tcb.transition(TCPpcbStateClosed)
 		errCh <- nil
 	case TCPpcbStateSYNSent:
 		// return "error:  closing" responses to any queued SENDs, or RECEIVEs.
-		// RECEIVE
-		for _, rcv := range tcb.rcvQueue {
-			rcv.rcvCh <- ReceiveData{
-				err: fmt.Errorf("closing responses"),
-			}
-		}
-		tcb.rcvQueue = nil
-		// SEND
-		var deleteIndex []int
-		for i, entry := range tcb.cmdQueue {
-			if entry.typ == cmdSend {
-				entry.errCh <- fmt.Errorf("closing responses")
-				deleteIndex = append(deleteIndex, i)
-			}
-		}
-		tcb.cmdQueue = removeCmd(tcb.cmdQueue, deleteIndex)
+		tcb.queueFlush("closing")
 		tcb.transition(TCPpcbStateClosed)
-
 		errCh <- nil
 	case TCPpcbStateSYNReceived:
 		// If no SENDs have been issued and there is no pending data to send,
@@ -735,8 +717,8 @@ func (tcb *TCPpcb) Close(errCh chan error) {
 }
 
 func (tcb *TCPpcb) Abort() error {
-	tcb.mutex.Lock()
-	defer tcb.mutex.Unlock()
+	tcpMutex.Lock()
+	defer tcpMutex.Unlock()
 
 	switch tcb.state {
 	case TCPpcbStateClosed:
@@ -744,55 +726,20 @@ func (tcb *TCPpcb) Abort() error {
 	case TCPpcbStateListen:
 		// Any outstanding RECEIVEs should be returned with "error:
 		// connection reset" responses
-		for _, rcv := range tcb.rcvQueue {
-			rcv.rcvCh <- ReceiveData{
-				err: fmt.Errorf("closing reset"),
-			}
-		}
-		tcb.rcvQueue = nil
-
+		tcb.queueFlush("connection reset")
 		tcb.transition(TCPpcbStateClosed)
 		return nil
 	case TCPpcbStateSYNSent:
 		// All queued SENDs and RECEIVEs should be given "connection reset" notification,
 		// RECEIVE
-		for _, rcv := range tcb.rcvQueue {
-			rcv.rcvCh <- ReceiveData{
-				err: fmt.Errorf("closing reset"),
-			}
-		}
-		tcb.rcvQueue = nil
-		// SEND
-		var deleteIndex []int
-		for i, entry := range tcb.cmdQueue {
-			if entry.typ == cmdSend {
-				entry.errCh <- fmt.Errorf("closing reset")
-				deleteIndex = append(deleteIndex, i)
-			}
-		}
-		tcb.cmdQueue = removeCmd(tcb.cmdQueue, deleteIndex)
+		tcb.queueFlush("connection reset")
 		tcb.transition(TCPpcbStateClosed)
 		return nil
 	case TCPpcbStateSYNReceived, TCPpcbStateEstablished, TCPpcbStateFINWait1, TCPpcbStateFINWait2, TCPpcbStateCloseWait:
 		// All queued SENDs and RECEIVEs should be given "connection reset"
 		// notification; all segments queued for transmission (except for the
 		// RST formed above) or retransmission should be flushed
-		// RECEIVE
-		for _, rcv := range tcb.rcvQueue {
-			rcv.rcvCh <- ReceiveData{
-				err: fmt.Errorf("closing reset"),
-			}
-		}
-		tcb.rcvQueue = nil
-		// SEND
-		var deleteIndex []int
-		for i, entry := range tcb.cmdQueue {
-			if entry.typ == cmdSend {
-				entry.errCh <- fmt.Errorf("closing reset")
-				deleteIndex = append(deleteIndex, i)
-			}
-		}
-		tcb.cmdQueue = removeCmd(tcb.cmdQueue, deleteIndex)
+		tcb.queueFlush("connection reset")
 		tcb.transition(TCPpcbStateClosed)
 		return TxHandlerTCP(tcb.local, tcb.foreign, []byte{}, tcb.snd.nxt, 0, RST, 0, 0)
 	default:
@@ -802,8 +749,8 @@ func (tcb *TCPpcb) Abort() error {
 }
 
 func (tcb *TCPpcb) Status() (string, error) {
-	tcb.mutex.Lock()
-	defer tcb.mutex.Unlock()
+	tcpMutex.Lock()
+	defer tcpMutex.Unlock()
 
 	switch tcb.state {
 	case TCPpcbStateClosed:
