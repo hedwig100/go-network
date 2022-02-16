@@ -428,7 +428,8 @@ func segmentArrives(tcb *TCPpcb, hdr TCPHeader, data []byte, dataLen uint32, src
 		}
 		// In the following it is assumed that the segment is the idealized
 		// segment that begins at RCV.NXT and does not exceed the window.
-		data = data[tcb.rcv.nxt-hdr.Seq : tcb.rcv.nxt+uint32(tcb.rcv.wnd)-hdr.Seq] // TODO:correct window size
+		right := min(tcb.rcv.nxt+uint32(tcb.rcv.wnd)-hdr.Seq, dataLen)
+		data = data[tcb.rcv.nxt-hdr.Seq : right]
 
 		// second check the RST bit
 		switch tcb.state {
@@ -786,6 +787,7 @@ func tcpTimer(done chan struct{}) {
 						}
 						deleteIndex = append(deleteIndex, i)
 					} else { // retransmission
+						log.Printf("[I] restransmittion local=%s,foreign=%s,seq=%d", tcb.local, tcb.foreign, entry.seq)
 						err := TxHandlerTCP(tcb.local, tcb.foreign, entry.data, entry.seq, 0, entry.flag, tcb.snd.wnd, 0)
 						if err != nil {
 							log.Printf("[E] : retransmit error %s", err)

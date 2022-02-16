@@ -37,6 +37,13 @@ func max(a uint16, b uint16) uint16 {
 	return b
 }
 
+func min(a uint32, b uint32) uint32 {
+	if a > b {
+		return b
+	}
+	return a
+}
+
 // Str2IPAddr transforms IP address string to 32bit address
 // ex) "127.0.0.1" -> 01111111 00000000 00000000 00000001
 func Str2IPAddr(str string) (uint32, error) {
