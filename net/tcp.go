@@ -223,6 +223,9 @@ func (p *TCPProtocol) Type() IPProtocolType {
 func (p *TCPProtocol) RxHandler(data []byte, src IPAddr, dst IPAddr, ipIface *IPIface) error {
 
 	hdr, payload, err := data2headerTCP(data, src, dst)
+	hdrLen := (hdr.Offset >> 4) << 2
+	// TODO:
+	// have to treat header part of payload (payload may have header because we cut data with TCPHeaderSizeMin)
 	if err != nil {
 		return err
 	}
@@ -234,10 +237,13 @@ func (p *TCPProtocol) RxHandler(data []byte, src IPAddr, dst IPAddr, ipIface *IP
 		return fmt.Errorf("destination TCP protocol control block not found")
 	}
 
-	return segmentArrives(tcb, hdr, payload, uint32(len(payload)), src)
+	return segmentArrives(tcb, hdr, payload[hdrLen-TCPHeaderSizeMin:], uint32(len(payload))-uint32(hdrLen)+TCPHeaderSizeMin, src)
 }
 
 func segmentArrives(tcb *TCPpcb, hdr TCPHeader, data []byte, dataLen uint32, src IPAddr) error {
+	tcb.mutex.Lock()
+	defer tcb.mutex.Unlock()
+
 	switch tcb.state {
 	case TCPpcbStateClosed:
 		if hdr.Flag&RST > 0 {
@@ -315,8 +321,9 @@ func segmentArrives(tcb *TCPpcb, hdr TCPHeader, data []byte, dataLen uint32, src
 		// second check the RST bit
 		if hdr.Flag&RST > 0 {
 			if acceptable {
+				tcb.queueFlush("connection reset")
 				tcb.transition(TCPpcbStateClosed)
-				return fmt.Errorf("connection reset")
+				return nil
 			}
 			log.Printf("[D] TCP segment discarded, tcp header=%s", hdr)
 			return nil
@@ -346,6 +353,10 @@ func segmentArrives(tcb *TCPpcb, hdr TCPHeader, data []byte, dataLen uint32, src
 					}
 				}
 				tcb.cmdQueue = removeCmd(tcb.cmdQueue, deleteIndex)
+
+				if tcb.txLen == 0 {
+					return nil
+				}
 
 				// send pending data
 				err := TxHandlerTCP(tcb.local, tcb.foreign, tcb.txQueue[:tcb.txLen], tcb.snd.nxt, tcb.rcv.nxt, ACK, tcb.rcv.wnd, 0)
@@ -424,6 +435,7 @@ func segmentArrives(tcb *TCPpcb, hdr TCPHeader, data []byte, dataLen uint32, src
 			if hdr.Flag&RST > 0 {
 				return nil
 			}
+			log.Printf("[E] ACK number is not acceptable")
 			return TxHandlerTCP(tcb.local, tcb.foreign, []byte{}, tcb.snd.nxt, tcb.rcv.nxt, ACK, bufferSize-tcb.rxLen, 0)
 		}
 		// In the following it is assumed that the segment is the idealized
@@ -438,50 +450,22 @@ func segmentArrives(tcb *TCPpcb, hdr TCPHeader, data []byte, dataLen uint32, src
 				// If this connection was initiated with an active OPEN (i.e., came
 				// from SYN-SENT state) then the connection was refused, signal
 				// the user "connection refused".
-				var deleteIndex []int
-				for i, cmd := range tcb.cmdQueue {
-					if cmd.typ == cmdOpen {
-						cmd.errCh <- fmt.Errorf("connection refused")
-						deleteIndex = append(deleteIndex, i)
-					}
-				}
-				tcb.cmdQueue = removeCmd(tcb.cmdQueue, deleteIndex)
-
-				tcb.retxQueue = nil
+				tcb.queueFlush("connection refused")
 				tcb.transition(TCPpcbStateClosed)
 				return nil
 			}
 		case TCPpcbStateEstablished, TCPpcbStateFINWait1, TCPpcbStateFINWait2, TCPpcbStateCloseWait:
 			if hdr.Flag&RST > 0 {
 				// any outstanding RECEIVEs and SEND should receive "reset" responses
-				// RECEIVE
-				for _, rcv := range tcb.rcvQueue {
-					rcv.rcvCh <- ReceiveData{
-						err: fmt.Errorf("reset"),
-					}
-				}
-				tcb.rcvQueue = nil
-				// SEND
-				var deleteIndex []int
-				for i, entry := range tcb.cmdQueue {
-					if entry.typ == cmdSend {
-						entry.errCh <- fmt.Errorf("reset")
-						deleteIndex = append(deleteIndex, i)
-					}
-				}
-				tcb.cmdQueue = removeCmd(tcb.cmdQueue, deleteIndex)
-
-				tcb.txLen = 0
-				tcb.rxLen = 0
-				tcb.retxQueue = nil
-				// TODO:
 				// Users should also receive an unsolicited general "connection reset" signal
 				// there is no way to notify users (ex interrupt)
+				tcb.queueFlush("connection reset")
 				tcb.transition(TCPpcbStateClosed)
 				return nil
 			}
 		case TCPpcbStateClosing, TCPpcbStateLastACK, TCPpcbStateTimeWait:
 			if hdr.Flag&RST > 0 {
+				tcb.queueFlush("connection reset")
 				tcb.transition(TCPpcbStateClosed)
 				return nil
 			}
@@ -498,27 +482,7 @@ func segmentArrives(tcb *TCPpcb, hdr TCPHeader, data []byte, dataLen uint32, src
 				// any outstanding RECEIVEs and SEND should receive "reset" responses,
 				// all segment queues should be flushed, the user should also
 				// receive an unsolicited general "connection reset" signal
-				// RECEIVE
-				for _, rcv := range tcb.rcvQueue {
-					rcv.rcvCh <- ReceiveData{
-						err: fmt.Errorf("reset"),
-					}
-				}
-				tcb.rcvQueue = nil
-				// SEND
-				var deleteIndex []int
-				for i, entry := range tcb.cmdQueue {
-					if entry.typ == cmdSend {
-						entry.errCh <- fmt.Errorf("reset")
-						deleteIndex = append(deleteIndex, i)
-					}
-				}
-				tcb.cmdQueue = removeCmd(tcb.cmdQueue, deleteIndex)
-
-				tcb.txLen = 0
-				tcb.rxLen = 0
-				tcb.retxQueue = nil
-
+				tcb.queueFlush("connection reset")
 				tcb.transition(TCPpcbStateClosed)
 				return TxHandlerTCP(tcb.local, tcb.foreign, []byte{}, tcb.snd.nxt, tcb.rcv.nxt, RST, bufferSize-tcb.rxLen, 0)
 			}
@@ -761,7 +725,7 @@ func tcpTimer(done chan struct{}) {
 
 			// time-wait timeout
 			if tcb.state == TCPpcbStateTimeWait && tcb.lastTxTime.Add(MSL).Before(time.Now()) {
-				queueFlush(tcb)
+				tcb.queueFlush("connection aborted due to user timeout")
 				continue
 			}
 
@@ -771,7 +735,8 @@ func tcpTimer(done chan struct{}) {
 
 				// user timeout
 				if entry.first.Add(tcb.timeout).Before(time.Now()) {
-					queueFlush(tcb)
+					tcb.queueFlush("connection aborted due to user timeout")
+					deleteIndex = append(deleteIndex, i)
 					break
 				}
 
@@ -787,7 +752,7 @@ func tcpTimer(done chan struct{}) {
 						}
 						deleteIndex = append(deleteIndex, i)
 					} else { // retransmission
-						log.Printf("[I] restransmittion local=%s,foreign=%s,seq=%d", tcb.local, tcb.foreign, entry.seq)
+						log.Printf("[I] restransmission time=%d,local=%s,foreign=%s,seq=%d,flag=%s", entry.retxCount, tcb.local, tcb.foreign, entry.seq, entry.flag)
 						err := TxHandlerTCP(tcb.local, tcb.foreign, entry.data, entry.seq, 0, entry.flag, tcb.snd.wnd, 0)
 						if err != nil {
 							log.Printf("[E] : retransmit error %s", err)
@@ -800,26 +765,4 @@ func tcpTimer(done chan struct{}) {
 		}
 		tcpMutex.Unlock()
 	}
-}
-
-func queueFlush(tcb *TCPpcb) {
-	tcb.txLen = 0
-	tcb.rxLen = 0
-	tcb.retxQueue = nil
-	for _, cmd := range tcb.cmdQueue {
-		cmd.errCh <- fmt.Errorf("connection aborted due to user timeout")
-	}
-	for _, entry := range tcb.rcvQueue {
-		entry.rcvCh <- ReceiveData{
-			err: fmt.Errorf("connection aborted due to user timeout"),
-		}
-	}
-	for _, entry := range tcb.retxQueue {
-		for _, ch := range entry.errCh {
-			ch <- fmt.Errorf("connection aborted due to user timeout")
-		}
-	}
-	tcb.cmdQueue = nil
-	tcb.rcvQueue = nil
-	tcb.retxQueue = nil
 }
