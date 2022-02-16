@@ -48,7 +48,7 @@ func removeQueue(q []retxEntry, una uint32) []retxEntry {
 		} else {
 			rto = srtt
 		}
-		log.Printf("RTO: %s", rto)
+		log.Printf("RTT: %s,RTO: %s", rtt, rto)
 
 		// notify user
 		for _, ch := range entry.errCh {
@@ -439,6 +439,7 @@ func (tcb *TCPpcb) Send(errCh chan error, data []byte) {
 			errCh:     errCh,
 		})
 		copy(tcb.txQueue[tcb.txLen:], data)
+		tcb.txLen += uint16(len(data))
 	case TCPpcbStateEstablished, TCPpcbStateCloseWait:
 		if int(tcb.txLen)+len(data) >= bufferSize {
 			errCh <- fmt.Errorf("insufficient resources")

@@ -354,10 +354,6 @@ func segmentArrives(tcb *TCPpcb, hdr TCPHeader, data []byte, dataLen uint32, src
 				}
 				tcb.cmdQueue = removeCmd(tcb.cmdQueue, deleteIndex)
 
-				if tcb.txLen == 0 {
-					return nil
-				}
-
 				// send pending data
 				err := TxHandlerTCP(tcb.local, tcb.foreign, tcb.txQueue[:tcb.txLen], tcb.snd.nxt, tcb.rcv.nxt, ACK, tcb.rcv.wnd, 0)
 
@@ -383,6 +379,10 @@ func segmentArrives(tcb *TCPpcb, hdr TCPHeader, data []byte, dataLen uint32, src
 						}
 					}
 					tcb.cmdQueue = removeCmd(tcb.cmdQueue, deleteIndex)
+
+					if tcb.txLen == 0 {
+						return nil
+					}
 
 					// if transmit is sucessful,push data to retransmitQueue.
 					tcb.retxQueue = append(tcb.retxQueue, retxEntry{
@@ -663,9 +663,9 @@ func segmentArrives(tcb *TCPpcb, hdr TCPHeader, data []byte, dataLen uint32, src
 	return nil
 }
 
-func TxHandlerTCP(src TCPEndpoint, dst TCPEndpoint, data []byte, seq uint32, ack uint32, flag ControlFlag, wnd uint16, up uint16) error {
+func TxHandlerTCP(src TCPEndpoint, dst TCPEndpoint, payload []byte, seq uint32, ack uint32, flag ControlFlag, wnd uint16, up uint16) error {
 
-	if len(data)+TCPHeaderSizeMin > IPPayloadSizeMax {
+	if len(payload)+TCPHeaderSizeMin > IPPayloadSizeMax {
 		return fmt.Errorf("data size is too large for TCP payload")
 	}
 
@@ -680,12 +680,12 @@ func TxHandlerTCP(src TCPEndpoint, dst TCPEndpoint, data []byte, seq uint32, ack
 		Window: wnd,
 		Urgent: up,
 	}
-	data, err := header2dataTCP(&hdr, data, src.Address, dst.Address)
+	data, err := header2dataTCP(&hdr, payload, src.Address, dst.Address)
 	if err != nil {
 		return err
 	}
 
-	log.Printf("[D] TCP TxHandler: src=%s,dst=%s,tcp header=%s", src, dst, hdr)
+	log.Printf("[D] TCP TxHandler: src=%s,dst=%s,len=%d,tcp header=%s", src, dst, len(payload), hdr)
 	return TxHandlerIP(IPProtocolTCP, data, src.Address, dst.Address)
 }
 

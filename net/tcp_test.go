@@ -127,13 +127,16 @@ func TestTCPSend(t *testing.T) {
 	}
 
 	errChOpen := make(chan error)
-	errChSend := make(chan error)
+	errChSend1 := make(chan error)
+	errChSend2 := make(chan error)
 
 	go soc.Open(errChOpen, dst, true, 5*time.Minute)
-	time.Sleep(2 * time.Second)
-	go soc.Send(errChSend, []byte("TCP connection!!"))
+	time.Sleep(time.Millisecond)
+	go soc.Send(errChSend1, []byte("TCP connection1 !!!!\n"))
+	time.Sleep(time.Millisecond)
+	go soc.Send(errChSend2, []byte("TCP connection2 !!!!\n"))
 
-	cnt := 2
+	cnt := 3
 	for {
 		if cnt == 0 {
 			break
@@ -147,12 +150,19 @@ func TestTCPSend(t *testing.T) {
 			} else {
 				t.Log("open suceeded")
 			}
-		case err = <-errChSend:
+		case err = <-errChSend1:
 			cnt--
 			if err != nil {
-				t.Error(err)
+				t.Error("send1: ", err.Error())
 			} else {
-				t.Log("send suceeded")
+				t.Log("send1 suceeded")
+			}
+		case err = <-errChSend2:
+			cnt--
+			if err != nil {
+				t.Error("send2: ", err.Error())
+			} else {
+				t.Log("send2 suceeded")
 			}
 		default:
 			time.Sleep(time.Millisecond)
