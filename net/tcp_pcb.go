@@ -294,24 +294,30 @@ func (tcb *TCPpcb) Open(errCh chan error, foreign TCPEndpoint, isActive bool, ti
 		}
 
 		iss := createISS()
-		if err := TxHandlerTCP(tcb.local, foreign, []byte{}, iss, 0, SYN, tcb.rcv.wnd, 0); err != nil {
-			errCh <- err
-		} else {
-			tcb.timeout = timeout
-			tcb.foreign = foreign
+		var err error
+		for i := 0; i < 3; i++ { // try to send SYN at most three time ( because of ARP cache specification of this package).
+			if err = TxHandlerTCP(tcb.local, foreign, []byte{}, iss, 0, SYN, tcb.rcv.wnd, 0); err != nil {
+				time.Sleep(20 * time.Millisecond)
+			} else {
+				tcb.timeout = timeout
+				tcb.foreign = foreign
 
-			tcb.iss = iss
-			tcb.snd.una = iss
-			tcb.snd.nxt = iss + 1
-			tcb.transition(TCPpcbStateSYNSent)
+				tcb.iss = iss
+				tcb.snd.una = iss
+				tcb.snd.nxt = iss + 1
+				tcb.transition(TCPpcbStateSYNSent)
 
-			tcb.cmdQueue = append(tcb.cmdQueue, cmdEntry{
-				typ:       cmdOpen,
-				entryTime: time.Now(),
-				errCh:     errCh,
-			})
-			log.Printf("[D] active open: local=%s,foreign=%s,connecting...", tcb.local, tcb.foreign)
+				tcb.cmdQueue = append(tcb.cmdQueue, cmdEntry{
+					typ:       cmdOpen,
+					entryTime: time.Now(),
+					errCh:     errCh,
+				})
+				log.Printf("[D] active open: local=%s,foreign=%s,connecting...", tcb.local, tcb.foreign)
+				return
+			}
 		}
+		errCh <- err
+
 	case TCPpcbStateListen:
 		// passive open
 		if !isActive {
@@ -325,24 +331,29 @@ func (tcb *TCPpcb) Open(errCh chan error, foreign TCPEndpoint, isActive bool, ti
 		}
 
 		iss := createISS()
-		if err := TxHandlerTCP(tcb.local, foreign, []byte{}, iss, 0, SYN, tcb.rcv.wnd, 0); err != nil {
-			errCh <- err
-		} else {
-			tcb.timeout = timeout
-			tcb.foreign = foreign
+		var err error
+		for i := 0; i < 3; i++ { // try to send SYN at most three time ( because of ARP cache specification of this package).
+			if err = TxHandlerTCP(tcb.local, foreign, []byte{}, iss, 0, SYN, tcb.rcv.wnd, 0); err != nil {
+				time.Sleep(20 * time.Millisecond)
+			} else {
+				tcb.timeout = timeout
+				tcb.foreign = foreign
 
-			tcb.iss = iss
-			tcb.snd.una = iss
-			tcb.snd.nxt = iss + 1
-			tcb.transition(TCPpcbStateSYNSent)
+				tcb.iss = iss
+				tcb.snd.una = iss
+				tcb.snd.nxt = iss + 1
+				tcb.transition(TCPpcbStateSYNSent)
 
-			tcb.cmdQueue = append(tcb.cmdQueue, cmdEntry{
-				typ:       cmdOpen,
-				entryTime: time.Now(),
-				errCh:     errCh,
-			})
-			log.Printf("[D] active open: local=%s,foreign=%s,connecting...", tcb.local, tcb.foreign)
+				tcb.cmdQueue = append(tcb.cmdQueue, cmdEntry{
+					typ:       cmdOpen,
+					entryTime: time.Now(),
+					errCh:     errCh,
+				})
+				log.Printf("[D] active open: local=%s,foreign=%s,connecting...", tcb.local, tcb.foreign)
+				return
+			}
 		}
+		errCh <- err
 	default:
 		errCh <- fmt.Errorf("connection already exists")
 	}

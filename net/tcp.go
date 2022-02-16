@@ -335,8 +335,19 @@ func segmentArrives(tcb *TCPpcb, hdr TCPHeader, data []byte, dataLen uint32, src
 				tcb.retxQueue = removeQueue(tcb.retxQueue, tcb.snd.una)
 			}
 
-			if tcb.snd.una > tcb.una {
+			if tcb.snd.una > tcb.iss {
 				tcb.transition(TCPpcbStateEstablished)
+				// notify user call OPEN
+				var deleteIndex []int
+				for i, cmd := range tcb.cmdQueue {
+					if cmd.typ == cmdOpen {
+						deleteIndex = append(deleteIndex, i)
+						cmd.errCh <- nil
+					}
+				}
+				tcb.cmdQueue = removeCmd(tcb.cmdQueue, deleteIndex)
+
+				// send pending data
 				err := TxHandlerTCP(tcb.local, tcb.foreign, tcb.txQueue[:tcb.txLen], tcb.snd.nxt, tcb.rcv.nxt, ACK, tcb.rcv.wnd, 0)
 
 				if err != nil {
@@ -521,6 +532,15 @@ func segmentArrives(tcb *TCPpcb, hdr TCPHeader, data []byte, dataLen uint32, src
 		case TCPpcbStateSYNReceived:
 			if tcb.snd.una <= hdr.Ack && hdr.Ack <= tcb.snd.nxt {
 				tcb.transition(TCPpcbStateEstablished)
+				// notify user call OPEN
+				var deleteIndex []int
+				for i, cmd := range tcb.cmdQueue {
+					if cmd.typ == cmdOpen {
+						deleteIndex = append(deleteIndex, i)
+						cmd.errCh <- nil
+					}
+				}
+				tcb.cmdQueue = removeCmd(tcb.cmdQueue, deleteIndex)
 			} else {
 				log.Printf("unacceptable ACK is sent")
 				return TxHandlerTCP(tcb.local, tcb.foreign, []byte{}, hdr.Ack, 0, RST, 0, 0)
