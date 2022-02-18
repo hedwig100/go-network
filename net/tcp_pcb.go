@@ -76,8 +76,8 @@ type cmdType = uint8
 
 // ReceiveData is used for Receive call
 type ReceiveData struct {
-	data []byte
-	err  error
+	Data []byte
+	Err  error
 }
 
 type rcvEntry struct {
@@ -242,7 +242,7 @@ func (tcb *TCPpcb) signalErr(msg string) {
 	}
 	for _, entry := range tcb.rcvQueue {
 		entry.rcvCh <- ReceiveData{
-			err: err,
+			Err: err,
 		}
 	}
 	for _, entry := range tcb.retxQueue {
@@ -318,10 +318,12 @@ func (tcb *TCPpcb) Open(errCh chan error, foreign TCPEndpoint, isActive bool, ti
 			tcb.timeout = timeout
 			tcb.transition(TCPpcbStateListen)
 			errCh <- nil
+			return
 		}
 		// active open
 		if foreign.Address == IPAddrAny {
 			errCh <- fmt.Errorf("foreign socket unspecified")
+			return
 		}
 
 		iss := createISS()
@@ -356,10 +358,12 @@ func (tcb *TCPpcb) Open(errCh chan error, foreign TCPEndpoint, isActive bool, ti
 			log.Printf("[D] passive open: local=%s,waiting for connection...", tcb.local)
 			tcb.timeout = timeout
 			errCh <- nil
+			return
 		}
 		// active open
 		if foreign.Address == IPAddrAny {
 			errCh <- fmt.Errorf("foreign socket unspecified")
+			return
 		}
 
 		iss := createISS()
@@ -502,7 +506,7 @@ func (tcb *TCPpcb) Receive(rcvCh chan ReceiveData) {
 	switch tcb.state {
 	case TCPpcbStateClosed:
 		rcvCh <- ReceiveData{
-			err: fmt.Errorf("connection does not exist"),
+			Err: fmt.Errorf("connection does not exist"),
 		}
 	case TCPpcbStateListen, TCPpcbStateSYNSent, TCPpcbStateSYNReceived:
 		tcb.rcvQueue = append(tcb.rcvQueue, rcvEntry{
@@ -510,28 +514,34 @@ func (tcb *TCPpcb) Receive(rcvCh chan ReceiveData) {
 			rcvCh:     rcvCh,
 		})
 	case TCPpcbStateEstablished, TCPpcbStateFINWait1, TCPpcbStateFINWait2:
-		// TODO:
 		// If insufficient incoming segments are queued to satisfy the
 		// request, queue the request.
-		rcvCh <- ReceiveData{
-			data: tcb.rxQueue[:tcb.rxLen],
+		if tcb.rxLen == 0 {
+			tcb.rcvQueue = append(tcb.rcvQueue, rcvEntry{
+				entryTime: time.Now(),
+				rcvCh:     rcvCh,
+			})
+		} else {
+			rcvCh <- ReceiveData{
+				Data: tcb.rxQueue[:tcb.rxLen],
+			}
+			tcb.rxLen = 0
 		}
-		tcb.rxLen = 0
 	case TCPpcbStateCloseWait:
 		// no remaining data
 		if tcb.rxLen == 0 {
 			rcvCh <- ReceiveData{
-				err: fmt.Errorf("connection closing"),
+				Err: fmt.Errorf("connection closing"),
 			}
 		}
 		// remaining data
 		rcvCh <- ReceiveData{
-			data: tcb.rxQueue[:tcb.rxLen],
+			Data: tcb.rxQueue[:tcb.rxLen],
 		}
 		tcb.rxLen = 0
 	default:
 		rcvCh <- ReceiveData{
-			err: fmt.Errorf("connection closing"),
+			Err: fmt.Errorf("connection closing"),
 		}
 	}
 }
@@ -749,14 +759,8 @@ func (tcb *TCPpcb) Abort() error {
 	}
 }
 
-func (tcb *TCPpcb) Status() (string, error) {
+func (tcb *TCPpcb) Status() TCPpcbState {
 	tcpMutex.Lock()
 	defer tcpMutex.Unlock()
-
-	switch tcb.state {
-	case TCPpcbStateClosed:
-		return "", fmt.Errorf("connection does not exist")
-	default:
-		return fmt.Sprintf("state = %s", tcb.state), nil
-	}
+	return tcb.state
 }
