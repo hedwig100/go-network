@@ -14,81 +14,29 @@ import (
 */
 const (
 	maxRetxCount uint8 = 3
+
+	triggerNo      uint8 = 0
+	triggerOpen    uint8 = 1
+	triggerClose   uint8 = 2
+	triggerReceive uint8 = 3
+	triggerSend    uint8 = 4
 )
 
 type retxEntry struct {
-	data      []byte
-	seq       uint32
-	flag      ControlFlag
-	first     time.Time
-	last      time.Time
-	retxCount uint8
-	errCh     []chan error
+	data        []byte
+	seq         uint32
+	flag        ControlFlag
+	first       time.Time
+	last        time.Time
+	retxCount   uint8
+	errCh       chan error
+	triggerType uint8
 }
 
-func removeQueue(q []retxEntry, una uint32) []retxEntry {
-	index := -1
-	for i, entry := range q {
-
-		// not acknowledge yet
-		if entry.seq >= una {
-			index = i
-			break
-		}
-
-		// acknowledge and update rto
-		// ALPHA=0.9,BETA=1.7
-		rtt := time.Since(entry.last)
-		srtt = 9*srtt/10 + rtt/10
-		srtt = 17 * srtt / 10
-		if srtt < lbound {
-			rtt = lbound
-		} else if srtt > ubound {
-			rtt = ubound
-		} else {
-			rto = srtt
-		}
-		log.Printf("RTT: %s,RTO: %s", rtt, rto)
-
-		// notify user
-		for _, ch := range entry.errCh {
-			ch <- nil
-		}
-	}
-	if index < 0 {
-		return q
-	}
-	return q[index:]
-}
-
-/*
-	cmd queue entry
-*/
-
-const (
-	cmdOpen    cmdType = 0
-	cmdSend    cmdType = 1
-	cmdReceive cmdType = 2
-	cmdClose   cmdType = 3
-)
-
-type cmdType = uint8
-
-// ReceiveData is used for Receive call
-type ReceiveData struct {
-	Data []byte
-	Err  error
-}
-
-type rcvEntry struct {
-	entryTime time.Time
-	rcvCh     chan ReceiveData
-}
-
-type cmdEntry struct {
-	typ       cmdType
-	entryTime time.Time
-	errCh     chan error
+type rcvCmd struct {
+	n     *int
+	data  []byte
+	errCh chan error
 }
 
 /*
@@ -144,39 +92,19 @@ func createISS() uint32 {
 	return rand.Uint32()
 }
 
-// Send Sequence Variables
 type snd struct {
-
-	// send unacknowledged
 	una uint32
-
-	// send next
 	nxt uint32
-
-	// send window
 	wnd uint16
-
-	// send urgent pointer
-	up uint16
-
-	// segment sequence number used for last window update
+	up  uint16
 	wl1 uint32
-
-	// segment acknowledgment number used for last window update
 	wl2 uint32
 }
 
-// Receive Sequence Variables
 type rcv struct {
-
-	// receive next
 	nxt uint32
-
-	// receive window
 	wnd uint16
-
-	// receive urgent pointer
-	up uint16
+	up  uint16
 }
 
 const (
@@ -189,44 +117,24 @@ var (
 )
 
 type TCPpcb struct {
-
-	// pcb state
-	state TCPpcbState
-
-	// TCP endpoint
+	state   TCPpcbState
 	local   TCPEndpoint
 	foreign TCPEndpoint
 
-	// Send Sequence Variables
 	snd
-
-	// initial send sequence number
 	iss uint32
-
-	// Receive Sequence Variables
 	rcv
-
-	// initial receive sequence number
 	irs uint32
 
-	// maximum segment size
 	mss uint16
 
 	// queue
-	rxQueue   [bufferSize]byte // receive buffer
+	rxQueue   [bufferSize]byte
 	rxLen     uint16
-	txQueue   [bufferSize]byte // transmit buffer
-	txLen     uint16
-	retxQueue []retxEntry // retransmit queue
+	retxQueue []retxEntry
+	rcvCmd    rcvCmd
 
-	// user timeout
-	timeout time.Duration
-
-	// user command queue
-	cmdQueue []cmdEntry
-	rcvQueue []rcvEntry
-
-	// for time-wait state
+	timeout    time.Duration
 	lastTxTime time.Time
 }
 
@@ -235,32 +143,92 @@ func (tcb *TCPpcb) transition(state TCPpcbState) {
 	tcb.state = state
 }
 
-func (tcb *TCPpcb) signalErr(msg string) {
-	err := fmt.Errorf(msg)
-	for _, cmd := range tcb.cmdQueue {
-		cmd.errCh <- err
-	}
-	for _, entry := range tcb.rcvQueue {
-		entry.rcvCh <- ReceiveData{
-			Err: err,
-		}
-	}
-	for _, entry := range tcb.retxQueue {
-		for _, ch := range entry.errCh {
-			ch <- err
-		}
-	}
+func (tcb *TCPpcb) queueAdd(seq uint32, flag ControlFlag, data []byte, trigger uint8, errCh chan error) {
+	tcb.retxQueue = append(tcb.retxQueue, retxEntry{
+		data:        data,
+		seq:         seq,
+		flag:        flag,
+		first:       time.Now(),
+		last:        time.Now(),
+		triggerType: trigger,
+		errCh:       errCh,
+	})
+}
 
-	tcb.cmdQueue = nil
-	tcb.rcvQueue = nil
-	tcb.retxQueue = nil
+func removeRetx(data []retxEntry, indexs []int) []retxEntry {
+	if len(indexs) == 0 {
+		return data
+	}
+	ret := data[:indexs[0]]
+	for i := 1; i < len(indexs); i++ {
+		ret = append(ret, data[indexs[i-1]+1:indexs[i]]...)
+	}
+	ret = append(ret, data[indexs[len(indexs)-1]+1:]...)
+	return ret
+}
+
+func (tcb *TCPpcb) queueAck() {
+	var deleteIndex []int
+	for i, entry := range tcb.retxQueue {
+		if entry.seq < tcb.una {
+			deleteIndex = append(deleteIndex, i)
+			if entry.errCh != nil {
+				entry.errCh <- nil
+			}
+			calculateRTO(time.Since(entry.last))
+		}
+	}
+	tcb.retxQueue = removeRetx(tcb.retxQueue, deleteIndex)
 }
 
 func (tcb *TCPpcb) queueFlush(msg string) {
-	tcb.signalErr(msg)
+	err := fmt.Errorf(msg)
+	for _, entry := range tcb.retxQueue {
+		if entry.errCh != nil {
+			entry.errCh <- err
+		}
+	}
+	tcb.retxQueue = nil
+}
 
-	tcb.txLen = 0
-	tcb.rxLen = 0
+func (tcb *TCPpcb) signalCmd(trigger uint8) {
+
+	switch trigger {
+	case triggerOpen, triggerClose:
+		var deleteIndex []int
+		for i, entry := range tcb.retxQueue {
+			if entry.triggerType == trigger {
+				entry.errCh <- nil
+				deleteIndex = append(deleteIndex, i)
+			}
+		}
+		tcb.retxQueue = removeRetx(tcb.retxQueue, deleteIndex)
+	case triggerReceive:
+		if tcb.rcvCmd.errCh != nil && tcb.rxLen > 0 {
+			dlen := copy(tcb.rcvCmd.data, tcb.rxQueue[:tcb.rxLen])
+			*tcb.rcvCmd.n = dlen
+			tcb.rcvCmd.errCh <- nil
+			if dlen == int(tcb.rxLen) {
+				tcb.rxLen = 0
+				tcb.rcv.wnd = bufferSize
+			} else {
+				copy(tcb.rxQueue[:], tcb.rxQueue[tcb.rxLen-uint16(dlen):])
+				tcb.rxLen -= uint16(dlen)
+				tcb.rcv.wnd += uint16(dlen)
+			}
+			tcb.rcvCmd = rcvCmd{}
+		}
+	default:
+	}
+}
+
+func (tcb *TCPpcb) signalErr(msg string) {
+	tcb.queueFlush(msg)
+	err := fmt.Errorf(msg)
+	if tcb.rcvCmd.errCh != nil {
+		tcb.rcvCmd.errCh <- err
+	}
+	tcb.rcvCmd = rcvCmd{}
 }
 
 // NewTCPpcb returns *TCBpcb if there is no *TCPpcb whose address is not the same as local
@@ -277,21 +245,9 @@ func NewTCPpcb(local TCPEndpoint) (*TCPpcb, error) {
 	tcb := &TCPpcb{
 		state: TCPpcbStateClosed,
 		local: local,
-		rcv:   rcv{wnd: bufferSize},
 	}
 	tcbs = append(tcbs, tcb)
 	return tcb, nil
-}
-
-func tcbSelect(address IPAddr, port uint16) *TCPpcb {
-	tcpMutex.Lock()
-	defer tcpMutex.Unlock()
-	for _, t := range tcbs {
-		if t.local.Address == address && t.local.Port == port {
-			return t
-		}
-	}
-	return nil
 }
 
 func DeleteTCPpcb(tcb *TCPpcb) error {
@@ -326,26 +282,21 @@ func (tcb *TCPpcb) Open(errCh chan error, foreign TCPEndpoint, isActive bool, ti
 			return
 		}
 
+		tcb.timeout = timeout
+		tcb.foreign = foreign
+
 		iss := createISS()
+		tcb.iss = iss
+		tcb.snd.una = iss
+		tcb.snd.nxt = iss + 1
+
 		var err error
 		for i := 0; i < 3; i++ { // try to send SYN at most three time ( because of ARP cache specification of this package).
-			if err = TxHandlerTCP(tcb.local, foreign, []byte{}, iss, 0, SYN, tcb.rcv.wnd, 0); err != nil {
+			if err = TxHelperTCP(tcb, SYN, []byte{}, triggerOpen, errCh); err != nil {
 				log.Printf("[E] TCP OPEN call error %s", err.Error())
 				time.Sleep(20 * time.Millisecond)
 			} else {
-				tcb.timeout = timeout
-				tcb.foreign = foreign
-
-				tcb.iss = iss
-				tcb.snd.una = iss
-				tcb.snd.nxt = iss + 1
 				tcb.transition(TCPpcbStateSYNSent)
-
-				tcb.cmdQueue = append(tcb.cmdQueue, cmdEntry{
-					typ:       cmdOpen,
-					entryTime: time.Now(),
-					errCh:     errCh,
-				})
 				log.Printf("[D] active open: local=%s,foreign=%s,connecting...", tcb.local, tcb.foreign)
 				return
 			}
@@ -366,31 +317,27 @@ func (tcb *TCPpcb) Open(errCh chan error, foreign TCPEndpoint, isActive bool, ti
 			return
 		}
 
+		tcb.timeout = timeout
+		tcb.foreign = foreign
+
 		iss := createISS()
+		tcb.iss = iss
+		tcb.snd.una = iss
+		tcb.snd.nxt = iss + 1
+
 		var err error
 		for i := 0; i < 3; i++ { // try to send SYN at most three time ( because of ARP cache specification of this package).
-			if err = TxHandlerTCP(tcb.local, foreign, []byte{}, iss, 0, SYN, tcb.rcv.wnd, 0); err != nil {
+			if err = TxHelperTCP(tcb, SYN, []byte{}, triggerOpen, errCh); err != nil {
 				log.Printf("[E] TCP OPEN call error %s", err.Error())
 				time.Sleep(20 * time.Millisecond)
 			} else {
-				tcb.timeout = timeout
-				tcb.foreign = foreign
-
-				tcb.iss = iss
-				tcb.snd.una = iss
-				tcb.snd.nxt = iss + 1
 				tcb.transition(TCPpcbStateSYNSent)
-
-				tcb.cmdQueue = append(tcb.cmdQueue, cmdEntry{
-					typ:       cmdOpen,
-					entryTime: time.Now(),
-					errCh:     errCh,
-				})
 				log.Printf("[D] active open: local=%s,foreign=%s,connecting...", tcb.local, tcb.foreign)
 				return
 			}
 		}
 		errCh <- err
+
 	default:
 		errCh <- fmt.Errorf("connection already exists")
 	}
@@ -404,145 +351,72 @@ func (tcb *TCPpcb) Send(errCh chan error, data []byte) {
 	case TCPpcbStateClosed:
 		errCh <- fmt.Errorf("connection does not exist")
 	case TCPpcbStateListen:
-		if tcb.foreign.Address == IPAddrAny {
-			errCh <- fmt.Errorf("foreign socket unspecified")
+		errCh <- fmt.Errorf("connection does not exist")
+	case TCPpcbStateSYNSent, TCPpcbStateSYNReceived:
+		errCh <- fmt.Errorf("connection does not exist")
+	case TCPpcbStateEstablished, TCPpcbStateCloseWait:
+		if len(data) > int(tcb.snd.wnd) {
+			errCh <- fmt.Errorf("insufficient resources")
 		}
 
-		iss := createISS()
 		var err error
-		for i := 0; i < 3; i++ { // try to send SYN at most three time ( because of ARP cache specification of this package).
-			if err = TxHandlerTCP(tcb.local, tcb.foreign, []byte{}, iss, 0, SYN, tcb.rcv.wnd, 0); err != nil {
-				log.Printf("[E] TCP OPEN call error %s", err.Error())
+		for i := 0; i < 3; i++ { // try to send data at most three time ( because of ARP cache specification of this package).
+			if err = TxHelperTCP(tcb, ACK, data, triggerSend, errCh); err != nil {
+				log.Printf("[E] TCP SEND call error %s", err.Error())
 				time.Sleep(20 * time.Millisecond)
 			} else {
-
-				tcb.iss = iss
-				tcb.snd.una = iss
-				tcb.snd.nxt = iss + 1
-				tcb.transition(TCPpcbStateSYNSent)
-
-				tcb.cmdQueue = append(tcb.cmdQueue, cmdEntry{
-					typ:       cmdSend,
-					entryTime: time.Now(),
-					errCh:     errCh,
-				})
-				copy(tcb.txQueue[:], data)
-				log.Printf("[D] active open: local=%s,foreign=%s,connecting...", tcb.local, tcb.foreign)
+				tcb.snd.nxt += uint32(len(data))
 				return
 			}
 		}
 		errCh <- err
-	case TCPpcbStateSYNSent, TCPpcbStateSYNReceived:
-		if int(tcb.txLen)+len(data) >= bufferSize {
-			errCh <- fmt.Errorf("insufficient resources")
-		}
-
-		tcb.cmdQueue = append(tcb.cmdQueue, cmdEntry{
-			typ:       cmdSend,
-			entryTime: time.Now(),
-			errCh:     errCh,
-		})
-		copy(tcb.txQueue[tcb.txLen:], data)
-		tcb.txLen += uint16(len(data))
-	case TCPpcbStateEstablished, TCPpcbStateCloseWait:
-		if int(tcb.txLen)+len(data) >= bufferSize {
-			errCh <- fmt.Errorf("insufficient resources")
-		}
-
-		copy(tcb.txQueue[tcb.txLen:], data)
-		tcb.txLen += uint16(len(data))
-		err := TxHandlerTCP(tcb.local, tcb.foreign, tcb.txQueue[:tcb.txLen], tcb.snd.nxt, tcb.rcv.nxt, ACK, tcb.rcv.wnd, 0)
-
-		// error
-		if err != nil {
-			// delete SEND user call
-			var deleteIndex []int
-			for i, entry := range tcb.cmdQueue {
-				if entry.typ == cmdSend {
-					entry.errCh <- err
-					deleteIndex = append(deleteIndex, i)
-				}
-			}
-			tcb.cmdQueue = removeCmd(tcb.cmdQueue, deleteIndex)
-
-			tcb.txLen = 0
-			errCh <- err
-			return
-		}
-
-		// there is no error
-		var deleteIndex []int
-		var errChs []chan error
-		for i, entry := range tcb.cmdQueue {
-			if entry.typ == cmdSend {
-				deleteIndex = append(deleteIndex, i)
-				errChs = append(errChs, entry.errCh)
-			}
-		}
-		tcb.cmdQueue = removeCmd(tcb.cmdQueue, deleteIndex)
-		errChs = append(errChs, errCh)
-
-		// if transmit is sucessful,push data to retransmitQueue.
-		tcb.retxQueue = append(tcb.retxQueue, retxEntry{
-			data:  tcb.txQueue[:tcb.txLen],
-			seq:   tcb.snd.nxt,
-			flag:  ACK,
-			first: time.Now(),
-			last:  time.Now(),
-			errCh: errChs,
-		})
-		tcb.snd.nxt += uint32(tcb.txLen) // TODO:window size?
-		tcb.txLen = 0
 
 	default:
 		errCh <- fmt.Errorf("connection closing")
 	}
 }
 
-func (tcb *TCPpcb) Receive(rcvCh chan ReceiveData) {
+func (tcb *TCPpcb) Receive(errCh chan error, buf []byte, n *int) {
 	tcpMutex.Lock()
 	defer tcpMutex.Unlock()
 
 	switch tcb.state {
 	case TCPpcbStateClosed:
-		rcvCh <- ReceiveData{
-			Err: fmt.Errorf("connection does not exist"),
-		}
+		errCh <- fmt.Errorf("connection does not exist")
 	case TCPpcbStateListen, TCPpcbStateSYNSent, TCPpcbStateSYNReceived:
-		tcb.rcvQueue = append(tcb.rcvQueue, rcvEntry{
-			entryTime: time.Now(),
-			rcvCh:     rcvCh,
-		})
+		errCh <- fmt.Errorf("connection does not exist")
 	case TCPpcbStateEstablished, TCPpcbStateFINWait1, TCPpcbStateFINWait2:
 		// If insufficient incoming segments are queued to satisfy the
 		// request, queue the request.
-		if tcb.rxLen == 0 {
-			tcb.rcvQueue = append(tcb.rcvQueue, rcvEntry{
-				entryTime: time.Now(),
-				rcvCh:     rcvCh,
-			})
-		} else {
-			rcvCh <- ReceiveData{
-				Data: tcb.rxQueue[:tcb.rxLen],
-			}
-			tcb.rxLen = 0
+		if tcb.rcvCmd.errCh != nil {
+			errCh <- fmt.Errorf("RECEIVE was already called and data haven't come yet")
+			return
 		}
+		tcb.rcvCmd = rcvCmd{
+			n:     n,
+			data:  buf,
+			errCh: errCh,
+		}
+		tcb.signalCmd(triggerReceive)
 	case TCPpcbStateCloseWait:
+		if tcb.rcvCmd.errCh != nil {
+			errCh <- fmt.Errorf("RECEIVE was already called and data haven't come yet")
+			return
+		}
+		tcb.rcvCmd = rcvCmd{
+			n:     n,
+			data:  buf,
+			errCh: errCh,
+		}
+		tcb.signalCmd(triggerReceive)
+
 		// no remaining data
-		if tcb.rxLen == 0 {
-			rcvCh <- ReceiveData{
-				Err: fmt.Errorf("connection closing"),
-			}
+		if tcb.rcvCmd.errCh != nil {
+			tcb.rcvCmd = rcvCmd{}
+			errCh <- fmt.Errorf("no remaning data")
 		}
-		// remaining data
-		rcvCh <- ReceiveData{
-			Data: tcb.rxQueue[:tcb.rxLen],
-		}
-		tcb.rxLen = 0
 	default:
-		rcvCh <- ReceiveData{
-			Err: fmt.Errorf("connection closing"),
-		}
+		errCh <- fmt.Errorf("connection closing")
 	}
 }
 
@@ -555,110 +429,49 @@ func (tcb *TCPpcb) Close(errCh chan error) {
 		errCh <- fmt.Errorf("connection does not exist")
 	case TCPpcbStateListen:
 		// Any outstanding RECEIVEs are returned with "error:  closing" responses.
-		tcb.queueFlush("closing")
+		tcb.signalErr("closing")
 		tcb.transition(TCPpcbStateClosed)
 		errCh <- nil
 	case TCPpcbStateSYNSent:
 		// return "error:  closing" responses to any queued SENDs, or RECEIVEs.
-		tcb.queueFlush("closing")
+		tcb.signalErr("closing")
 		tcb.transition(TCPpcbStateClosed)
 		errCh <- nil
 	case TCPpcbStateSYNReceived:
 		// If no SENDs have been issued and there is no pending data to send,
 		// then form a FIN segment and send it, and enter FIN-WAIT-1 state;
 		// otherwise queue for processing after entering ESTABLISHED state.
-		finished := true
-		for _, entry := range tcb.cmdQueue {
-			if entry.typ == cmdSend {
-				finished = false
+		var err error
+		for i := 0; i < 3; i++ { // try to send FIN at most three time ( because of ARP cache specification of this package).
+			if err = TxHelperTCP(tcb, ACK|FIN, []byte{}, triggerClose, errCh); err != nil {
+				log.Printf("[E] TCP CLOSE call error %s", err.Error())
+				time.Sleep(20 * time.Millisecond)
+			} else {
+				tcb.transition(TCPpcbStateFINWait1)
+				tcb.snd.nxt++
+				log.Printf("[D] active close: local=%s,foreign=%s,closing...", tcb.local, tcb.foreign)
+				return
 			}
 		}
+		errCh <- err
 
-		if finished {
-			var err error
-			for i := 0; i < 3; i++ { // try to send FIN at most three time ( because of ARP cache specification of this package).
-				if err = TxHandlerTCP(tcb.local, tcb.foreign, []byte{}, tcb.snd.nxt, tcb.rcv.nxt, FIN, tcb.rcv.wnd, 0); err != nil {
-					time.Sleep(20 * time.Millisecond)
-				} else {
-					tcb.transition(TCPpcbStateFINWait1)
-
-					tcb.cmdQueue = append(tcb.cmdQueue, cmdEntry{
-						typ:       cmdClose,
-						entryTime: time.Now(),
-						errCh:     errCh,
-					})
-					log.Printf("[D] active close: local=%s,foreign=%s,closing...", tcb.local, tcb.foreign)
-					return
-				}
-			}
-			errCh <- err
-		} else {
-			tcb.cmdQueue = append(tcb.cmdQueue, cmdEntry{
-				typ:       cmdClose,
-				entryTime: time.Now(),
-				errCh:     errCh,
-			})
-		}
 	case TCPpcbStateEstablished:
 		// Queue this until all preceding SENDs have been segmentized, then
 		// form a FIN segment and send it.  In any case, enter FIN-WAIT-1
 		// state.
 		var err error
-		if tcb.txLen > 0 {
-			err = TxHandlerTCP(tcb.local, tcb.foreign, tcb.txQueue[:tcb.txLen], tcb.snd.nxt, tcb.rcv.nxt, ACK, tcb.rcv.wnd, 0)
-
-			if err != nil {
-				// delete SEND user call
-				var deleteIndex []int
-				for i, entry := range tcb.cmdQueue {
-					if entry.typ == cmdSend {
-						entry.errCh <- err
-						deleteIndex = append(deleteIndex, i)
-					}
-				}
-				tcb.cmdQueue = removeCmd(tcb.cmdQueue, deleteIndex)
-
-				tcb.txLen = 0
+		for i := 0; i < 3; i++ { // try to send FIN at most three time ( because of ARP cache specification of this package).
+			if err = TxHelperTCP(tcb, ACK|FIN, []byte{}, triggerClose, errCh); err != nil {
+				log.Printf("[E] TCP CLOSE call error %s", err.Error())
+				time.Sleep(20 * time.Millisecond)
 			} else {
-				var deleteIndex []int
-				var errChs []chan error
-				for i, entry := range tcb.cmdQueue {
-					if entry.typ == cmdSend {
-						deleteIndex = append(deleteIndex, i)
-						errChs = append(errChs, entry.errCh)
-					}
-				}
-				tcb.cmdQueue = removeCmd(tcb.cmdQueue, deleteIndex)
-				errChs = append(errChs, errCh)
-
-				// if transmit is sucessful,push data to retransmitQueue.
-				tcb.retxQueue = append(tcb.retxQueue, retxEntry{
-					data:  tcb.txQueue[:tcb.txLen],
-					seq:   tcb.snd.nxt,
-					flag:  ACK,
-					first: time.Now(),
-					last:  time.Now(),
-					errCh: errChs,
-				})
-				tcb.snd.nxt += uint32(tcb.txLen) // TODO:window size?
-
-				tcb.txLen = 0
+				tcb.transition(TCPpcbStateFINWait1)
+				tcb.snd.nxt++
+				log.Printf("[D] active close: local=%s,foreign=%s,closing...", tcb.local, tcb.foreign)
+				return
 			}
 		}
-
-		if err = TxHandlerTCP(tcb.local, tcb.foreign, []byte{}, tcb.snd.nxt, tcb.rcv.nxt, FIN, tcb.rcv.wnd, 0); err != nil {
-			errCh <- err
-		} else {
-			tcb.transition(TCPpcbStateFINWait1)
-
-			tcb.cmdQueue = append(tcb.cmdQueue, cmdEntry{
-				typ:       cmdClose,
-				entryTime: time.Now(),
-				errCh:     errCh,
-			})
-			log.Printf("[D] active close: local=%s,foreign=%s,closing...", tcb.local, tcb.foreign)
-			return
-		}
+		errCh <- err
 
 	case TCPpcbStateFINWait1, TCPpcbStateFINWait2:
 		errCh <- fmt.Errorf("connection closing")
@@ -666,61 +479,17 @@ func (tcb *TCPpcb) Close(errCh chan error) {
 		// Queue this request until all preceding SENDs have been
 		// segmentized; then send a FIN segment, enter CLOSING state.
 		var err error
-		if tcb.txLen > 0 {
-			err = TxHandlerTCP(tcb.local, tcb.foreign, tcb.txQueue[:tcb.txLen], tcb.snd.nxt, tcb.rcv.nxt, ACK, tcb.rcv.wnd, 0)
-
-			if err != nil {
-				// delete SEND user call
-				var deleteIndex []int
-				for i, entry := range tcb.cmdQueue {
-					if entry.typ == cmdSend {
-						entry.errCh <- err
-						deleteIndex = append(deleteIndex, i)
-					}
-				}
-				tcb.cmdQueue = removeCmd(tcb.cmdQueue, deleteIndex)
-
-				tcb.txLen = 0
+		for i := 0; i < 3; i++ { // try to send FIN at most three time ( because of ARP cache specification of this package).
+			if err = TxHelperTCP(tcb, ACK|FIN, []byte{}, triggerClose, errCh); err != nil {
+				log.Printf("[E] TCP CLOSE call error %s", err.Error())
+				time.Sleep(20 * time.Millisecond)
 			} else {
-				var deleteIndex []int
-				var errChs []chan error
-				for i, entry := range tcb.cmdQueue {
-					if entry.typ == cmdSend {
-						deleteIndex = append(deleteIndex, i)
-						errChs = append(errChs, entry.errCh)
-					}
-				}
-				tcb.cmdQueue = removeCmd(tcb.cmdQueue, deleteIndex)
-				errChs = append(errChs, errCh)
-
-				// if transmit is sucessful,push data to retransmitQueue.
-				tcb.retxQueue = append(tcb.retxQueue, retxEntry{
-					data:  tcb.txQueue[:tcb.txLen],
-					seq:   tcb.snd.nxt,
-					flag:  ACK,
-					first: time.Now(),
-					last:  time.Now(),
-					errCh: errChs,
-				})
-				tcb.snd.nxt += uint32(tcb.txLen) // TODO:window size?
-
-				tcb.txLen = 0
+				tcb.transition(TCPpcbStateLastACK)
+				tcb.snd.nxt++
+				return
 			}
 		}
-
-		if err = TxHandlerTCP(tcb.local, tcb.foreign, []byte{}, tcb.snd.nxt, tcb.rcv.nxt, FIN, tcb.rcv.wnd, 0); err != nil {
-			errCh <- err
-		} else {
-			tcb.transition(TCPpcbStateClosing)
-
-			tcb.cmdQueue = append(tcb.cmdQueue, cmdEntry{
-				typ:       cmdClose,
-				entryTime: time.Now(),
-				errCh:     errCh,
-			})
-			log.Printf("[D] active close: local=%s,foreign=%s,closing...", tcb.local, tcb.foreign)
-			return
-		}
+		errCh <- err
 
 	default:
 		errCh <- fmt.Errorf("connection closing")
@@ -737,20 +506,20 @@ func (tcb *TCPpcb) Abort() error {
 	case TCPpcbStateListen:
 		// Any outstanding RECEIVEs should be returned with "error:
 		// connection reset" responses
-		tcb.queueFlush("connection reset")
+		tcb.signalErr("connection reset")
 		tcb.transition(TCPpcbStateClosed)
 		return nil
 	case TCPpcbStateSYNSent:
 		// All queued SENDs and RECEIVEs should be given "connection reset" notification,
 		// RECEIVE
-		tcb.queueFlush("connection reset")
+		tcb.signalErr("connection reset")
 		tcb.transition(TCPpcbStateClosed)
 		return nil
 	case TCPpcbStateSYNReceived, TCPpcbStateEstablished, TCPpcbStateFINWait1, TCPpcbStateFINWait2, TCPpcbStateCloseWait:
 		// All queued SENDs and RECEIVEs should be given "connection reset"
 		// notification; all segments queued for transmission (except for the
 		// RST formed above) or retransmission should be flushed
-		tcb.queueFlush("connection reset")
+		tcb.signalErr("connection reset")
 		tcb.transition(TCPpcbStateClosed)
 		return TxHandlerTCP(tcb.local, tcb.foreign, []byte{}, tcb.snd.nxt, 0, RST, 0, 0)
 	default:

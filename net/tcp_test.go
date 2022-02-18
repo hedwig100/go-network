@@ -1,6 +1,7 @@
 package net_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -148,19 +149,19 @@ func TestTCPSend(t *testing.T) {
 	}
 
 	errChOpen := make(chan error)
-	errChSend1 := make(chan error)
-	errChSend2 := make(chan error)
+	errChSend := make(chan error)
 
 	go soc.Open(errChOpen, dst, true, 5*time.Minute)
-	time.Sleep(time.Millisecond)
-	go soc.Send(errChSend1, []byte("TCP connection1 !!!!\n"))
-	time.Sleep(time.Millisecond)
-	go soc.Send(errChSend2, []byte("TCP connection2 !!!!\n"))
 
-	cnt := 3
+	cnt := 1
+	maxSendTime := 5
 	for {
-		if cnt == 0 {
+		if cnt == 0 && maxSendTime == 0 {
 			break
+		}
+		if cnt == 0 && soc.Status() == net.TCPpcbStateEstablished {
+			go soc.Send(errChSend, []byte(fmt.Sprintf("TCP connection%d !!!!\n", maxSendTime)))
+			cnt++
 		}
 
 		select {
@@ -171,19 +172,13 @@ func TestTCPSend(t *testing.T) {
 			} else {
 				t.Log("open suceeded")
 			}
-		case err = <-errChSend1:
+		case err = <-errChSend:
 			cnt--
+			maxSendTime--
 			if err != nil {
-				t.Error("send1: ", err.Error())
+				t.Error("send: ", err.Error())
 			} else {
-				t.Log("send1 suceeded")
-			}
-		case err = <-errChSend2:
-			cnt--
-			if err != nil {
-				t.Error("send2: ", err.Error())
-			} else {
-				t.Log("send2 suceeded")
+				t.Log("send suceeded")
 			}
 		default:
 			time.Sleep(time.Millisecond)
@@ -247,7 +242,7 @@ func TestTCPPassiveOpen(t *testing.T) {
 
 	cnt := 1
 	for {
-		if cnt == 0 && soc.Status() == net.TCPpcbStateClosing {
+		if cnt == 0 && soc.Status() == net.TCPpcbStateClosed {
 			break
 		}
 		if cnt == 0 && soc.Status() == net.TCPpcbStateCloseWait {
@@ -327,22 +322,23 @@ func TestTCPReceive(t *testing.T) {
 	}
 
 	errChOpen := make(chan error)
-	errChRcv := make(chan net.ReceiveData)
+	errChRcv := make(chan error)
+	buf := make([]byte, 20)
+	var n int
 
 	go soc.Open(errChOpen, net.TCPEndpoint{}, false, 5*time.Minute)
 	time.Sleep(time.Millisecond)
-	go soc.Receive(errChRcv)
 
-	cnt := 2
-	rcvDataCnt := 5
+	cnt := 1
+	maxRcvTime := 5
 
 	for {
-		if cnt == 0 && soc.Status() == net.TCPpcbStateEstablished {
-			go soc.Receive(errChRcv)
-			cnt++
-		}
-		if rcvDataCnt == 0 {
+		if cnt == 0 && maxRcvTime == 0 {
 			break
+		}
+		if cnt == 0 && soc.Status() == net.TCPpcbStateEstablished {
+			go soc.Receive(errChRcv, buf, &n)
+			cnt++
 		}
 
 		select {
@@ -353,15 +349,15 @@ func TestTCPReceive(t *testing.T) {
 			} else {
 				t.Log("open suceeded")
 			}
-		case rcvData := <-errChRcv:
+		case err = <-errChRcv:
 			cnt--
-			if rcvData.Err != nil {
+			maxRcvTime--
+			if err != nil {
 				t.Error("receive: ", err.Error())
 			} else {
-				t.Log(string(rcvData.Data))
+				t.Log(string(buf[:n]))
 				t.Log("receive suceeded")
 			}
-			rcvDataCnt--
 		default:
 			time.Sleep(time.Millisecond)
 		}
