@@ -32,7 +32,7 @@ func (p *TCPProtocol) Type() IPProtocolType {
 	return IPProtocolTCP
 }
 
-func (p *TCPProtocol) RxHandler(data []byte, src IPAddr, dst IPAddr, ipIface *IPIface) error {
+func (p *TCPProtocol) rxHandler(data []byte, src IPAddr, dst IPAddr, ipIface *IPIface) error {
 
 	hdr, payload, err := data2headerTCP(data, src, dst)
 	// TODO:
@@ -55,7 +55,7 @@ func (p *TCPProtocol) RxHandler(data []byte, src IPAddr, dst IPAddr, ipIface *IP
 
 	hdrLen := (hdr.Offset >> 4) << 2
 	dataLen := uint32(len(data)) - uint32(hdrLen)
-	log.Printf("[D] TCP RxHandler: src=%s:%d,dst=%s:%d,iface=%s,len=%d,tcp header=%s,payload=%v", src, hdr.Src, dst, hdr.Dst, ipIface.Family(), dataLen, hdr, payload)
+	log.Printf("[D] TCP rxHandler: src=%s:%d,dst=%s:%d,iface=%s,len=%d,tcp header=%s,payload=%v", src, hdr.Src, dst, hdr.Dst, ipIface.Family(), dataLen, hdr, payload)
 
 	// segment
 	seg := segment{

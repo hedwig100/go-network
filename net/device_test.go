@@ -8,7 +8,6 @@ import (
 )
 
 func TestNull(t *testing.T) {
-	t.Skip()
 	var err error
 
 	dev := net.NullInit("null0")
@@ -33,7 +32,6 @@ func TestNull(t *testing.T) {
 }
 
 func TestLoopback(t *testing.T) {
-	t.Skip()
 	var err error
 
 	dev := net.LoopbackInit("loopback0")

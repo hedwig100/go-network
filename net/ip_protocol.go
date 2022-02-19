@@ -43,7 +43,7 @@ type IPUpperProtocol interface {
 	Type() IPProtocolType
 
 	// Receive Handler
-	RxHandler(data []byte, src IPAddr, dst IPAddr, ipIface *IPIface) error
+	rxHandler(data []byte, src IPAddr, dst IPAddr, ipIface *IPIface) error
 }
 
 // IPProtocolRegister is used to register IpUpperProtocol

@@ -204,12 +204,12 @@ func (p *UDPProtocol) Type() IPProtocolType {
 	return IPProtocolUDP
 }
 
-func (p *UDPProtocol) RxHandler(data []byte, src IPAddr, dst IPAddr, ipIface *IPIface) error {
+func (p *UDPProtocol) rxHandler(data []byte, src IPAddr, dst IPAddr, ipIface *IPIface) error {
 	hdr, payload, err := data2headerUDP(data, src, dst)
 	if err != nil {
 		return err
 	}
-	log.Printf("[D] UDP RxHandler: src=%s:%d,dst=%s:%d,iface=%s,udp header=%s,payload=%v", src, hdr.Src, dst, hdr.Dst, ipIface.Family(), hdr, payload)
+	log.Printf("[D] UDP rxHandler: src=%s:%d,dst=%s:%d,iface=%s,udp header=%s,payload=%v", src, hdr.Src, dst, hdr.Dst, ipIface.Family(), hdr, payload)
 
 	// search udp pcb whose address is dst
 	udpMutex.Lock()

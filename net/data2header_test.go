@@ -92,11 +92,11 @@ func Test2IP(t *testing.T) {
 func Test2ARP(t *testing.T) {
 	org_hdr := ArpEther{
 		ArpHeader: ArpHeader{
-			Hrd: ArpHrdEther,
-			Pro: ArpProIP,
+			Hrd: arpHrdEther,
+			Pro: arpProIP,
 			Hln: EtherAddrLen,
 			Pln: IPAddrLen,
-			Op:  ArpOpReply,
+			Op:  arpOpReply,
 		},
 		Sha: EtherAddrAny,
 		Spa: IPAddrAny,

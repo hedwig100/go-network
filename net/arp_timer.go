@@ -2,7 +2,7 @@ package net
 
 import "time"
 
-const ArpCacheTimeout time.Duration = 30 * time.Second
+const arpCacheTimeout time.Duration = 30 * time.Second
 
 // arpTimer
 func arpTimer(done chan struct{}) {
@@ -17,7 +17,7 @@ func arpTimer(done chan struct{}) {
 
 		now := time.Now()
 		for i, cache := range caches {
-			if cache.state != ArpCacheStateFree && cache.timeval.Add(ArpCacheTimeout).Before(now) {
+			if cache.state != arpCacheStateFree && cache.timeval.Add(arpCacheTimeout).Before(now) {
 				arpCacheDelete(i) // no error
 			}
 		}

@@ -55,7 +55,7 @@ type Device interface {
 	Transmit([]byte, ProtocolType, HardwareAddress) error
 
 	// input from the device
-	RxHandler(chan struct{})
+	rxHandler(chan struct{})
 }
 
 func isUp(d Device) bool {

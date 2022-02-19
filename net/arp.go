@@ -9,20 +9,20 @@ import (
 )
 
 const (
-	ArpHrdEther uint16 = 0x0001
-	ArpProIP    uint16 = 0x0800
+	arpHrdEther uint16 = 0x0001
+	arpProIP    uint16 = 0x0800
 
 	ArpHeaderSizeMin uint8 = 8
 	ArpEtherSize     uint8 = ArpHeaderSizeMin + 2*EtherAddrLen + 2*IPAddrLen
 
-	ArpOpRequest uint16 = 1
-	ArpOpReply   uint16 = 2
+	arpOpRequest uint16 = 1
+	arpOpReply   uint16 = 2
 )
 
 // ArpInit prepare the ARP protocol.
 func ArpInit(done chan struct{}) error {
 	go arpTimer(done)
-	err := ProtocolRegister(&ArpProtocol{})
+	err := ProtocolRegister(&arpProtocol{})
 	if err != nil {
 		return err
 	}
@@ -75,26 +75,26 @@ func (ae ArpEther) String() string {
 
 	var Hrd string
 	switch ae.Hrd {
-	case ArpHrdEther:
-		Hrd = fmt.Sprintf("Ethernet(%d)", ArpHrdEther)
+	case arpHrdEther:
+		Hrd = fmt.Sprintf("Ethernet(%d)", arpHrdEther)
 	default:
 		Hrd = "UNKNOWN"
 	}
 
 	var Pro string
 	switch ae.Pro {
-	case ArpProIP:
-		Pro = fmt.Sprintf("IPv4(%d)", ArpProIP)
+	case arpProIP:
+		Pro = fmt.Sprintf("IPv4(%d)", arpProIP)
 	default:
 		Pro = "UNKNOWN"
 	}
 
 	var Op string
 	switch ae.Op {
-	case ArpOpReply:
-		Op = fmt.Sprintf("Reply(%d)", ArpOpReply)
-	case ArpOpRequest:
-		Op = fmt.Sprintf("Request(%d)", ArpOpRequest)
+	case arpOpReply:
+		Op = fmt.Sprintf("Reply(%d)", arpOpReply)
+	case arpOpRequest:
+		Op = fmt.Sprintf("Request(%d)", arpOpRequest)
 	default:
 		Op = "UNKNOWN"
 	}
@@ -130,10 +130,10 @@ func data2headerARP(data []byte) (ArpEther, error) {
 	}
 
 	// only receive IPv4 and Ethernet
-	if hdr.Hrd != ArpHrdEther || hdr.Hln != EtherAddrLen {
+	if hdr.Hrd != arpHrdEther || hdr.Hln != EtherAddrLen {
 		return ArpEther{}, fmt.Errorf("arp resolves only Ethernet address")
 	}
-	if hdr.Pro != ArpProIP || hdr.Pln != IPAddrLen {
+	if hdr.Pro != arpProIP || hdr.Pln != IPAddrLen {
 		return ArpEther{}, fmt.Errorf("arp only supports IP address")
 	}
 	return hdr, nil
@@ -152,14 +152,14 @@ func header2dataARP(hdr ArpEther) ([]byte, error) {
 	Arp Protocol
 */
 
-// ArpProtocol implements net.Protocol interface.
-type ArpProtocol struct{}
+// arpProtocol implements net.Protocol interface.
+type arpProtocol struct{}
 
-func (p *ArpProtocol) Type() ProtocolType {
+func (p *arpProtocol) Type() ProtocolType {
 	return ProtocolTypeArp
 }
 
-func (p *ArpProtocol) RxHandler(ch chan ProtocolBuffer, done chan struct{}) {
+func (p *arpProtocol) rxHandler(ch chan ProtocolBuffer, done chan struct{}) {
 	var pb ProtocolBuffer
 
 	for {
@@ -175,13 +175,13 @@ func (p *ArpProtocol) RxHandler(ch chan ProtocolBuffer, done chan struct{}) {
 		pb = <-ch
 		hdr, err := data2headerARP(pb.Data)
 		if err != nil {
-			log.Printf("[E] ARP RxHandler: %s", err.Error())
+			log.Printf("[E] ARP rxHandler: %s", err.Error())
 		}
 
 		// update arp cache table
-		mutex.Lock()
+		arpMutex.Lock()
 		merge := arpCacheUpdate(hdr.Spa, hdr.Sha)
-		mutex.Unlock()
+		arpMutex.Unlock()
 
 		// search the IP interface of the device
 		iface, err := GetIface(pb.Dev, NetIfaceFamilyIP)
@@ -195,17 +195,17 @@ func (p *ArpProtocol) RxHandler(ch chan ProtocolBuffer, done chan struct{}) {
 
 		// insert cache entry if entry is not updated before
 		if !merge {
-			mutex.Lock()
+			arpMutex.Lock()
 			arpCacheInsert(hdr.Spa, hdr.Sha)
-			mutex.Unlock()
+			arpMutex.Unlock()
 		}
 
-		log.Printf("[D] ARP RxHandler: dev=%s,arp header=%s", pb.Dev.Name(), hdr)
+		log.Printf("[D] ARP rxHandler: dev=%s,arp header=%s", pb.Dev.Name(), hdr)
 
-		if hdr.Op == ArpOpRequest {
+		if hdr.Op == arpOpRequest {
 			err = ArpReply(ipIface, hdr.Sha, hdr.Spa, hdr.Sha) // reply arp message
 			if err != nil {
-				log.Printf("[E] ARP RxHandler: %s", err.Error())
+				log.Printf("[E] ARP rxHandler: %s", err.Error())
 			}
 		}
 	}
@@ -222,11 +222,11 @@ func ArpReply(ipIface *IPIface, tha EthernetAddress, tpa IPAddr, dst EthernetAdd
 	// create arp header
 	rep := ArpEther{
 		ArpHeader: ArpHeader{
-			Hrd: ArpHrdEther,
-			Pro: ArpProIP,
+			Hrd: arpHrdEther,
+			Pro: arpProIP,
 			Hln: EtherAddrLen,
 			Pln: IPAddrLen,
-			Op:  ArpOpReply,
+			Op:  arpOpReply,
 		},
 		Sha: dev.EthernetAddress,
 		Spa: ipIface.Unicast,
@@ -256,7 +256,7 @@ func ArpResolve(iface Interface, pa IPAddr) (HardwareAddress, error) {
 	}
 
 	// search cache table
-	mutex.Lock()
+	arpMutex.Lock()
 	index, err := arpCacheSelect(pa)
 
 	// cache not found
@@ -264,31 +264,31 @@ func ArpResolve(iface Interface, pa IPAddr) (HardwareAddress, error) {
 
 		index = arpCacheAlloc()
 		caches[index] = arpCacheEntry{
-			state:   ArpCacheStateImcomplete,
+			state:   arpCacheStateImcomplete,
 			pa:      pa,
 			timeval: time.Now(),
 		}
 
 		// if cache is not in the table, transmit arp request
 		ArpRequest(ipIface, pa)
-		mutex.Unlock()
+		arpMutex.Unlock()
 
 		return nil, err
 	}
 
 	// cache found but imcomplete request
-	if caches[index].state == ArpCacheStateImcomplete {
+	if caches[index].state == arpCacheStateImcomplete {
 
 		// if found cache is imcomplete,it might be a packet loss,so transmit arp request
 		ArpRequest(ipIface, pa)
-		mutex.Unlock()
+		arpMutex.Unlock()
 
 		return nil, fmt.Errorf("cache state is imcomplete")
 	}
 
 	// cache found and get hardware address
 	ha := caches[index].ha
-	mutex.Unlock()
+	arpMutex.Unlock()
 	return ha, nil
 }
 
@@ -303,11 +303,11 @@ func ArpRequest(ipIface *IPIface, tpa IPAddr) error {
 	// create arp header
 	rep := ArpEther{
 		ArpHeader: ArpHeader{
-			Hrd: ArpHrdEther,
-			Pro: ArpProIP,
+			Hrd: arpHrdEther,
+			Pro: arpProIP,
 			Hln: EtherAddrLen,
 			Pln: IPAddrLen,
-			Op:  ArpOpRequest,
+			Op:  arpOpRequest,
 		},
 		Sha: dev.EthernetAddress,
 		Spa: ipIface.Unicast,

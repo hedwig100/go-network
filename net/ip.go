@@ -241,7 +241,7 @@ func TxHandlerIP(protocol IPProtocolType, data []byte, src IPAddr, dst IPAddr) e
 	return ipIface.dev.Transmit(data, ProtocolTypeIP, hwaddr)
 }
 
-func (p *IPProtocol) RxHandler(ch chan ProtocolBuffer, done chan struct{}) {
+func (p *IPProtocol) rxHandler(ch chan ProtocolBuffer, done chan struct{}) {
 	var pb ProtocolBuffer
 
 	for {
@@ -259,12 +259,12 @@ func (p *IPProtocol) RxHandler(ch chan ProtocolBuffer, done chan struct{}) {
 		// extract the header from the beginning of the data
 		ipHdr, payload, err := data2headerIP(pb.Data)
 		if err != nil {
-			log.Printf("[E] IP RxHandler: %s", err.Error())
+			log.Printf("[E] IP rxHandler: %s", err.Error())
 			continue
 		}
 
 		if ipHdr.Flags&0x2000 > 0 || ipHdr.Flags&0x1fff > 0 {
-			log.Printf("[E] IP RxHandler: does not support fragments")
+			log.Printf("[E] IP rxHandler: does not support fragments")
 			continue
 		}
 
@@ -278,15 +278,15 @@ func (p *IPProtocol) RxHandler(ch chan ProtocolBuffer, done chan struct{}) {
 			}
 		}
 		if ipIface == nil {
-			log.Printf("[D] IP RxHandler: packet is to other host")
+			log.Printf("[D] IP rxHandler: packet is to other host")
 			continue // the packet is to other host
 		}
-		log.Printf("[D] IP RxHandler: iface=%s,protocol=%s,header=%v", ipIface.Unicast, ipHdr.ProtocolType, ipHdr)
+		log.Printf("[D] IP rxHandler: iface=%s,protocol=%s,header=%v", ipIface.Unicast, ipHdr.ProtocolType, ipHdr)
 
 		// search the protocol whose type is the same as the header's one
 		for _, proto := range IPProtocols {
 			if proto.Type() == ipHdr.ProtocolType {
-				err = proto.RxHandler(payload, ipHdr.Src, ipHdr.Dst, ipIface)
+				err = proto.rxHandler(payload, ipHdr.Src, ipHdr.Dst, ipIface)
 				if err != nil {
 					log.Printf("[E] IP RxHanlder: %s", err.Error())
 				}

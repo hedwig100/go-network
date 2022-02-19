@@ -8,17 +8,19 @@ import (
 )
 
 const (
-	ArpCacheSize uint8 = 32
+	arpCacheSize uint8 = 32
 
 	// cache state
-	ArpCacheStateFree       uint8 = 0
-	ArpCacheStateImcomplete uint8 = 1
-	ArpCacheStateResolved   uint8 = 2
-	ArpCacheStateStatic     uint8 = 3
+	arpCacheStateFree       uint8 = 0
+	arpCacheStateImcomplete uint8 = 1
+	arpCacheStateResolved   uint8 = 2
+	arpCacheStateStatic     uint8 = 3
 )
 
-var mutex sync.Mutex
-var caches [ArpCacheSize]arpCacheEntry
+var (
+	arpMutex sync.Mutex
+	caches   [arpCacheSize]arpCacheEntry
+)
 
 // arpCacheEntry is arp cache table's entry
 type arpCacheEntry struct {
@@ -46,7 +48,7 @@ func arpCacheAlloc() int {
 	for i, cache := range caches {
 
 		// empty cache
-		if cache.state == ArpCacheStateFree {
+		if cache.state == arpCacheStateFree {
 			return i
 		}
 
@@ -66,7 +68,7 @@ func arpCacheInsert(pa IPAddr, ha EthernetAddress) {
 	index := arpCacheAlloc()
 	timeval := time.Now()
 	caches[index] = arpCacheEntry{
-		state:   ArpCacheStateResolved,
+		state:   arpCacheStateResolved,
 		pa:      pa,
 		ha:      ha,
 		timeval: timeval,
@@ -80,7 +82,7 @@ func arpCacheInsert(pa IPAddr, ha EthernetAddress) {
 func arpCacheSelect(pa IPAddr) (int, error) {
 
 	for i, cache := range caches {
-		if cache.state != ArpCacheStateFree && cache.pa == pa {
+		if cache.state != arpCacheStateFree && cache.pa == pa {
 			return i, nil
 		}
 	}
@@ -102,7 +104,7 @@ func arpCacheUpdate(pa IPAddr, ha EthernetAddress) bool {
 	// update
 	timeval := time.Now()
 	caches[index] = arpCacheEntry{
-		state:   ArpCacheStateResolved,
+		state:   arpCacheStateResolved,
 		pa:      pa,
 		ha:      ha,
 		timeval: timeval,
@@ -113,13 +115,13 @@ func arpCacheUpdate(pa IPAddr, ha EthernetAddress) bool {
 
 // arpCacheDelete deletes cache entry from the cache table
 func arpCacheDelete(index int) error {
-	if index < 0 || index >= int(ArpCacheSize) {
+	if index < 0 || index >= int(arpCacheSize) {
 		return fmt.Errorf("cache table index out of range")
 	}
 
 	log.Printf("[D] ARP cache delete ps=%s,ha=%s", caches[index].pa, caches[index].ha)
 	caches[index] = arpCacheEntry{
-		state: ArpCacheStateFree,
+		state: arpCacheStateFree,
 	}
 	return nil
 }

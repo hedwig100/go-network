@@ -241,7 +241,7 @@ func TxHandlerICMP(typ ICMPMessageType, code ICMPMessageCode, values uint32, dat
 	return TxHandlerIP(IPProtocolICMP, data, src, dst)
 }
 
-func (p *ICMPProtocol) RxHandler(data []byte, src IPAddr, dst IPAddr, ipIface *IPIface) error {
+func (p *ICMPProtocol) rxHandler(data []byte, src IPAddr, dst IPAddr, ipIface *IPIface) error {
 
 	if len(data) < ICMPHeaderSize {
 		return fmt.Errorf("data size is too small for ICMP header")
@@ -257,7 +257,7 @@ func (p *ICMPProtocol) RxHandler(data []byte, src IPAddr, dst IPAddr, ipIface *I
 		return err
 	}
 
-	log.Printf("[D] ICMP RxHandler: iface=%d,header=%s", ipIface.Family(), hdr)
+	log.Printf("[D] ICMP rxHandler: iface=%d,header=%s", ipIface.Family(), hdr)
 
 	switch hdr.Typ {
 	case ICMPTypeEcho:

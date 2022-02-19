@@ -43,7 +43,7 @@ type Protocol interface {
 	Type() ProtocolType
 
 	// receive handler
-	RxHandler(chan ProtocolBuffer, chan struct{})
+	rxHandler(chan ProtocolBuffer, chan struct{})
 }
 
 // ProtocolBuffer is each protocol's buffer, read the data from here which the device puts

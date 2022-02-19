@@ -62,7 +62,7 @@ func (l *Loopback) Transmit(data []byte, typ ProtocolType, dst HardwareAddress) 
 	return nil
 }
 
-func (l *Loopback) RxHandler(done chan struct{}) {
+func (l *Loopback) rxHandler(done chan struct{}) {
 	for {
 		select {
 		case <-done:
