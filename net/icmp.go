@@ -7,8 +7,8 @@ import (
 	"log"
 )
 
-// ICMPInit prepare the ICMP protocol
-func ICMPInit() error {
+// icmpInit prepare the ICMP protocol
+func icmpInit() error {
 	err := IPProtocolRegister(&ICMPProtocol{})
 	return err
 }

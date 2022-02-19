@@ -17,8 +17,8 @@ const (
 	IPAddrLen        uint8 = 4
 )
 
-// IPInit prepares the IP protocol
-func IPInit() error {
+// ipInit prepares the IP protocol
+func ipInit() error {
 	err := ProtocolRegister(&IPProtocol{})
 	return err
 }

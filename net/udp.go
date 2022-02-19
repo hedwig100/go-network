@@ -10,8 +10,8 @@ import (
 	"sync"
 )
 
-// UDPInit prepare the UDP protocol.
-func UDPInit() error {
+// udpInit prepare the UDP protocol.
+func udpInit() error {
 	return IPProtocolRegister(&UDPProtocol{})
 }
 

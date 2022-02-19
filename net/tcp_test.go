@@ -60,7 +60,7 @@ func TestTCPActiveOpenClose(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = net.NetInit()
+	err = net.NetInit(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,7 +146,7 @@ func TestTCPSend(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = net.NetInit()
+	err = net.NetInit(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -235,7 +235,7 @@ func TestTCPPassiveOpen(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = net.NetInit()
+	err = net.NetInit(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -320,7 +320,7 @@ func TestTCPReceive(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = net.NetInit()
+	err = net.NetInit(false)
 	if err != nil {
 		t.Fatal(err)
 	}

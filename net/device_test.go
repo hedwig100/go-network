@@ -12,7 +12,7 @@ func TestNull(t *testing.T) {
 
 	dev := net.NullInit("null0")
 
-	err = net.NetInit()
+	err = net.NetInit(false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -36,7 +36,7 @@ func TestLoopback(t *testing.T) {
 
 	dev := net.LoopbackInit("loopback0")
 
-	err = net.NetInit()
+	err = net.NetInit(false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -63,7 +63,7 @@ func TestEther(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = net.NetInit()
+	err = net.NetInit(false)
 	if err != nil {
 		t.Error(err)
 	}

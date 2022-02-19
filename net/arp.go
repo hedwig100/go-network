@@ -19,8 +19,8 @@ const (
 	arpOpReply   uint16 = 2
 )
 
-// ArpInit prepare the ARP protocol.
-func ArpInit(done chan struct{}) error {
+// arpInit prepare the ARP protocol.
+func arpInit(done chan struct{}) error {
 	go arpTimer(done)
 	err := ProtocolRegister(&arpProtocol{})
 	if err != nil {

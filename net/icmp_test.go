@@ -78,7 +78,7 @@ func TestICMP(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = net.NetInit()
+	err = net.NetInit(false)
 	if err != nil {
 		t.Error(err)
 	}

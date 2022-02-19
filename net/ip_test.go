@@ -37,7 +37,7 @@ func TestIP(t *testing.T) {
 		return
 	}
 
-	err = net.NetInit()
+	err = net.NetInit(false)
 	if err != nil {
 		t.Error(err)
 	}

@@ -51,7 +51,7 @@ func TestUDP(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = net.NetInit()
+	err = net.NetInit(false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -114,7 +114,7 @@ func TestSendUDP(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = net.NetInit()
+	err = net.NetInit(false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -176,7 +176,7 @@ func TestSocketUDP(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = net.NetInit()
+	err = net.NetInit(false)
 	if err != nil {
 		t.Error(err)
 	}

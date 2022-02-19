@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func TCPInit(done chan struct{}) error {
+func tcpInit(done chan struct{}) error {
 	go tcpTimer(done)
 	rand.Seed(time.Now().UnixNano())
 	return IPProtocolRegister(&TCPProtocol{})
