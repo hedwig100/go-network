@@ -529,7 +529,5 @@ func (tcb *TCPpcb) Abort() error {
 }
 
 func (tcb *TCPpcb) Status() TCPpcbState {
-	tcpMutex.Lock()
-	defer tcpMutex.Unlock()
 	return tcb.state
 }
