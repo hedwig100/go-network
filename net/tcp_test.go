@@ -79,21 +79,34 @@ func TestTCPActiveOpenClose(t *testing.T) {
 	errChClose := make(chan error)
 
 	go soc.Open(errChOpen, dst, true, 5*time.Minute)
-	time.Sleep(10 * time.Second)
-	go soc.Close(errChClose)
+	open := 1
+	close := 0
 
-	err = <-errChOpen
-	if err != nil {
-		t.Error(err)
-	} else {
-		t.Log("open suceeded")
-	}
+	for {
+		if open == 0 && close == 0 && soc.Status() == net.TCPpcbStateEstablished {
+			go soc.Close(errChClose)
+			close++
+		}
+		if open == 0 && close == 0 {
+			break
+		}
 
-	err = <-errChClose
-	if err != nil {
-		t.Error(err)
-	} else {
-		t.Log("close suceeded")
+		select {
+		case err = <-errChOpen:
+			open--
+			if err != nil {
+				t.Error(err)
+			} else {
+				t.Log("open suceeded")
+			}
+		case err = <-errChClose:
+			close--
+			if err != nil {
+				t.Error(err)
+			} else {
+				t.Log("close suceeded")
+			}
+		}
 	}
 
 	err = net.NetShutdown()
@@ -260,7 +273,7 @@ func TestTCPPassiveOpen(t *testing.T) {
 			}
 		case err = <-errChClose:
 			cnt--
-			if err != nil {
+			if err != nil && err.Error() != "connection closed" { // passive close
 				t.Error(err)
 			} else {
 				t.Log("close suceeded")

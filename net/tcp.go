@@ -179,14 +179,14 @@ func segmentArrives(tcb *TCPpcb, seg segment, flag ControlFlag, data []byte, dat
 
 				// notify user call OPEN
 				tcb.signalCmd(triggerOpen)
-				TxHelperTCP(tcb, ACK, []byte{}, 0, nil)
+				return TxHelperTCP(tcb, ACK, []byte{}, 0, nil)
 			} else {
 				tcb.transition(TCPpcbStateSYNReceived)
 				// TODO:
 				// If there are other controls or text in the
 				// segment, queue them for processing after the ESTABLISHED state
 				// has been reached
-				TxHelperTCP(tcb, SYN|ACK, []byte{}, 0, nil)
+				return TxHelperTCP(tcb, SYN|ACK, []byte{}, 0, nil)
 			}
 		}
 
