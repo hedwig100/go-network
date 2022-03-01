@@ -6,7 +6,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/hedwig100/go-network/net"
+	"github.com/hedwig100/go-network/pkg"
+	"github.com/hedwig100/go-network/pkg/tcp"
 )
 
 const (
@@ -22,16 +23,16 @@ func main() {
 	}
 	log.SetOutput(file)
 
-	err = net.NetInit(true)
+	err = pkg.NetInit(true)
 	if err != nil {
 		log.Println(err.Error())
 		return
 	}
 
-	src, _ := net.Str2TCPEndpoint(srcAddr)
+	src, _ := tcp.Str2TCPEndpoint(srcAddr)
 
-	net.NetRun()
-	soc, err := net.NewTCPpcb(src)
+	pkg.NetRun()
+	soc, err := tcp.NewTCPpcb(src)
 	if err != nil {
 		log.Println(err.Error())
 		return
@@ -50,7 +51,7 @@ func main() {
 
 	// for open
 	errOpen := make(chan error)
-	go soc.Open(errOpen, net.TCPEndpoint{}, false, 5*time.Minute)
+	go soc.Open(errOpen, tcp.TCPEndpoint{}, false, 5*time.Minute)
 
 	// for receive
 	errRcv := make(chan error)
@@ -62,7 +63,7 @@ func main() {
 
 	func() {
 		for {
-			if rcv == 0 && soc.Status() == net.TCPpcbStateEstablished {
+			if rcv == 0 && soc.Status() == tcp.TCPpcbStateEstablished {
 				go soc.Receive(errRcv, buf, &n)
 				rcv++
 			}
@@ -110,12 +111,12 @@ func main() {
 		log.Println("close succeeded")
 	}
 
-	err = net.DeleteTCPpcb(soc)
+	err = tcp.DeleteTCPpcb(soc)
 	if err != nil {
 		log.Println(err.Error())
 	}
 
-	err = net.NetShutdown()
+	err = pkg.NetShutdown()
 	if err != nil {
 		log.Println(err.Error())
 	}

@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/hedwig100/go-network/net"
+	"github.com/hedwig100/go-network/pkg"
 )
 
 func main() {
@@ -18,17 +18,17 @@ func main() {
 	}
 	log.SetOutput(file)
 
-	err = net.NetInit(true)
+	err = pkg.NetInit(true)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
 
-	net.NetRun()
+	pkg.NetRun()
 	time.Sleep(10 * time.Second)
 	/*
 		In this section, you can ping to 192.0.2.2
 	*/
-	net.NetShutdown()
+	pkg.NetShutdown()
 
 }

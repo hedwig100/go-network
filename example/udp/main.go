@@ -6,7 +6,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/hedwig100/go-network/net"
+	"github.com/hedwig100/go-network/pkg"
+	"github.com/hedwig100/go-network/pkg/udp"
 )
 
 const (
@@ -22,16 +23,16 @@ func main() {
 	}
 	log.SetOutput(file)
 
-	err = net.NetInit(true)
+	err = pkg.NetInit(true)
 	if err != nil {
 		log.Println(err.Error())
 		return
 	}
 
-	src, _ := net.Str2UDPEndpoint(srcAddr)
+	src, _ := udp.Str2UDPEndpoint(srcAddr)
 
-	net.NetRun()
-	soc := net.OpenUDP()
+	pkg.NetRun()
+	soc := udp.OpenUDP()
 	err = soc.Bind(src)
 	if err != nil {
 		log.Println(err.Error())
@@ -68,12 +69,12 @@ func main() {
 		}
 	}()
 
-	err = net.Close(soc)
+	err = udp.Close(soc)
 	if err != nil {
 		log.Println(err.Error())
 	}
 
-	err = net.NetShutdown()
+	err = pkg.NetShutdown()
 	if err != nil {
 		log.Println(err.Error())
 	}
