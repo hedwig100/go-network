@@ -40,7 +40,7 @@ type Device interface {
 	Flags() uint16
 
 	// device's hardware address
-	Address() HardwareAddress
+	Addr() HardwareAddr
 
 	// add logical interface
 	AddIface(Interface)
@@ -52,7 +52,7 @@ type Device interface {
 	Close() error
 
 	// output data to destination
-	Transmit([]byte, ProtocolType, HardwareAddress) error
+	Transmit([]byte, ProtocolType, HardwareAddr) error
 
 	// input from the device
 	RxHandler(chan struct{})
@@ -84,7 +84,7 @@ func DeviceInputHanlder(typ ProtocolType, data []byte, dev Device) {
 }
 
 // DeviceOutput outputs the data from the device
-func DeviceOutput(dev Device, data []byte, typ ProtocolType, dst HardwareAddress) error {
+func DeviceOutput(dev Device, data []byte, typ ProtocolType, dst HardwareAddr) error {
 
 	// check if the device is opening
 	if !isUp(dev) {

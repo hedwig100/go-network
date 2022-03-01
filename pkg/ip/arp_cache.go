@@ -34,7 +34,7 @@ type arpCacheEntry struct {
 	pa IPAddr
 
 	// hardware address
-	ha device.EthernetAddress
+	ha device.EtherAddr
 
 	// time
 	timeval time.Time
@@ -65,7 +65,7 @@ func arpCacheAlloc() int {
 }
 
 // arpCacheInsert inserts cache entry to the cache table
-func arpCacheInsert(pa IPAddr, ha device.EthernetAddress) {
+func arpCacheInsert(pa IPAddr, ha device.EtherAddr) {
 
 	index := arpCacheAlloc()
 	timeval := time.Now()
@@ -95,7 +95,7 @@ func arpCacheSelect(pa IPAddr) (int, error) {
 // arpCacheUpdate updates cache entry in the cache table
 // return true if cache was inserted before and update is successful
 // return false if cache was not there and update is unsuccessful
-func arpCacheUpdate(pa IPAddr, ha device.EthernetAddress) bool {
+func arpCacheUpdate(pa IPAddr, ha device.EtherAddr) bool {
 
 	// get cache index
 	index, err := arpCacheSelect(pa)

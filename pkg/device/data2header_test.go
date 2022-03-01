@@ -19,19 +19,19 @@ func compareByte(a []byte, b []byte) bool {
 	return true
 }
 func Test2Ether(t *testing.T) {
-	org_hdr := EthernetHdr{
-		Src:  EthernetAddress([EtherAddrLen]byte{0xfb, 0x98, 0xfe, 0x92, 0x9e}),
-		Dst:  EthernetAddress([EtherAddrLen]byte{0xf2, 0x90, 0x1d, 0x4e, 0x0a}),
+	org_hdr := EtherHeader{
+		Src:  EtherAddr([EtherAddrLen]byte{0xfb, 0x98, 0xfe, 0x92, 0x9e}),
+		Dst:  EtherAddr([EtherAddrLen]byte{0xf2, 0x90, 0x1d, 0x4e, 0x0a}),
 		Type: net.ProtocolTypeIP,
 	}
 	org_payload := []byte{0x92, 0x12, 0x29}
 
-	data, err := header2dataEther(org_hdr, org_payload)
+	data, err := header2data(org_hdr, org_payload)
 	if err != nil {
 		t.Error(err)
 	}
 
-	new_hdr, new_payload, err := data2headerEther(data)
+	new_hdr, new_payload, err := data2header(data)
 	if err != nil {
 		t.Error(err)
 	}

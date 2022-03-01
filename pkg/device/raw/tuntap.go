@@ -10,6 +10,7 @@ const (
 	cloneDevice = "/dev/net/tun"
 )
 
+// OpenTap open a tap device whose name is 'name' and returns its name,pointer to the file,error
 func OpenTap(name string) (string, *os.File, error) {
 
 	if len(name) >= syscall.IFNAMSIZ {
@@ -40,6 +41,7 @@ func OpenTap(name string) (string, *os.File, error) {
 	return name, file, nil
 }
 
+// GetAddr returns ethernet address of the tap device whose name is 'name'
 func GetAddr(name string) ([]byte, error) {
 	addr, err := SIOCGIFHWADDR(name)
 	if err != nil {

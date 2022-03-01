@@ -15,22 +15,22 @@ import (
 const (
 	EtherAddrLen    = 6
 	EtherAddrStrLen = 17 /* "xx:xx:xx:xx:xx:xx" */
-	EtherHdrSize    = 14
+	EtherHeaderSize = 14
 
 	EtherFrameSizeMin = 60   /* without FCS */
 	EtherFrameSizeMax = 1514 /* without FCS */
 
-	EtherPayloadSizeMin = (EtherFrameSizeMin - EtherHdrSize)
-	EtherPayloadSizeMax = (EtherFrameSizeMax - EtherHdrSize)
+	EtherPayloadSizeMin = (EtherFrameSizeMin - EtherHeaderSize)
+	EtherPayloadSizeMax = (EtherFrameSizeMax - EtherHeaderSize)
 )
 
 var (
-	EtherAddrAny       = EthernetAddress([EtherAddrLen]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00})
-	EtherAddrBroadcast = EthernetAddress([EtherAddrLen]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff})
+	EtherAddrAny       = EtherAddr([EtherAddrLen]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00})
+	EtherAddrBroadcast = EtherAddr([EtherAddrLen]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff})
 )
 
 // EtherInit setup ethernet device
-func EtherInit(name string) (*EthernetDevice, error) {
+func EtherInit(name string) (*Ether, error) {
 
 	// open tap
 	name, file, err := raw.OpenTap(name)
@@ -48,50 +48,34 @@ func EtherInit(name string) (*EthernetDevice, error) {
 	var addr [EtherAddrLen]byte
 	copy(addr[:], _addr)
 
-	e := &EthernetDevice{
-		name:            name,
-		flags:           net.NetDeviceFlagBroadcast | net.NetDeviceFlagNeedARP | net.NetDeviceFlagUp,
-		EthernetAddress: EthernetAddress(addr),
-		file:            file,
+	e := &Ether{
+		name:      name,
+		flags:     net.NetDeviceFlagBroadcast | net.NetDeviceFlagNeedARP | net.NetDeviceFlagUp,
+		EtherAddr: EtherAddr(addr),
+		file:      file,
 	}
 	net.DeviceRegister(e)
 	return e, nil
 }
 
 /*
-	Ethernet Address (MAC address)
-*/
-
-// EthernetAddress implments net.HardwareAddress interface.
-// EthernetAddress is written in bigEndian.
-type EthernetAddress [EtherAddrLen]byte
-
-func (a EthernetAddress) Address() []byte {
-	return a[:]
-}
-
-func (a EthernetAddress) String() string {
-	return fmt.Sprintf("%x:%x:%x:%x:%x:%x", a[0], a[1], a[2], a[3], a[4], a[5])
-}
-
-/*
 	Ethernet Header
 */
 
-// EthernetHdr is header for ethernet frame
-type EthernetHdr struct {
+// EtherHeader is header for ethernet frame
+type EtherHeader struct {
 
 	// source address
-	Src EthernetAddress
+	Src EtherAddr
 
 	// destination address
-	Dst EthernetAddress
+	Dst EtherAddr
 
 	// protocol type
 	Type net.ProtocolType
 }
 
-func (h EthernetHdr) String() string {
+func (h EtherHeader) String() string {
 	return fmt.Sprintf(`
 		Src: %s,
 		Dst: %s,
@@ -99,18 +83,18 @@ func (h EthernetHdr) String() string {
 	`, h.Src, h.Dst, h.Type)
 }
 
-func data2headerEther(data []byte) (EthernetHdr, []byte, error) {
+func data2header(data []byte) (EtherHeader, []byte, error) {
 
 	// read header in bigEndian
-	var hdr EthernetHdr
-	r := bytes.NewReader(data[:EtherHdrSize])
+	var hdr EtherHeader
+	r := bytes.NewReader(data[:EtherHeaderSize])
 	err := binary.Read(r, binary.BigEndian, &hdr)
 
 	// return header and payload and error
-	return hdr, data[EtherHdrSize:], err
+	return hdr, data[EtherHeaderSize:], err
 }
 
-func header2dataEther(hdr EthernetHdr, payload []byte) ([]byte, error) {
+func header2data(hdr EtherHeader, payload []byte) ([]byte, error) {
 
 	// write header in bigEndian
 	var w bytes.Buffer
@@ -132,8 +116,8 @@ func header2dataEther(hdr EthernetHdr, payload []byte) ([]byte, error) {
 	Ethernet Device
 */
 
-// EthernetDevice implements net.Device interface
-type EthernetDevice struct {
+// Ether implements net.Device interface
+type Ether struct {
 
 	// name
 	name string
@@ -145,64 +129,64 @@ type EthernetDevice struct {
 	interfaces []net.Interface
 
 	// ethernet address
-	EthernetAddress
+	EtherAddr
 
 	// device file (character file)
 	file io.ReadWriteCloser
 }
 
-func (e *EthernetDevice) Name() string {
+func (e *Ether) Name() string {
 	return e.name
 }
 
-func (e *EthernetDevice) Type() net.DeviceType {
+func (e *Ether) Type() net.DeviceType {
 	return net.NetDeviceTypeEthernet
 }
 
-func (e *EthernetDevice) MTU() uint16 {
+func (e *Ether) MTU() uint16 {
 	return EtherPayloadSizeMax
 }
 
-func (e *EthernetDevice) Flags() uint16 {
+func (e *Ether) Flags() uint16 {
 	return e.flags
 }
 
-func (e *EthernetDevice) Address() net.HardwareAddress {
-	return e.EthernetAddress
+func (e *Ether) Addr() net.HardwareAddr {
+	return e.EtherAddr
 }
 
-func (e *EthernetDevice) AddIface(iface net.Interface) {
+func (e *Ether) AddIface(iface net.Interface) {
 	e.interfaces = append(e.interfaces, iface)
 }
 
-func (e *EthernetDevice) Interfaces() []net.Interface {
+func (e *Ether) Interfaces() []net.Interface {
 	if e.interfaces == nil {
 		return []net.Interface{}
 	}
 	return e.interfaces
 }
 
-func (e *EthernetDevice) Close() error {
+func (e *Ether) Close() error {
 	err := e.file.Close()
 	return err
 }
 
-func (e *EthernetDevice) Transmit(data []byte, typ net.ProtocolType, dst net.HardwareAddress) error {
+func (e *Ether) Transmit(data []byte, typ net.ProtocolType, dst net.HardwareAddr) error {
 
 	// dst must be Ethernet address
-	etherDst, ok := dst.(EthernetAddress)
+	etherDst, ok := dst.(EtherAddr)
 	log.Println(typ, dst)
 	if !ok {
 		return fmt.Errorf("ethernet device only supports ethernet address")
 	}
 
 	// put header and data into the data
-	hdr := EthernetHdr{
-		Src:  e.EthernetAddress,
+	hdr := EtherHeader{
+		Src:  e.EtherAddr,
 		Dst:  etherDst,
 		Type: typ,
 	}
-	data, err := header2dataEther(hdr, data)
+	data, err := header2data(hdr, data)
 	if err != nil {
 		return err
 	}
@@ -217,7 +201,7 @@ func (e *EthernetDevice) Transmit(data []byte, typ net.ProtocolType, dst net.Har
 	return nil
 }
 
-func (e *EthernetDevice) RxHandler(done chan struct{}) {
+func (e *Ether) RxHandler(done chan struct{}) {
 	buf := make([]byte, EtherFrameSizeMax)
 
 	for {
@@ -241,7 +225,7 @@ func (e *EthernetDevice) RxHandler(done chan struct{}) {
 			// if there is no data, it sleeps a little to prevent busy wait
 			time.Sleep(time.Microsecond)
 
-		} else if len < EtherHdrSize {
+		} else if len < EtherHeaderSize {
 
 			// ignore the data if length is smaller than Ethernet Header Size
 			log.Printf("[E] Ether rxHandler: frame size is too small")
@@ -250,20 +234,20 @@ func (e *EthernetDevice) RxHandler(done chan struct{}) {
 		} else {
 
 			// read data
-			hdr, payload, err := data2headerEther(buf)
+			hdr, payload, err := data2header(buf)
 			if err != nil {
 				log.Printf("[E] dev=%s,%s", e.name, err.Error())
 				continue
 			}
 
 			// check if the address is for me
-			if hdr.Dst != e.EthernetAddress && hdr.Dst != EtherAddrBroadcast {
+			if hdr.Dst != e.EtherAddr && hdr.Dst != EtherAddrBroadcast {
 				continue
 			}
 
 			// pass the header and subsequent parts as data to the protocol
 			log.Printf("[D] Ether rxHandler: dev=%s,protocolType=%s,len=%d,header=%s", e.name, hdr.Type, len, hdr)
-			net.DeviceInputHanlder(hdr.Type, payload[:len-EtherHdrSize], e)
+			net.DeviceInputHanlder(hdr.Type, payload[:len-EtherHeaderSize], e)
 		}
 
 	}

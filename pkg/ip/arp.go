@@ -62,13 +62,13 @@ type ArpEther struct {
 	ArpHeader
 
 	// source hardware address
-	Sha device.EthernetAddress
+	Sha device.EtherAddr
 
 	// source protocol address
 	Spa IPAddr
 
 	// target hardware address
-	Tha device.EthernetAddress
+	Tha device.EtherAddr
 
 	// target protocol address
 	Tpa IPAddr
@@ -215,9 +215,9 @@ func (p *arpProtocol) RxHandler(ch chan net.ProtocolBuffer, done chan struct{}) 
 }
 
 // ArpReply transmits ARP reply data to dst
-func ArpReply(ipIface *IPIface, tha device.EthernetAddress, tpa IPAddr, dst device.EthernetAddress) error {
+func ArpReply(ipIface *IPIface, tha device.EtherAddr, tpa IPAddr, dst device.EtherAddr) error {
 
-	dev, ok := ipIface.Dev().(*device.EthernetDevice)
+	dev, ok := ipIface.Dev().(*device.Ether)
 	if !ok {
 		return fmt.Errorf("arp only supports EthernetDevice")
 	}
@@ -231,7 +231,7 @@ func ArpReply(ipIface *IPIface, tha device.EthernetAddress, tpa IPAddr, dst devi
 			Pln: IPAddrLen,
 			Op:  arpOpReply,
 		},
-		Sha: dev.EthernetAddress,
+		Sha: dev.EtherAddr,
 		Spa: ipIface.Unicast,
 		Tha: tha,
 		Tpa: tpa,
@@ -247,7 +247,7 @@ func ArpReply(ipIface *IPIface, tha device.EthernetAddress, tpa IPAddr, dst devi
 }
 
 // ArpResolve receives protocol address and returns hardware address
-func ArpResolve(iface net.Interface, pa IPAddr) (net.HardwareAddress, error) {
+func ArpResolve(iface net.Interface, pa IPAddr) (net.HardwareAddr, error) {
 
 	// only supports IPv4 and Ethernet protocol
 	ipIface, ok := iface.(*IPIface)
@@ -298,7 +298,7 @@ func ArpResolve(iface net.Interface, pa IPAddr) (net.HardwareAddress, error) {
 // ArpRequest receives interface and target IP address and transmits ARP request to the host(tpa)
 func ArpRequest(ipIface *IPIface, tpa IPAddr) error {
 
-	dev, ok := ipIface.Dev().(*device.EthernetDevice)
+	dev, ok := ipIface.Dev().(*device.Ether)
 	if !ok {
 		return fmt.Errorf("arp only supports EthernetDevice")
 	}
@@ -312,7 +312,7 @@ func ArpRequest(ipIface *IPIface, tpa IPAddr) error {
 			Pln: IPAddrLen,
 			Op:  arpOpRequest,
 		},
-		Sha: dev.EthernetAddress,
+		Sha: dev.EtherAddr,
 		Spa: ipIface.Unicast,
 		Tha: device.EtherAddrAny,
 		Tpa: tpa,

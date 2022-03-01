@@ -40,7 +40,7 @@ func (l *Loopback) Flags() uint16 {
 	return l.flags
 }
 
-func (l *Loopback) Address() net.HardwareAddress {
+func (l *Loopback) Addr() net.HardwareAddr {
 	return nil
 }
 
@@ -55,7 +55,7 @@ func (l *Loopback) Close() error {
 	return nil
 }
 
-func (l *Loopback) Transmit(data []byte, typ net.ProtocolType, dst net.HardwareAddress) error {
+func (l *Loopback) Transmit(data []byte, typ net.ProtocolType, dst net.HardwareAddr) error {
 
 	// send back
 	net.DeviceInputHanlder(typ, data, l)

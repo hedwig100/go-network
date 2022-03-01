@@ -38,7 +38,7 @@ func (n *Null) Flags() uint16 {
 	return n.flags
 }
 
-func (n *Null) Address() net.HardwareAddress {
+func (n *Null) Addr() net.HardwareAddr {
 	return nil
 }
 
@@ -53,7 +53,7 @@ func (n *Null) Close() error {
 	return nil
 }
 
-func (n *Null) Transmit(data []byte, typ net.ProtocolType, dst net.HardwareAddress) error {
+func (n *Null) Transmit(data []byte, typ net.ProtocolType, dst net.HardwareAddr) error {
 	log.Printf("[I] Null TxHandler: data(%v) is trasmitted by null-device(name=%s)", data, n.name)
 	return nil
 }

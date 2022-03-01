@@ -229,7 +229,7 @@ func TxHandlerIP(protocol IPProtocolType, data []byte, src IPAddr, dst IPAddr) e
 	}
 
 	// transmit data from the device
-	var hwaddr net.HardwareAddress
+	var hwaddr net.HardwareAddr
 	if ipIface.dev.Flags()&net.NetDeviceFlagNeedARP > 0 { // check if arp is necessary
 		if nexthop == ipIface.broadcast || nexthop == IPAddrBroadcast {
 			hwaddr = device.EtherAddrBroadcast // TODO: not only ethernet
