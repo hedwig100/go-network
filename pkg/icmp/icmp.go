@@ -1,4 +1,4 @@
-package pkg
+package icmp
 
 import (
 	"bytes"
@@ -10,8 +10,8 @@ import (
 	"github.com/hedwig100/go-network/pkg/utils"
 )
 
-// icmpInit prepare the ICMP protocol
-func icmpInit() error {
+// IcmpInit prepare the ICMP protocol
+func ICMPInit() error {
 	err := ip.IPProtocolRegister(&ICMPProtocol{})
 	return err
 }

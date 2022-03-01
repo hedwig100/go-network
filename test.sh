@@ -13,7 +13,7 @@ check() {
 }
 
 # device
-go test -v ./pkg/device/ -run Test2Ether
+go test -v ./pkg/device/ -run Test2
 check
 
 go test -v ./pkg/device/ -run TestEther
@@ -31,6 +31,13 @@ check
 
 go test -v ./pkg/ip/ -run TestIP
 check
+
+# icmp
+go test -v ./pkg/icmp/ -run Test2
+check
+
+# utils
+go test -v ./pkg/utils/
 
 # other
 go test -v ./pkg/ -run Test2

@@ -16,11 +16,11 @@ import (
 /*
 
 1)
-go test -v -run TestSendUDP > log&
+go test -v ./pkg/ -run TestSendUDP > log&
 nc -u -l 192.0.2.1 80
 
 2)
-go test -v -run TestSocketUDP > log&
+go test -v ./pkg/ -run TestSocketUDP > log&
 nc -u 192.0.2.2 7
 hoge (followed by the same reply)
 ...

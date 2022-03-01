@@ -1,4 +1,4 @@
-package pkg_test
+package icmp_test
 
 import (
 	"os"
@@ -9,6 +9,7 @@ import (
 
 	"github.com/hedwig100/go-network/pkg"
 	"github.com/hedwig100/go-network/pkg/device"
+	"github.com/hedwig100/go-network/pkg/icmp"
 	"github.com/hedwig100/go-network/pkg/ip"
 )
 
@@ -39,7 +40,7 @@ var testdata = []byte{
 
 /*
 
-go test -v -run TestICMP > log&
+go test -v ./pkg/icmp/ -run TestICMP > log&
 ping 192.0.2.2
 ...
 
@@ -103,7 +104,7 @@ func TestICMP(t *testing.T) {
 			}
 
 			time.Sleep(time.Second)
-			err = pkg.TxHandlerICMP(pkg.ICMPTypeEcho, 0, (id<<16 | seq), testdata, src, ip.IPAddr(dst))
+			err = icmp.TxHandlerICMP(icmp.ICMPTypeEcho, 0, (id<<16 | seq), testdata, src, ip.IPAddr(dst))
 			seq++
 			if seq > 1 && err != nil { // when seq=1(first time),we get cache not found error. this is not the error
 				t.Error(err)

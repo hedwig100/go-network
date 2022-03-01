@@ -14,24 +14,35 @@ import (
 
 1)
 nc -nv -l 192.0.2.1 8080&
-go test -v -run TestTCPActive > log
+go test -v ./pkg/ -run TestTCPActive > log
 
 2)
 nc -nv -l 192.0.2.1 8080&
-go test -v -run TestTCPSend > log
+go test -v ./pkg/ -run TestTCPSend > log
 
 3)
-go test -v -run TestTCPPassive > log&
+go test -v ./pkg/ -run TestTCPPassive > log&
 nc -nv 192.0.2.2 8080
 
 4)
-go test -v -run TestTCPReceive > log&
+go test -v ./pkg/ -run TestTCPReceive > log&
 nc -nv 192.0.2.2 8080
 hoge
 ...
 
 */
 // TODO: Close doesn't succeed (FIN segment doesn't reach?)
+
+const (
+	loopbackIPAddr  = "127.0.0.1"
+	loopbackNetmask = "255.0.0.0"
+
+	etherTapIPAddr  = "192.0.2.2"
+	etherTapNetmask = "255.255.255.0"
+
+	defaultGateway = "192.0.2.1"
+)
+
 func TestTCPActiveOpenClose(t *testing.T) {
 	var err error
 

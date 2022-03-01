@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"github.com/hedwig100/go-network/pkg/device"
+	"github.com/hedwig100/go-network/pkg/icmp"
 	"github.com/hedwig100/go-network/pkg/ip"
 	"github.com/hedwig100/go-network/pkg/net"
 )
@@ -48,7 +49,7 @@ func NetInit(setup bool) error {
 		return err
 	}
 
-	err = icmpInit()
+	err = icmp.ICMPInit()
 	if err != nil {
 		return err
 	}
