@@ -21,7 +21,7 @@ const (
 // Init prepares the IP protocol
 func Init(done chan struct{}) error {
 	arpInit(done)
-	err := net.ProtocolRegister(&IPProtocol{})
+	err := net.ProtoRegister(&IPProtocol{})
 	return err
 }
 
@@ -57,8 +57,8 @@ func generateId() uint16 {
 // IPProtocol is struct for IP Protocol. This implements protocol interface.
 type IPProtocol struct{}
 
-func (p *IPProtocol) Type() net.ProtocolType {
-	return net.ProtocolTypeIP
+func (p *IPProtocol) Type() net.ProtoType {
+	return net.ProtoTypeIP
 }
 
 // TxHandlerIP receives data from IPUpperProtocol and transmit the data with the device
@@ -112,7 +112,7 @@ func TxHandlerIP(protocol ProtoType, data []byte, src IPAddr, dst IPAddr) error 
 
 	// transmit data from the device
 	var hwaddr net.HardwareAddr
-	if ipIface.dev.Flags()&net.NetDeviceFlagNeedARP > 0 { // check if arp is necessary
+	if ipIface.dev.Flags()&net.DeviceFlagNeedARP > 0 { // check if arp is necessary
 		if nexthop == ipIface.broadcast || nexthop == IPAddrBroadcast {
 			hwaddr = device.EtherAddrBroadcast // TODO: not only ethernet
 		} else {
@@ -124,11 +124,11 @@ func TxHandlerIP(protocol ProtoType, data []byte, src IPAddr, dst IPAddr) error 
 	}
 
 	log.Printf("[D] IP TxHandler: iface=%d,dev=%s,header=%s", ipIface.Family(), ipIface.dev.Name(), hdr)
-	return ipIface.dev.Transmit(data, net.ProtocolTypeIP, hwaddr)
+	return ipIface.dev.Transmit(data, net.ProtoTypeIP, hwaddr)
 }
 
-func (p *IPProtocol) RxHandler(ch chan net.ProtocolBuffer, done chan struct{}) {
-	var pb net.ProtocolBuffer
+func (p *IPProtocol) RxHandler(ch chan net.ProtoBuffer, done chan struct{}) {
+	var pb net.ProtoBuffer
 
 	for {
 

@@ -7,20 +7,20 @@ import "log"
 */
 
 const (
-	ProtocolTypeIP   ProtocolType = 0x0800
-	ProtocolTypeArp  ProtocolType = 0x0806
-	ProtocolTypeIPv6 ProtocolType = 0x86dd
+	ProtoTypeIP   ProtoType = 0x0800
+	ProtoTypeArp  ProtoType = 0x0806
+	ProtoTypeIPv6 ProtoType = 0x86dd
 )
 
-type ProtocolType uint16
+type ProtoType uint16
 
-func (pt ProtocolType) String() string {
+func (pt ProtoType) String() string {
 	switch pt {
-	case ProtocolTypeIP:
+	case ProtoTypeIP:
 		return "IPv4"
-	case ProtocolTypeArp:
+	case ProtoTypeArp:
 		return "ARP"
-	case ProtocolTypeIPv6:
+	case ProtoTypeIPv6:
 		return "IPv6"
 	default:
 		return "UNKNOWN"
@@ -31,23 +31,23 @@ func (pt ProtocolType) String() string {
 	Protocol
 */
 
-const ProtocolBufferSize = 100
+const ProtoBufferSize = 100
 
-var Protocols []Protocol
-var ProtocolBuffers []chan ProtocolBuffer
+var Protos []Proto
+var ProtoBuffers []chan ProtoBuffer
 
-// Protocol is the eabstraction of protocol
-type Protocol interface {
+// Proto is the ans abstraction of protocol
+type Proto interface {
 
 	// protocol type ex) IP,IPv6,ARP
-	Type() ProtocolType
+	Type() ProtoType
 
 	// receive handler
-	RxHandler(chan ProtocolBuffer, chan struct{})
+	RxHandler(chan ProtoBuffer, chan struct{})
 }
 
-// ProtocolBuffer is each protocol's buffer, read the data from here which the device puts
-type ProtocolBuffer struct {
+// ProtoBuffer is each protocol's buffer, read the data from here which the device puts
+type ProtoBuffer struct {
 
 	// Data from the device
 	Data []byte
@@ -56,13 +56,13 @@ type ProtocolBuffer struct {
 	Dev Device
 }
 
-// ProtocolRegister registers the  protocol
-func ProtocolRegister(proto Protocol) (err error) {
+// ProtoRegister registers the  protocol
+func ProtoRegister(proto Proto) (err error) {
 
 	// add thee protocol
-	ch := make(chan ProtocolBuffer, ProtocolBufferSize)
-	Protocols = append(Protocols, proto)
-	ProtocolBuffers = append(ProtocolBuffers, ch)
+	ch := make(chan ProtoBuffer, ProtoBufferSize)
+	Protos = append(Protos, proto)
+	ProtoBuffers = append(ProtoBuffers, ch)
 
 	log.Printf("[I] registerd proto=%s", proto.Type())
 	return

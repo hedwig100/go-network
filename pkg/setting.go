@@ -72,8 +72,8 @@ func NetRun() {
 	}
 
 	// activate the receive handler of the protocol
-	for i, proto := range net.Protocols {
-		go proto.RxHandler(net.ProtocolBuffers[i], done)
+	for i, proto := range net.Protos {
+		go proto.RxHandler(net.ProtoBuffers[i], done)
 	}
 }
 

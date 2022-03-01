@@ -22,7 +22,7 @@ func Test2Ether(t *testing.T) {
 	org_hdr := EtherHeader{
 		Src:  EtherAddr([EtherAddrLen]byte{0xfb, 0x98, 0xfe, 0x92, 0x9e}),
 		Dst:  EtherAddr([EtherAddrLen]byte{0xf2, 0x90, 0x1d, 0x4e, 0x0a}),
-		Type: net.ProtocolTypeIP,
+		Type: net.ProtoTypeIP,
 	}
 	org_payload := []byte{0x92, 0x12, 0x29}
 

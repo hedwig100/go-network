@@ -32,7 +32,7 @@ func (i *Iface) SetDev(dev net.Device) {
 }
 
 func (i *Iface) Family() net.IfaceFamily {
-	return net.NetIfaceFamilyIP
+	return net.IfaceFamilyIP
 }
 
 // NewIface returns Iface whose address is unicastStr

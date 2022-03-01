@@ -10,17 +10,17 @@ import (
 */
 
 const (
-	NetIfaceFamilyIP   IfaceFamily = 1
-	NetIfaceFamilyIPv6 IfaceFamily = 2
+	IfaceFamilyIP   IfaceFamily = 1
+	IfaceFamilyIPv6 IfaceFamily = 2
 )
 
 type IfaceFamily uint8
 
 func (f IfaceFamily) String() string {
 	switch f {
-	case NetIfaceFamilyIP:
+	case IfaceFamilyIP:
 		return "IPv4"
-	case NetIfaceFamilyIPv6:
+	case IfaceFamilyIPv6:
 		return "IPv6"
 	default:
 		return "UNKNOWN"

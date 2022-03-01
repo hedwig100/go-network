@@ -8,15 +8,15 @@ import (
 type DeviceType uint16
 
 const (
-	NetDeviceTypeNull     DeviceType = 0x0000
-	NetDeviceTypeLoopback DeviceType = 0x0001
-	NetDeviceTypeEthernet DeviceType = 0x0002
+	DeviceTypeNull     DeviceType = 0x0000
+	DeviceTypeLoopback DeviceType = 0x0001
+	DeviceTypeEther    DeviceType = 0x0002
 
-	NetDeviceFlagUp        uint16 = 0x0001
-	NetDeviceFlagLoopback  uint16 = 0x0010
-	NetDeviceFlagBroadcast uint16 = 0x0020
-	NetDeviceFlagP2P       uint16 = 0x0040
-	NetDeviceFlagNeedARP   uint16 = 0x0100
+	DeviceFlagUp        uint16 = 0x0001
+	DeviceFlagLoopback  uint16 = 0x0010
+	DeviceFlagBroadcast uint16 = 0x0020
+	DeviceFlagP2P       uint16 = 0x0040
+	DeviceFlagNeedARP   uint16 = 0x0100
 )
 
 var Devices []Device
@@ -52,14 +52,14 @@ type Device interface {
 	Close() error
 
 	// output data to destination
-	Transmit([]byte, ProtocolType, HardwareAddr) error
+	Transmit([]byte, ProtoType, HardwareAddr) error
 
 	// input from the device
 	RxHandler(chan struct{})
 }
 
 func isUp(d Device) bool {
-	return d.Flags()&NetDeviceFlagUp > 0
+	return d.Flags()&DeviceFlagUp > 0
 }
 
 // DeviceRegister registers the device
@@ -69,12 +69,12 @@ func DeviceRegister(dev Device) {
 }
 
 // DeviceInputHandler receives data from the device and passes it to the protocol.
-func DeviceInputHanlder(typ ProtocolType, data []byte, dev Device) {
+func DeviceInputHanlder(typ ProtoType, data []byte, dev Device) {
 	log.Printf("[I] input data dev=%s,typ=%s,data:%v", dev, typ, data)
 
-	for i, proto := range Protocols {
+	for i, proto := range Protos {
 		if proto.Type() == typ {
-			ProtocolBuffers[i] <- ProtocolBuffer{
+			ProtoBuffers[i] <- ProtoBuffer{
 				Data: data,
 				Dev:  dev,
 			}
@@ -84,7 +84,7 @@ func DeviceInputHanlder(typ ProtocolType, data []byte, dev Device) {
 }
 
 // DeviceOutput outputs the data from the device
-func DeviceOutput(dev Device, data []byte, typ ProtocolType, dst HardwareAddr) error {
+func DeviceOutput(dev Device, data []byte, typ ProtoType, dst HardwareAddr) error {
 
 	// check if the device is opening
 	if !isUp(dev) {

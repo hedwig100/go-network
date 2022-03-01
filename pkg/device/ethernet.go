@@ -50,7 +50,7 @@ func EtherInit(name string) (*Ether, error) {
 
 	e := &Ether{
 		name:      name,
-		flags:     net.NetDeviceFlagBroadcast | net.NetDeviceFlagNeedARP | net.NetDeviceFlagUp,
+		flags:     net.DeviceFlagBroadcast | net.DeviceFlagNeedARP | net.DeviceFlagUp,
 		EtherAddr: EtherAddr(addr),
 		file:      file,
 	}
@@ -72,7 +72,7 @@ type EtherHeader struct {
 	Dst EtherAddr
 
 	// protocol type
-	Type net.ProtocolType
+	Type net.ProtoType
 }
 
 func (h EtherHeader) String() string {
@@ -140,7 +140,7 @@ func (e *Ether) Name() string {
 }
 
 func (e *Ether) Type() net.DeviceType {
-	return net.NetDeviceTypeEthernet
+	return net.DeviceTypeEther
 }
 
 func (e *Ether) MTU() uint16 {
@@ -171,7 +171,7 @@ func (e *Ether) Close() error {
 	return err
 }
 
-func (e *Ether) Transmit(data []byte, typ net.ProtocolType, dst net.HardwareAddr) error {
+func (e *Ether) Transmit(data []byte, typ net.ProtoType, dst net.HardwareAddr) error {
 
 	// dst must be Ethernet address
 	etherDst, ok := dst.(EtherAddr)

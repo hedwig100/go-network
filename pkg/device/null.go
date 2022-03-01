@@ -16,7 +16,7 @@ type Null struct {
 func NullInit(name string) *Null {
 	n := &Null{
 		name:  name,
-		flags: net.NetDeviceFlagUp,
+		flags: net.DeviceFlagUp,
 	}
 	net.DeviceRegister(n)
 	return n
@@ -27,7 +27,7 @@ func (n *Null) Name() string {
 }
 
 func (n *Null) Type() net.DeviceType {
-	return net.NetDeviceTypeNull
+	return net.DeviceTypeNull
 }
 
 func (n *Null) MTU() uint16 {
@@ -53,7 +53,7 @@ func (n *Null) Close() error {
 	return nil
 }
 
-func (n *Null) Transmit(data []byte, typ net.ProtocolType, dst net.HardwareAddr) error {
+func (n *Null) Transmit(data []byte, typ net.ProtoType, dst net.HardwareAddr) error {
 	log.Printf("[I] Null TxHandler: data(%v) is trasmitted by null-device(name=%s)", data, n.name)
 	return nil
 }

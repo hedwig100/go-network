@@ -72,7 +72,7 @@ func TestIP(t *testing.T) {
 
 	for i := 0; i < 5; i++ {
 		time.Sleep(time.Millisecond)
-		err = net.DeviceOutput(ether, testdata, net.ProtocolTypeIP, device.EtherAddrAny)
+		err = net.DeviceOutput(ether, testdata, net.ProtoTypeIP, device.EtherAddrAny)
 		if err != nil {
 			t.Error(err)
 		}

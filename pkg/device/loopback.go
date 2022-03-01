@@ -18,7 +18,7 @@ type Loopback struct {
 func LoopbackInit(name string) *Loopback {
 	l := &Loopback{
 		name:  name,
-		flags: net.NetDeviceFlagUp | net.NetDeviceFlagLoopback,
+		flags: net.DeviceFlagUp | net.DeviceFlagLoopback,
 	}
 	net.DeviceRegister(l)
 	return l
@@ -29,7 +29,7 @@ func (l *Loopback) Name() string {
 }
 
 func (l *Loopback) Type() net.DeviceType {
-	return net.NetDeviceTypeLoopback
+	return net.DeviceTypeLoopback
 }
 
 func (l *Loopback) MTU() uint16 {
@@ -55,7 +55,7 @@ func (l *Loopback) Close() error {
 	return nil
 }
 
-func (l *Loopback) Transmit(data []byte, typ net.ProtocolType, dst net.HardwareAddr) error {
+func (l *Loopback) Transmit(data []byte, typ net.ProtoType, dst net.HardwareAddr) error {
 
 	// send back
 	net.DeviceInputHanlder(typ, data, l)

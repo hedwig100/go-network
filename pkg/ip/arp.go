@@ -25,7 +25,7 @@ const (
 // arpInit prepare the ARP protocol.
 func arpInit(done chan struct{}) error {
 	go arpTimer(done)
-	err := net.ProtocolRegister(&arpProtocol{})
+	err := net.ProtoRegister(&arpProtocol{})
 	if err != nil {
 		return err
 	}
@@ -158,12 +158,12 @@ func header2dataARP(hdr ArpEther) ([]byte, error) {
 // arpProtocol implements net.Protocol interface.
 type arpProtocol struct{}
 
-func (p *arpProtocol) Type() net.ProtocolType {
-	return net.ProtocolTypeArp
+func (p *arpProtocol) Type() net.ProtoType {
+	return net.ProtoTypeArp
 }
 
-func (p *arpProtocol) RxHandler(ch chan net.ProtocolBuffer, done chan struct{}) {
-	var pb net.ProtocolBuffer
+func (p *arpProtocol) RxHandler(ch chan net.ProtoBuffer, done chan struct{}) {
+	var pb net.ProtoBuffer
 
 	for {
 
@@ -187,7 +187,7 @@ func (p *arpProtocol) RxHandler(ch chan net.ProtocolBuffer, done chan struct{}) 
 		mutex.Unlock()
 
 		// search the IP interface of the device
-		iface, err := net.GetIface(pb.Dev, net.NetIfaceFamilyIP)
+		iface, err := net.GetIface(pb.Dev, net.IfaceFamilyIP)
 		if err != nil {
 			return // the data is to other host
 		}
@@ -243,7 +243,7 @@ func ArpReply(ipIface *Iface, tha device.EtherAddr, tpa IPAddr, dst device.Ether
 	}
 
 	log.Printf("[D] ARP TxHandler(reply): dev=%s,arp header=%s", dev.Name(), rep)
-	return net.DeviceOutput(dev, data, net.ProtocolTypeArp, dst)
+	return net.DeviceOutput(dev, data, net.ProtoTypeArp, dst)
 }
 
 // ArpResolve receives protocol address and returns hardware address
@@ -254,7 +254,7 @@ func ArpResolve(iface net.Interface, pa IPAddr) (net.HardwareAddr, error) {
 	if !ok {
 		return nil, fmt.Errorf("unsupported protocol address type")
 	}
-	if ipIface.dev.Type() != net.NetDeviceTypeEthernet {
+	if ipIface.dev.Type() != net.DeviceTypeEther {
 		return nil, fmt.Errorf("unsupported hardware address type")
 	}
 
@@ -324,5 +324,5 @@ func ArpRequest(ipIface *Iface, tpa IPAddr) error {
 	}
 
 	log.Printf("[D] ARP TxHandler(request): dev=%s,arp header=%s", dev.Name(), rep)
-	return net.DeviceOutput(dev, data, net.ProtocolTypeArp, device.EtherAddrBroadcast)
+	return net.DeviceOutput(dev, data, net.ProtoTypeArp, device.EtherAddrBroadcast)
 }
