@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hedwig100/go-network/pkg/ip"
+	"github.com/hedwig100/go-network/pkg/utils"
 )
 
 func tcpInit(done chan struct{}) error {
@@ -368,7 +369,7 @@ func segmentArrives(tcb *TCPpcb, seg segment, flag ControlFlag, data []byte, dat
 		switch tcb.state {
 		case TCPpcbStateEstablished, TCPpcbStateFINWait1, TCPpcbStateFINWait2:
 			if isSet(flag, RST) {
-				tcb.rcv.up = max(tcb.rcv.up, seg.up)
+				tcb.rcv.up = utils.Max(tcb.rcv.up, seg.up)
 				// TODO:
 				// signal the user that the remote side has urgent data if the urgent
 				// pointer (RCV.UP) is in advance of the data consumed.  If the

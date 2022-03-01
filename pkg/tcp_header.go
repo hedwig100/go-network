@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/hedwig100/go-network/pkg/ip"
+	"github.com/hedwig100/go-network/pkg/utils"
 )
 
 /*
@@ -160,8 +161,8 @@ func data2headerTCP(data []byte, src ip.IPAddr, dst ip.IPAddr) (TCPHeader, []byt
 	if err != nil {
 		return TCPHeader{}, nil, err
 	}
-	chksum := CheckSum(w.Bytes(), 0)
-	chksum = CheckSum(data, uint32(^chksum))
+	chksum := utils.CheckSum(w.Bytes(), 0)
+	chksum = utils.CheckSum(data, uint32(^chksum))
 	if chksum != 0 && chksum != 0xffff {
 		return TCPHeader{}, nil, fmt.Errorf("checksum error (TCP)")
 	}
@@ -198,8 +199,8 @@ func header2dataTCP(hdr *TCPHeader, payload []byte, src ip.IPAddr, dst ip.IPAddr
 
 	// caluculate checksum
 	buf := w.Bytes()
-	chksum := CheckSum(buf, 0)
-	copy(buf[28:30], Hton16(chksum)) // considering TCPPseudoHeaderSize
+	chksum := utils.CheckSum(buf, 0)
+	copy(buf[28:30], utils.Hton16(chksum)) // considering TCPPseudoHeaderSize
 
 	// set checksum in the header (for debug)
 	hdr.Checksum = chksum

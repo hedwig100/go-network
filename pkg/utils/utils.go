@@ -1,6 +1,6 @@
-package pkg
+package utils
 
-func max(a uint16, b uint16) uint16 {
+func Max(a uint16, b uint16) uint16 {
 	if a > b {
 		return a
 	}

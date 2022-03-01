@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/hedwig100/go-network/pkg/ip"
+	"github.com/hedwig100/go-network/pkg/utils"
 )
 
 // udpInit prepare the UDP protocol.
@@ -149,8 +150,8 @@ func data2headerUDP(data []byte, src ip.IPAddr, dst ip.IPAddr) (UDPHeader, []byt
 	}
 	var w bytes.Buffer
 	binary.Write(&w, binary.BigEndian, pseudoHdr)
-	chksum := CheckSum(w.Bytes(), 0)
-	chksum = CheckSum(data, uint32(^chksum))
+	chksum := utils.CheckSum(w.Bytes(), 0)
+	chksum = utils.CheckSum(data, uint32(^chksum))
 	if chksum != 0 && chksum != 0xffff {
 		return UDPHeader{}, nil, fmt.Errorf("checksum error (UDP)")
 	}
@@ -187,8 +188,8 @@ func header2dataUDP(hdr *UDPHeader, payload []byte, src ip.IPAddr, dst ip.IPAddr
 
 	// caluculate checksum
 	buf := w.Bytes()
-	chksum := CheckSum(buf, 0)
-	copy(buf[18:20], Hton16(chksum))
+	chksum := utils.CheckSum(buf, 0)
+	copy(buf[18:20], utils.Hton16(chksum))
 
 	// set checksum in the header (for debug)
 	hdr.Checksum = chksum

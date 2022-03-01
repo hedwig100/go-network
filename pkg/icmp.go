@@ -7,6 +7,7 @@ import (
 	"log"
 
 	"github.com/hedwig100/go-network/pkg/ip"
+	"github.com/hedwig100/go-network/pkg/utils"
 )
 
 // icmpInit prepare the ICMP protocol
@@ -208,8 +209,8 @@ func header2dataICMP(hdr *ICMPHeader, payload []byte) ([]byte, error) {
 
 	// calculate checksum
 	buf := w.Bytes()
-	chksum := CheckSum(buf[:ICMPHeaderSize], 0)
-	copy(buf[2:4], Hton16(chksum))
+	chksum := utils.CheckSum(buf[:ICMPHeaderSize], 0)
+	copy(buf[2:4], utils.Hton16(chksum))
 
 	// set checksum in the header (for debug)
 	hdr.Checksum = chksum
@@ -249,7 +250,7 @@ func (p *ICMPProtocol) RxHandler(data []byte, src ip.IPAddr, dst ip.IPAddr, ipIf
 		return fmt.Errorf("data size is too small for ICMP header")
 	}
 
-	chksum := CheckSum(data, 0)
+	chksum := utils.CheckSum(data, 0)
 	if chksum != 0 && chksum != 0xffff { // 0 or -0
 		return fmt.Errorf("checksum error in ICMP header")
 	}
