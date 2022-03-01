@@ -22,8 +22,8 @@ const (
 	arpOpReply   uint16 = 2
 )
 
-// ArpInit prepare the ARP protocol.
-func ArpInit(done chan struct{}) error {
+// arpInit prepare the ARP protocol.
+func arpInit(done chan struct{}) error {
 	go arpTimer(done)
 	err := net.ProtocolRegister(&arpProtocol{})
 	if err != nil {
@@ -115,7 +115,7 @@ func (ae ArpEther) String() string {
 	`, Hrd, Pro, ae.Hln, ae.Pln, Op, ae.Sha, ae.Spa, ae.Tha, ae.Tpa)
 }
 
-// data2ArpHeader receives data and returns ARP header,the rest of data,error
+// data2ArpHeaderARP receives data and returns ARP header,the rest of data,error
 // now this function only supports IPv4 and Ethernet address resolution
 func data2headerARP(data []byte) (ArpEther, error) {
 
@@ -182,25 +182,25 @@ func (p *arpProtocol) RxHandler(ch chan net.ProtocolBuffer, done chan struct{}) 
 		}
 
 		// update arp cache table
-		arpMutex.Lock()
+		mutex.Lock()
 		merge := arpCacheUpdate(hdr.Spa, hdr.Sha)
-		arpMutex.Unlock()
+		mutex.Unlock()
 
 		// search the IP interface of the device
 		iface, err := net.GetIface(pb.Dev, net.NetIfaceFamilyIP)
 		if err != nil {
 			return // the data is to other host
 		}
-		ipIface := iface.(*IPIface)
+		ipIface := iface.(*Iface)
 		if ipIface == nil || ipIface.Unicast != hdr.Tpa {
 			return // the data is to other host
 		}
 
 		// insert cache entry if entry is not updated before
 		if !merge {
-			arpMutex.Lock()
+			mutex.Lock()
 			arpCacheInsert(hdr.Spa, hdr.Sha)
-			arpMutex.Unlock()
+			mutex.Unlock()
 		}
 
 		log.Printf("[D] ARP rxHandler: dev=%s,arp header=%s", pb.Dev.Name(), hdr)
@@ -215,7 +215,7 @@ func (p *arpProtocol) RxHandler(ch chan net.ProtocolBuffer, done chan struct{}) 
 }
 
 // ArpReply transmits ARP reply data to dst
-func ArpReply(ipIface *IPIface, tha device.EtherAddr, tpa IPAddr, dst device.EtherAddr) error {
+func ArpReply(ipIface *Iface, tha device.EtherAddr, tpa IPAddr, dst device.EtherAddr) error {
 
 	dev, ok := ipIface.Dev().(*device.Ether)
 	if !ok {
@@ -250,7 +250,7 @@ func ArpReply(ipIface *IPIface, tha device.EtherAddr, tpa IPAddr, dst device.Eth
 func ArpResolve(iface net.Interface, pa IPAddr) (net.HardwareAddr, error) {
 
 	// only supports IPv4 and Ethernet protocol
-	ipIface, ok := iface.(*IPIface)
+	ipIface, ok := iface.(*Iface)
 	if !ok {
 		return nil, fmt.Errorf("unsupported protocol address type")
 	}
@@ -259,7 +259,7 @@ func ArpResolve(iface net.Interface, pa IPAddr) (net.HardwareAddr, error) {
 	}
 
 	// search cache table
-	arpMutex.Lock()
+	mutex.Lock()
 	index, err := arpCacheSelect(pa)
 
 	// cache not found
@@ -274,7 +274,7 @@ func ArpResolve(iface net.Interface, pa IPAddr) (net.HardwareAddr, error) {
 
 		// if cache is not in the table, transmit arp request
 		ArpRequest(ipIface, pa)
-		arpMutex.Unlock()
+		mutex.Unlock()
 
 		return nil, err
 	}
@@ -284,19 +284,19 @@ func ArpResolve(iface net.Interface, pa IPAddr) (net.HardwareAddr, error) {
 
 		// if found cache is imcomplete,it might be a packet loss,so transmit arp request
 		ArpRequest(ipIface, pa)
-		arpMutex.Unlock()
+		mutex.Unlock()
 
 		return nil, fmt.Errorf("cache state is imcomplete")
 	}
 
 	// cache found and get hardware address
 	ha := caches[index].ha
-	arpMutex.Unlock()
+	mutex.Unlock()
 	return ha, nil
 }
 
 // ArpRequest receives interface and target IP address and transmits ARP request to the host(tpa)
-func ArpRequest(ipIface *IPIface, tpa IPAddr) error {
+func ArpRequest(ipIface *Iface, tpa IPAddr) error {
 
 	dev, ok := ipIface.Dev().(*device.Ether)
 	if !ok {

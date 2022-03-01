@@ -6,24 +6,24 @@ import (
 )
 
 const (
-	IPProtocolICMP IPProtocolType = 0x01
-	IPProtocolTCP  IPProtocolType = 0x06
-	IPProtocolUDP  IPProtocolType = 0x11
+	ProtoICMP ProtoType = 0x01
+	ProtoTCP  ProtoType = 0x06
+	ProtoUDP  ProtoType = 0x11
 )
 
 /*
-	IP Protoocol Type is type of the upper protocol of IP
+	ProtoType is type of the upper protocol of IP
 */
 
-type IPProtocolType uint8
+type ProtoType uint8
 
-func (p IPProtocolType) String() string {
+func (p ProtoType) String() string {
 	switch p {
-	case IPProtocolICMP:
+	case ProtoICMP:
 		return "ICMP"
-	case IPProtocolTCP:
+	case ProtoTCP:
 		return "TCP"
-	case IPProtocolUDP:
+	case ProtoUDP:
 		return "UDP"
 	default:
 		return "UNKNOWN"
@@ -34,29 +34,29 @@ func (p IPProtocolType) String() string {
 	IP Protocols
 */
 
-var IPProtocols []IPUpperProtocol
+var Protos []Proto
 
-// IP Upper Protocol is the upper protocol of IP such as TCP,UDP
-type IPUpperProtocol interface {
+// Proto is the upper protocol of IP such as TCP,UDP
+type Proto interface {
 
 	// Protocol Type
-	Type() IPProtocolType
+	Type() ProtoType
 
 	// Receive Handler
-	RxHandler(data []byte, src IPAddr, dst IPAddr, ipIface *IPIface) error
+	RxHandler(data []byte, src IPAddr, dst IPAddr, ipIface *Iface) error
 }
 
-// IPProtocolRegister is used to register IpUpperProtocol
-func IPProtocolRegister(iproto IPUpperProtocol) error {
+// ProtoRegister is used to register ip.Proto
+func ProtoRegister(iproto Proto) error {
 
 	// check if the same type IpUpperProtocol is already registered
-	for _, proto := range IPProtocols {
+	for _, proto := range Protos {
 		if proto.Type() == iproto.Type() {
-			return fmt.Errorf("IP protocol(type=%s) is already registerd", proto.Type())
+			return fmt.Errorf("IP protocol(type=%s) is already registerd", iproto.Type())
 		}
 	}
 
-	IPProtocols = append(IPProtocols, iproto)
+	Protos = append(Protos, iproto)
 	log.Printf("[I] registered proto=%s", iproto.Type())
 	return nil
 }

@@ -53,11 +53,11 @@ func TestUDP(t *testing.T) {
 	}
 
 	// iface
-	iface0, err := ip.NewIPIface(etherTapIPAddr, etherTapNetmask)
+	iface0, err := ip.NewIface(etherTapIPAddr, etherTapNetmask)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ip.IPIfaceRegister(ether, iface0)
+	ip.IfaceRegister(ether, iface0)
 
 	// default gateway
 	err = ip.SetDefaultGateway(iface0, defaultGateway)
@@ -116,11 +116,11 @@ func TestSendUDP(t *testing.T) {
 	}
 
 	// iface
-	iface0, err := ip.NewIPIface(etherTapIPAddr, etherTapNetmask)
+	iface0, err := ip.NewIface(etherTapIPAddr, etherTapNetmask)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ip.IPIfaceRegister(ether, iface0)
+	ip.IfaceRegister(ether, iface0)
 
 	// default gateway
 	err = ip.SetDefaultGateway(iface0, defaultGateway)
@@ -178,11 +178,11 @@ func TestSocketUDP(t *testing.T) {
 	}
 
 	// iface
-	iface0, err := ip.NewIPIface(etherTapIPAddr, etherTapNetmask)
+	iface0, err := ip.NewIface(etherTapIPAddr, etherTapNetmask)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ip.IPIfaceRegister(ether, iface0)
+	ip.IfaceRegister(ether, iface0)
 
 	// default gateway
 	err = ip.SetDefaultGateway(iface0, defaultGateway)

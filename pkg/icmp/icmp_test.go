@@ -63,17 +63,17 @@ func TestICMP(t *testing.T) {
 	}
 
 	// iface
-	iface0, err := ip.NewIPIface(loopbackIPAddr, loopbackNetmask)
+	iface0, err := ip.NewIface(loopbackIPAddr, loopbackNetmask)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ip.IPIfaceRegister(loop, iface0)
+	ip.IfaceRegister(loop, iface0)
 
-	iface1, err := ip.NewIPIface(etherTapIPAddr, etherTapNetmask)
+	iface1, err := ip.NewIface(etherTapIPAddr, etherTapNetmask)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ip.IPIfaceRegister(ether, iface1)
+	ip.IfaceRegister(ether, iface1)
 
 	// default gateway
 	err = ip.SetDefaultGateway(iface1, defaultGateway)

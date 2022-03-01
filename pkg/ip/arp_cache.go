@@ -20,8 +20,8 @@ const (
 )
 
 var (
-	arpMutex sync.Mutex
-	caches   [arpCacheSize]arpCacheEntry
+	mutex  sync.Mutex
+	caches [arpCacheSize]arpCacheEntry
 )
 
 // arpCacheEntry is arp cache table's entry

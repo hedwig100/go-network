@@ -14,11 +14,11 @@ type IPRoute struct {
 	network IPAddr
 	netmask IPAddr
 	nexthop IPAddr
-	IpIface *IPIface
+	IpIface *Iface
 }
 
-// IPRouteeAdd add routing table entry to routing table
-func IPRouteAdd(network IPAddr, netmask IPAddr, nexthop IPAddr, ipIface *IPIface) {
+// RouteAdd add routing table entry to routing table
+func RouteAdd(network IPAddr, netmask IPAddr, nexthop IPAddr, ipIface *Iface) {
 	routes = append(routes, IPRoute{
 		network: network,
 		netmask: netmask,
@@ -30,7 +30,7 @@ func IPRouteAdd(network IPAddr, netmask IPAddr, nexthop IPAddr, ipIface *IPIface
 
 // SetDefaultGateway sets gw address as default gateway of ipIface
 // ex) gw = "127.0.0.1"
-func SetDefaultGateway(ipIface *IPIface, gw string) error {
+func SetDefaultGateway(ipIface *Iface, gw string) error {
 
 	// convert to uint32
 	gwaddr, err := Str2IPAddr(gw)
@@ -38,7 +38,7 @@ func SetDefaultGateway(ipIface *IPIface, gw string) error {
 		return err
 	}
 
-	IPRouteAdd(IPAddrAny, IPAddrAny, IPAddr(gwaddr), ipIface)
+	RouteAdd(IPAddrAny, IPAddrAny, IPAddr(gwaddr), ipIface)
 	return nil
 }
 

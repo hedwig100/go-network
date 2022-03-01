@@ -127,7 +127,7 @@ type TCPPseudoHeader struct {
 	Pad uint8
 
 	// TCP protocol type,always 6
-	Type ip.IPProtocolType
+	Type ip.ProtoType
 
 	// length of tcp packet
 	Len uint16
@@ -154,7 +154,7 @@ func data2headerTCP(data []byte, src ip.IPAddr, dst ip.IPAddr) (TCPHeader, []byt
 	pseudoHdr := TCPPseudoHeader{
 		Src:  src,
 		Dst:  dst,
-		Type: ip.IPProtocolTCP,
+		Type: ip.ProtoTCP,
 		Len:  uint16(len(data)),
 	}
 	var w bytes.Buffer
@@ -177,7 +177,7 @@ func header2dataTCP(hdr *TCPHeader, payload []byte, src ip.IPAddr, dst ip.IPAddr
 	pseudoHdr := TCPPseudoHeader{
 		Src:  src,
 		Dst:  dst,
-		Type: ip.IPProtocolTCP,
+		Type: ip.ProtoTCP,
 		Len:  uint16(TCPHeaderSizeMin + len(payload)),
 	}
 

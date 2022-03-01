@@ -15,7 +15,7 @@ import (
 
 // UDPInit prepare the UDP protocol.
 func UDPInit() error {
-	return ip.IPProtocolRegister(&UDPProtocol{})
+	return ip.ProtoRegister(&UDPProtocol{})
 }
 
 /*
@@ -109,7 +109,7 @@ type UDPPseudoHeader struct {
 	Pad uint8
 
 	// protocol type, always 17(UDP)
-	Type ip.IPProtocolType
+	Type ip.ProtoType
 
 	// UDP packet length
 	Len uint16
@@ -145,7 +145,7 @@ func data2headerUDP(data []byte, src ip.IPAddr, dst ip.IPAddr) (UDPHeader, []byt
 	pseudoHdr := UDPPseudoHeader{
 		Src:  src,
 		Dst:  dst,
-		Type: ip.IPProtocolUDP,
+		Type: ip.ProtoUDP,
 		Len:  hdr.Len,
 	}
 	var w bytes.Buffer
@@ -165,7 +165,7 @@ func header2dataUDP(hdr *UDPHeader, payload []byte, src ip.IPAddr, dst ip.IPAddr
 	pseudoHdr := UDPPseudoHeader{
 		Src:  src,
 		Dst:  dst,
-		Type: ip.IPProtocolUDP,
+		Type: ip.ProtoUDP,
 		Len:  uint16(UDPHeaderSize + len(payload)),
 	}
 
@@ -203,11 +203,11 @@ func header2dataUDP(hdr *UDPHeader, payload []byte, src ip.IPAddr, dst ip.IPAddr
 // This implements IPUpperProtocol interface.
 type UDPProtocol struct{}
 
-func (p *UDPProtocol) Type() ip.IPProtocolType {
-	return ip.IPProtocolUDP
+func (p *UDPProtocol) Type() ip.ProtoType {
+	return ip.ProtoUDP
 }
 
-func (p *UDPProtocol) RxHandler(data []byte, src ip.IPAddr, dst ip.IPAddr, ipIface *ip.IPIface) error {
+func (p *UDPProtocol) RxHandler(data []byte, src ip.IPAddr, dst ip.IPAddr, ipIface *ip.Iface) error {
 	hdr, payload, err := data2headerUDP(data, src, dst)
 	if err != nil {
 		return err
@@ -251,7 +251,7 @@ func TxHandlerUDP(src UDPEndpoint, dst UDPEndpoint, data []byte) error {
 	}
 
 	log.Printf("[D] UDP TxHandler: src=%s,dst=%s,udp header=%s", src, dst, hdr)
-	return ip.TxHandlerIP(ip.IPProtocolUDP, data, src.Address, dst.Address)
+	return ip.TxHandlerIP(ip.ProtoUDP, data, src.Address, dst.Address)
 }
 
 /*

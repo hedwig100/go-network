@@ -12,7 +12,7 @@ import (
 
 // IcmpInit prepare the ICMP protocol
 func ICMPInit() error {
-	err := ip.IPProtocolRegister(&ICMPProtocol{})
+	err := ip.ProtoRegister(&ICMPProtocol{})
 	return err
 }
 
@@ -222,8 +222,8 @@ func header2dataICMP(hdr *ICMPHeader, payload []byte) ([]byte, error) {
 */
 type ICMPProtocol struct{}
 
-func (p *ICMPProtocol) Type() ip.IPProtocolType {
-	return ip.IPProtocolICMP
+func (p *ICMPProtocol) Type() ip.ProtoType {
+	return ip.ProtoICMP
 }
 
 func TxHandlerICMP(typ ICMPMessageType, code ICMPMessageCode, values uint32, data []byte, src ip.IPAddr, dst ip.IPAddr) error {
@@ -241,10 +241,10 @@ func TxHandlerICMP(typ ICMPMessageType, code ICMPMessageCode, values uint32, dat
 
 	log.Printf("[D] ICMP TxHanlder: %s => %s,header=%s", src, dst, hdr)
 
-	return ip.TxHandlerIP(ip.IPProtocolICMP, data, src, dst)
+	return ip.TxHandlerIP(ip.ProtoICMP, data, src, dst)
 }
 
-func (p *ICMPProtocol) RxHandler(data []byte, src ip.IPAddr, dst ip.IPAddr, ipIface *ip.IPIface) error {
+func (p *ICMPProtocol) RxHandler(data []byte, src ip.IPAddr, dst ip.IPAddr, ipIface *ip.Iface) error {
 
 	if len(data) < ICMPHeaderSize {
 		return fmt.Errorf("data size is too small for ICMP header")

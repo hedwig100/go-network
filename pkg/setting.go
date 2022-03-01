@@ -22,17 +22,17 @@ func NetInit(setup bool) error {
 		}
 
 		// iface
-		iface0, err := ip.NewIPIface("127.0.0.1", "255.0.0.0")
+		iface0, err := ip.NewIface("127.0.0.1", "255.0.0.0")
 		if err != nil {
 			return err
 		}
-		ip.IPIfaceRegister(loop, iface0)
+		ip.IfaceRegister(loop, iface0)
 
-		iface1, err := ip.NewIPIface("192.0.2.2", "255.255.255.0")
+		iface1, err := ip.NewIface("192.0.2.2", "255.255.255.0")
 		if err != nil {
 			return err
 		}
-		ip.IPIfaceRegister(ether, iface1)
+		ip.IfaceRegister(ether, iface1)
 
 		// default gateway
 		err = ip.SetDefaultGateway(iface1, "192.0.2.1")
@@ -41,12 +41,7 @@ func NetInit(setup bool) error {
 		}
 	}
 
-	err := ip.ArpInit(done)
-	if err != nil {
-		return err
-	}
-
-	err = ip.IPInit()
+	err := ip.Init(done)
 	if err != nil {
 		return err
 	}

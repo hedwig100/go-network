@@ -13,7 +13,7 @@ import (
 func TCPInit(done chan struct{}) error {
 	go tcpTimer(done)
 	rand.Seed(time.Now().UnixNano())
-	return ip.IPProtocolRegister(&TCPProtocol{})
+	return ip.ProtoRegister(&TCPProtocol{})
 }
 
 type segment struct {
@@ -31,11 +31,11 @@ type segment struct {
 // This implements IPUpperProtocol interface.
 type TCPProtocol struct{}
 
-func (p *TCPProtocol) Type() ip.IPProtocolType {
-	return ip.IPProtocolTCP
+func (p *TCPProtocol) Type() ip.ProtoType {
+	return ip.ProtoTCP
 }
 
-func (p *TCPProtocol) RxHandler(data []byte, src ip.IPAddr, dst ip.IPAddr, ipIface *ip.IPIface) error {
+func (p *TCPProtocol) RxHandler(data []byte, src ip.IPAddr, dst ip.IPAddr, ipIface *ip.Iface) error {
 
 	hdr, payload, err := data2headerTCP(data, src, dst)
 	// TODO:
@@ -488,5 +488,5 @@ func TxHandlerTCP(src TCPEndpoint, dst TCPEndpoint, payload []byte, seq uint32, 
 	}
 
 	log.Printf("[D] TCP TxHandler: src=%s,dst=%s,len=%d,tcp header=%s", src, dst, len(payload), hdr)
-	return ip.TxHandlerIP(ip.IPProtocolTCP, data, src.Address, dst.Address)
+	return ip.TxHandlerIP(ip.ProtoTCP, data, src.Address, dst.Address)
 }
