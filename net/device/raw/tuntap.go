@@ -1,4 +1,4 @@
-package net
+package raw
 
 import (
 	"errors"
@@ -10,7 +10,7 @@ const (
 	cloneDevice = "/dev/net/tun"
 )
 
-func openTap(name string) (string, *os.File, error) {
+func OpenTap(name string) (string, *os.File, error) {
 
 	if len(name) >= syscall.IFNAMSIZ {
 		return "", nil, errors.New("device name is too long")
@@ -40,7 +40,7 @@ func openTap(name string) (string, *os.File, error) {
 	return name, file, nil
 }
 
-func getAddr(name string) ([]byte, error) {
+func GetAddr(name string) ([]byte, error) {
 	addr, err := SIOCGIFHWADDR(name)
 	if err != nil {
 		return nil, err

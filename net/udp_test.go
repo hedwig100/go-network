@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hedwig100/go-network/net"
+	"github.com/hedwig100/go-network/net/device"
 )
 
 /*
@@ -33,7 +34,7 @@ func TestUDP(t *testing.T) {
 	var err error
 
 	// devices
-	ether, err := net.EtherInit("tap0")
+	ether, err := device.EtherInit("tap0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +97,7 @@ func TestSendUDP(t *testing.T) {
 	var err error
 
 	// devices
-	ether, err := net.EtherInit("tap0")
+	ether, err := device.EtherInit("tap0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,7 +159,7 @@ func TestSocketUDP(t *testing.T) {
 	var err error
 
 	// devices
-	ether, err := net.EtherInit("tap0")
+	ether, err := device.EtherInit("tap0")
 	if err != nil {
 		t.Fatal(err)
 	}

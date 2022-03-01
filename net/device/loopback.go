@@ -1,4 +1,4 @@
-package net
+package device
 
 import (
 	"log"
@@ -56,13 +56,13 @@ func (l *Loopback) Close() error {
 func (l *Loopback) Transmit(data []byte, typ ProtocolType, dst HardwareAddress) error {
 
 	// send back
-	DeviceInputHanlder(typ, data, l)
+	DeviceInputHanlder(typ, data, l, []Protocol{}) // TODO:support upper protocol for device
 
 	log.Printf("[I] Loopback TxHandler: data(%v) is trasmitted by loopback-device(name=%s)", data, l.name)
 	return nil
 }
 
-func (l *Loopback) rxHandler(done chan struct{}) {
+func (l *Loopback) RxHandler(done chan struct{}, protocols []Protocol) {
 	for {
 		select {
 		case <-done:

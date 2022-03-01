@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/hedwig100/go-network/net"
+	"github.com/hedwig100/go-network/net/device"
 )
 
 /*
@@ -34,9 +35,9 @@ func TestTCPActiveOpenClose(t *testing.T) {
 	var err error
 
 	// devices
-	_ = net.NullInit("null0")
-	loop := net.LoopbackInit("loop0")
-	ether, err := net.EtherInit("tap0")
+	_ = device.NullInit("null0")
+	loop := device.LoopbackInit("loop0")
+	ether, err := device.EtherInit("tap0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,9 +121,9 @@ func TestTCPSend(t *testing.T) {
 	var err error
 
 	// devices
-	_ = net.NullInit("null0")
-	loop := net.LoopbackInit("loop0")
-	ether, err := net.EtherInit("tap0")
+	_ = device.NullInit("null0")
+	loop := device.LoopbackInit("loop0")
+	ether, err := device.EtherInit("tap0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -209,9 +210,9 @@ func TestTCPPassiveOpen(t *testing.T) {
 	var err error
 
 	// devices
-	_ = net.NullInit("null0")
-	loop := net.LoopbackInit("loop0")
-	ether, err := net.EtherInit("tap0")
+	_ = device.NullInit("null0")
+	loop := device.LoopbackInit("loop0")
+	ether, err := device.EtherInit("tap0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -294,9 +295,9 @@ func TestTCPReceive(t *testing.T) {
 	var err error
 
 	// devices
-	_ = net.NullInit("null0")
-	loop := net.LoopbackInit("loop0")
-	ether, err := net.EtherInit("tap0")
+	_ = device.NullInit("null0")
+	loop := device.LoopbackInit("loop0")
+	ether, err := device.EtherInit("tap0")
 	if err != nil {
 		t.Fatal(err)
 	}

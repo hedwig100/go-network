@@ -1,4 +1,4 @@
-package net
+package device
 
 import "log"
 
@@ -43,7 +43,7 @@ type Protocol interface {
 	Type() ProtocolType
 
 	// receive handler
-	rxHandler(chan ProtocolBuffer, chan struct{})
+	RxHandler(chan ProtocolBuffer, chan struct{})
 }
 
 // ProtocolBuffer is each protocol's buffer, read the data from here which the device puts

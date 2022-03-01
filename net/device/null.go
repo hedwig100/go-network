@@ -1,4 +1,4 @@
-package net
+package device
 
 import (
 	"log"
@@ -56,7 +56,7 @@ func (n *Null) Transmit(data []byte, typ ProtocolType, dst HardwareAddress) erro
 	return nil
 }
 
-func (n *Null) rxHandler(done chan struct{}) {
+func (n *Null) RxHandler(done chan struct{}, protocol []Protocol) {
 	for {
 		select {
 		case <-done:

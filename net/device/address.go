@@ -1,4 +1,4 @@
-package net
+package device
 
 // HardwareAddress is the abstraction of the hardware address such as MAC address
 type HardwareAddress interface {

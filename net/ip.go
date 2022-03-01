@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"math"
+
+	"github.com/hedwig100/go-network/net/device"
 )
 
 const (
@@ -19,7 +21,7 @@ const (
 
 // ipInit prepares the IP protocol
 func ipInit() error {
-	err := ProtocolRegister(&IPProtocol{})
+	err := device.ProtocolRegister(&IPProtocol{})
 	return err
 }
 
@@ -171,8 +173,8 @@ func generateId() uint16 {
 // IPProtocol is struct for IP Protocol. This implements protocol interface.
 type IPProtocol struct{}
 
-func (p *IPProtocol) Type() ProtocolType {
-	return ProtocolTypeIP
+func (p *IPProtocol) Type() device.ProtocolType {
+	return device.ProtocolTypeIP
 }
 
 // TxHandlerIP receives data from IPUpperProtocol and transmit the data with the device
@@ -225,10 +227,10 @@ func TxHandlerIP(protocol IPProtocolType, data []byte, src IPAddr, dst IPAddr) e
 	}
 
 	// transmit data from the device
-	var hwaddr HardwareAddress
-	if ipIface.dev.Flags()&NetDeviceFlagNeedARP > 0 { // check if arp is necessary
+	var hwaddr device.HardwareAddress
+	if ipIface.dev.Flags()&device.NetDeviceFlagNeedARP > 0 { // check if arp is necessary
 		if nexthop == ipIface.broadcast || nexthop == IPAddrBroadcast {
-			hwaddr = EtherAddrBroadcast // TODO: not only ethernet
+			hwaddr = device.EtherAddrBroadcast // TODO: not only ethernet
 		} else {
 			hwaddr, err = ArpResolve(ipIface, nexthop)
 			if err != nil {
@@ -238,11 +240,11 @@ func TxHandlerIP(protocol IPProtocolType, data []byte, src IPAddr, dst IPAddr) e
 	}
 
 	log.Printf("[D] IP TxHandler: iface=%d,dev=%s,header=%s", ipIface.Family(), ipIface.dev.Name(), hdr)
-	return ipIface.dev.Transmit(data, ProtocolTypeIP, hwaddr)
+	return ipIface.dev.Transmit(data, device.ProtocolTypeIP, hwaddr)
 }
 
-func (p *IPProtocol) rxHandler(ch chan ProtocolBuffer, done chan struct{}) {
-	var pb ProtocolBuffer
+func (p *IPProtocol) RxHandler(ch chan device.ProtocolBuffer, done chan struct{}) {
+	var pb device.ProtocolBuffer
 
 	for {
 
@@ -304,7 +306,7 @@ func (p *IPProtocol) rxHandler(ch chan ProtocolBuffer, done chan struct{}) {
 type IPIface struct {
 
 	// device of the interface
-	dev Device
+	dev device.Device
 
 	// unicast address ex) 192.0.0.1
 	Unicast IPAddr
@@ -316,16 +318,16 @@ type IPIface struct {
 	broadcast IPAddr
 }
 
-func (i *IPIface) Dev() Device {
+func (i *IPIface) Dev() device.Device {
 	return i.dev
 }
 
-func (i *IPIface) SetDev(dev Device) {
+func (i *IPIface) SetDev(dev device.Device) {
 	i.dev = dev
 }
 
-func (i *IPIface) Family() IfaceFamily {
-	return NetIfaceFamilyIP
+func (i *IPIface) Family() device.IfaceFamily {
+	return device.NetIfaceFamilyIP
 }
 
 // NewIPIface returns IPIface whose address is unicastStr
@@ -350,8 +352,8 @@ func NewIPIface(unicastStr string, netmaskStr string) (iface *IPIface, err error
 }
 
 // IPIfaceRegister registers ipIface to dev
-func IPIfaceRegister(dev Device, ipIface *IPIface) {
-	IfaceRegister(dev, ipIface)
+func IPIfaceRegister(dev device.Device, ipIface *IPIface) {
+	device.IfaceRegister(dev, ipIface)
 
 	// register subnet's routing information to routing table
 	// this information is used when data is sent to the subnet's host

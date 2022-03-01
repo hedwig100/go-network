@@ -1,13 +1,15 @@
 package net
 
+import "github.com/hedwig100/go-network/net/device"
+
 var done chan struct{} = make(chan struct{})
 
 func NetInit(setup bool) error {
 
 	if setup {
-		_ = NullInit("null0")
-		loop := LoopbackInit("loop0")
-		ether, err := EtherInit("tap0")
+		_ = device.NullInit("null0")
+		loop := device.LoopbackInit("loop0")
+		ether, err := device.EtherInit("tap0")
 		if err != nil {
 			return err
 		}
@@ -63,13 +65,13 @@ func NetInit(setup bool) error {
 func NetRun() {
 
 	// activate the receive handler of the device
-	for _, dev := range Devices {
-		go dev.rxHandler(done)
+	for _, dev := range device.Devices {
+		go dev.RxHandler(done, device.Protocols)
 	}
 
 	// activate the receive handler of the protocol
-	for i, proto := range Protocols {
-		go proto.rxHandler(ProtocolBuffers[i], done)
+	for i, proto := range device.Protocols {
+		go proto.RxHandler(device.ProtocolBuffers[i], done)
 	}
 }
 
@@ -79,7 +81,7 @@ func NetShutdown() (err error) {
 	close(done)
 
 	// close devices
-	if err = CloseDevices(); err != nil {
+	if err = device.CloseDevices(); err != nil {
 		return
 	}
 	return

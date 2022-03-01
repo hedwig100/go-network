@@ -5,6 +5,8 @@ import (
 	"log"
 	"sync"
 	"time"
+
+	"github.com/hedwig100/go-network/net/device"
 )
 
 const (
@@ -32,7 +34,7 @@ type arpCacheEntry struct {
 	pa IPAddr
 
 	// hardware address
-	ha EthernetAddress
+	ha device.EthernetAddress
 
 	// time
 	timeval time.Time
@@ -63,7 +65,7 @@ func arpCacheAlloc() int {
 }
 
 // arpCacheInsert inserts cache entry to the cache table
-func arpCacheInsert(pa IPAddr, ha EthernetAddress) {
+func arpCacheInsert(pa IPAddr, ha device.EthernetAddress) {
 
 	index := arpCacheAlloc()
 	timeval := time.Now()
@@ -93,7 +95,7 @@ func arpCacheSelect(pa IPAddr) (int, error) {
 // arpCacheUpdate updates cache entry in the cache table
 // return true if cache was inserted before and update is successful
 // return false if cache was not there and update is unsuccessful
-func arpCacheUpdate(pa IPAddr, ha EthernetAddress) bool {
+func arpCacheUpdate(pa IPAddr, ha device.EthernetAddress) bool {
 
 	// get cache index
 	index, err := arpCacheSelect(pa)

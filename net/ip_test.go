@@ -5,15 +5,16 @@ import (
 	"time"
 
 	"github.com/hedwig100/go-network/net"
+	"github.com/hedwig100/go-network/net/device"
 )
 
 func TestIP(t *testing.T) {
 	var err error
 
 	// devices
-	_ = net.NullInit("null0")
-	loop := net.LoopbackInit("loop0")
-	ether, err := net.EtherInit("tap0")
+	_ = device.NullInit("null0")
+	loop := device.LoopbackInit("loop0")
+	ether, err := device.EtherInit("tap0")
 	if err != nil {
 		t.Error(err)
 	}
@@ -44,7 +45,7 @@ func TestIP(t *testing.T) {
 
 	for i := 0; i < 5; i++ {
 		time.Sleep(time.Millisecond)
-		err = net.DeviceOutput(ether, testdata, net.ProtocolTypeIP, net.EtherAddrAny)
+		err = device.DeviceOutput(ether, testdata, device.ProtocolTypeIP, device.EtherAddrAny)
 		if err != nil {
 			t.Error(err)
 		}

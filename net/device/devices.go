@@ -1,4 +1,4 @@
-package net
+package device
 
 import (
 	"fmt"
@@ -55,7 +55,7 @@ type Device interface {
 	Transmit([]byte, ProtocolType, HardwareAddress) error
 
 	// input from the device
-	rxHandler(chan struct{})
+	RxHandler(chan struct{}, []Protocol)
 }
 
 func isUp(d Device) bool {
@@ -69,10 +69,10 @@ func DeviceRegister(dev Device) {
 }
 
 // DeviceInputHandler receives data from the device and passes it to the protocol.
-func DeviceInputHanlder(typ ProtocolType, data []byte, dev Device) {
+func DeviceInputHanlder(typ ProtocolType, data []byte, dev Device, protocols []Protocol) {
 	log.Printf("[I] input data dev=%s,typ=%s,data:%v", dev, typ, data)
 
-	for i, proto := range Protocols {
+	for i, proto := range protocols {
 		if proto.Type() == typ {
 			ProtocolBuffers[i] <- ProtocolBuffer{
 				Data: data,

@@ -1,4 +1,4 @@
-package net
+package device
 
 import (
 	"bytes"
@@ -7,6 +7,8 @@ import (
 	"io"
 	"log"
 	"time"
+
+	"github.com/hedwig100/go-network/net/device/raw"
 )
 
 const (
@@ -30,13 +32,13 @@ var (
 func EtherInit(name string) (*EthernetDevice, error) {
 
 	// open tap
-	name, file, err := openTap(name)
+	name, file, err := raw.OpenTap(name)
 	if err != nil {
 		return nil, err
 	}
 
 	// get the hardware address
-	_addr, err := getAddr(name)
+	_addr, err := raw.GetAddr(name)
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +216,7 @@ func (e *EthernetDevice) Transmit(data []byte, typ ProtocolType, dst HardwareAdd
 	return nil
 }
 
-func (e *EthernetDevice) rxHandler(done chan struct{}) {
+func (e *EthernetDevice) RxHandler(done chan struct{}, protocols []Protocol) {
 	buf := make([]byte, EtherFrameSizeMax)
 
 	for {
@@ -260,7 +262,7 @@ func (e *EthernetDevice) rxHandler(done chan struct{}) {
 
 			// pass the header and subsequent parts as data to the protocol
 			log.Printf("[D] Ether rxHandler: dev=%s,protocolType=%s,len=%d,header=%s", e.name, hdr.Type, len, hdr)
-			DeviceInputHanlder(hdr.Type, payload[:len-EtherHdrSize], e)
+			DeviceInputHanlder(hdr.Type, payload[:len-EtherHdrSize], e, protocols)
 		}
 
 	}
