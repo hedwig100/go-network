@@ -43,7 +43,7 @@ type Proto interface {
 	Type() ProtoType
 
 	// Receive Handler
-	RxHandler(data []byte, src IPAddr, dst IPAddr, ipIface *Iface) error
+	RxHandler(data []byte, src Addr, dst Addr, ipIface *Iface) error
 }
 
 // ProtoRegister is used to register ip.Proto

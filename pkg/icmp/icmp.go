@@ -10,8 +10,8 @@ import (
 	"github.com/hedwig100/go-network/pkg/utils"
 )
 
-// IcmpInit prepare the ICMP protocol
-func ICMPInit() error {
+// Init prepare the ICMP protocol
+func Init() error {
 	err := ip.ProtoRegister(&ICMPProtocol{})
 	return err
 }
@@ -181,7 +181,7 @@ func (h ICMPHeader) String() string {
 	}
 }
 
-func data2headerICMP(data []byte) (ICMPHeader, []byte, error) {
+func data2header(data []byte) (ICMPHeader, []byte, error) {
 
 	// read header in bigEndian
 	var hdr ICMPHeader
@@ -192,7 +192,7 @@ func data2headerICMP(data []byte) (ICMPHeader, []byte, error) {
 	return hdr, data[ICMPHeaderSize:], err
 }
 
-func header2dataICMP(hdr *ICMPHeader, payload []byte) ([]byte, error) {
+func header2data(hdr *ICMPHeader, payload []byte) ([]byte, error) {
 
 	// write header in bigEndian
 	var w bytes.Buffer
@@ -226,7 +226,7 @@ func (p *ICMPProtocol) Type() ip.ProtoType {
 	return ip.ProtoICMP
 }
 
-func TxHandlerICMP(typ ICMPMessageType, code ICMPMessageCode, values uint32, data []byte, src ip.IPAddr, dst ip.IPAddr) error {
+func TxHandlerICMP(typ ICMPMessageType, code ICMPMessageCode, values uint32, data []byte, src ip.Addr, dst ip.Addr) error {
 
 	hdr := ICMPHeader{
 		Typ:    typ,
@@ -234,7 +234,7 @@ func TxHandlerICMP(typ ICMPMessageType, code ICMPMessageCode, values uint32, dat
 		Values: values,
 	}
 
-	data, err := header2dataICMP(&hdr, data)
+	data, err := header2data(&hdr, data)
 	if err != nil {
 		return err
 	}
@@ -244,7 +244,7 @@ func TxHandlerICMP(typ ICMPMessageType, code ICMPMessageCode, values uint32, dat
 	return ip.TxHandlerIP(ip.ProtoICMP, data, src, dst)
 }
 
-func (p *ICMPProtocol) RxHandler(data []byte, src ip.IPAddr, dst ip.IPAddr, ipIface *ip.Iface) error {
+func (p *ICMPProtocol) RxHandler(data []byte, src ip.Addr, dst ip.Addr, ipIface *ip.Iface) error {
 
 	if len(data) < ICMPHeaderSize {
 		return fmt.Errorf("data size is too small for ICMP header")
@@ -255,7 +255,7 @@ func (p *ICMPProtocol) RxHandler(data []byte, src ip.IPAddr, dst ip.IPAddr, ipIf
 		return fmt.Errorf("checksum error in ICMP header")
 	}
 
-	hdr, payload, err := data2headerICMP(data)
+	hdr, payload, err := data2header(data)
 	if err != nil {
 		return err
 	}

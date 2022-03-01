@@ -10,18 +10,18 @@ import (
 )
 
 const (
-	IPVersionIPv4 = 4
-	IPVersionIPv6 = 6
+	V4 = 4
+	V6 = 6
 
-	IPHeaderSizeMin        = 20
-	IPPayloadSizeMax       = math.MaxUint16 - IPHeaderSizeMin
-	IPAddrLen        uint8 = 4
+	HeaderSizeMin        = 20
+	PayloadSizeMax       = math.MaxUint16 - HeaderSizeMin
+	AddrLen        uint8 = 4
 )
 
 // Init prepares the IP protocol
 func Init(done chan struct{}) error {
 	arpInit(done)
-	err := net.ProtoRegister(&IPProtocol{})
+	err := net.ProtoRegister(&IProto{})
 	return err
 }
 
@@ -30,14 +30,14 @@ func Init(done chan struct{}) error {
 */
 
 const (
-	IPAddrAny       IPAddr = 0x00000000
-	IPAddrBroadcast IPAddr = 0xffffffff
+	AddrAny       Addr = 0x00000000
+	AddrBroadcast Addr = 0xffffffff
 )
 
-// IPAddr is IP address
-type IPAddr uint32
+// Addr is IP address
+type Addr uint32
 
-func (a IPAddr) String() string {
+func (a Addr) String() string {
 	b := uint32(a)
 	return fmt.Sprintf("%d.%d.%d.%d", (b>>24)&0xff, (b>>16)&0xff, (b>>8)&0xff, b&0xff)
 }
@@ -54,18 +54,18 @@ func generateId() uint16 {
 	IP Protocol
 */
 
-// IPProtocol is struct for IP Protocol. This implements protocol interface.
-type IPProtocol struct{}
+// IProto is struct for IP Protocol. This implements protocol interface.
+type IProto struct{}
 
-func (p *IPProtocol) Type() net.ProtoType {
+func (p *IProto) Type() net.ProtoType {
 	return net.ProtoTypeIP
 }
 
 // TxHandlerIP receives data from IPUpperProtocol and transmit the data with the device
-func TxHandlerIP(protocol ProtoType, data []byte, src IPAddr, dst IPAddr) error {
+func TxHandlerIP(protocol ProtoType, data []byte, src Addr, dst Addr) error {
 
 	// if dst is broadcast address, source is required
-	if src == IPAddrAny && dst == IPAddrBroadcast {
+	if src == AddrAny && dst == AddrBroadcast {
 		return fmt.Errorf("source is required for broadcast address")
 	}
 
@@ -77,26 +77,26 @@ func TxHandlerIP(protocol ProtoType, data []byte, src IPAddr, dst IPAddr) error 
 
 	// source address must be the same as interface's one
 	ipIface := route.IpIface
-	if src != IPAddrAny && src != ipIface.Unicast {
+	if src != AddrAny && src != ipIface.Unicast {
 		return fmt.Errorf("unable to output with specified source address,addr=%s", src)
 	}
 
-	var nexthop IPAddr
-	if route.nexthop != IPAddrAny {
+	var nexthop Addr
+	if route.nexthop != AddrAny {
 		nexthop = route.nexthop
 	} else {
 		nexthop = dst
 	}
 
 	// does not support fragmentation
-	if int(ipIface.dev.MTU()) < IPHeaderSizeMin+len(data) {
+	if int(ipIface.dev.MTU()) < HeaderSizeMin+len(data) {
 		return fmt.Errorf("dst(%v) IP address cannot be reachable(broadcast=%v)", dst, ipIface.broadcast)
 	}
 
 	// transform IP header to byte strings
 	hdr := Header{
-		Vhl:       (IPVersionIPv4<<4 | IPHeaderSizeMin>>2),
-		Tol:       uint16(IPHeaderSizeMin + len(data)),
+		Vhl:       (V4<<4 | HeaderSizeMin>>2),
+		Tol:       uint16(HeaderSizeMin + len(data)),
 		Id:        generateId(),
 		Flags:     0,
 		Ttl:       0xff,
@@ -113,7 +113,7 @@ func TxHandlerIP(protocol ProtoType, data []byte, src IPAddr, dst IPAddr) error 
 	// transmit data from the device
 	var hwaddr net.HardwareAddr
 	if ipIface.dev.Flags()&net.DeviceFlagNeedARP > 0 { // check if arp is necessary
-		if nexthop == ipIface.broadcast || nexthop == IPAddrBroadcast {
+		if nexthop == ipIface.broadcast || nexthop == AddrBroadcast {
 			hwaddr = device.EtherAddrBroadcast // TODO: not only ethernet
 		} else {
 			hwaddr, err = ArpResolve(ipIface, nexthop)
@@ -127,7 +127,7 @@ func TxHandlerIP(protocol ProtoType, data []byte, src IPAddr, dst IPAddr) error 
 	return ipIface.dev.Transmit(data, net.ProtoTypeIP, hwaddr)
 }
 
-func (p *IPProtocol) RxHandler(ch chan net.ProtoBuffer, done chan struct{}) {
+func (p *IProto) RxHandler(ch chan net.ProtoBuffer, done chan struct{}) {
 	var pb net.ProtoBuffer
 
 	for {
@@ -159,7 +159,7 @@ func (p *IPProtocol) RxHandler(ch chan net.ProtoBuffer, done chan struct{}) {
 		var ok bool
 		for _, iface := range pb.Dev.Interfaces() {
 			ipIface, ok = iface.(*Iface)
-			if ok && (ipIface.Unicast == ipHdr.Dst || ipIface.broadcast == IPAddrBroadcast || ipIface.broadcast == ipHdr.Dst) {
+			if ok && (ipIface.Unicast == ipHdr.Dst || ipIface.broadcast == AddrBroadcast || ipIface.broadcast == ipHdr.Dst) {
 				break
 			}
 		}

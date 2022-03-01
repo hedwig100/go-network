@@ -31,10 +31,10 @@ func Test2TCP(t *testing.T) {
 		Urgent: 0xf1,
 	}
 	org_payload := []byte{0x99, 0x1e, 0x0a, 0x9c, 0x9f}
-	src_, _ := ip.Str2IPAddr("8.8.8.8")
-	dst_, _ := ip.Str2IPAddr("192.0.2.2")
-	src := ip.IPAddr(src_)
-	dst := ip.IPAddr(dst_)
+	src_, _ := ip.Str2Addr("8.8.8.8")
+	dst_, _ := ip.Str2Addr("192.0.2.2")
+	src := ip.Addr(src_)
+	dst := ip.Addr(dst_)
 
 	data, err := header2dataTCP(&org_hdr, org_payload, src, dst)
 	if err != nil {

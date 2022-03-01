@@ -20,20 +20,20 @@ func compareByte(a []byte, b []byte) bool {
 }
 
 func Test2IP(t *testing.T) {
-	src, _ := Str2IPAddr("127.0.0.1")
-	dst, _ := Str2IPAddr("8.8.8.8")
+	src, _ := Str2Addr("127.0.0.1")
+	dst, _ := Str2Addr("8.8.8.8")
 
 	org_hdr := Header{
-		Vhl:       IPVersionIPv4<<4 | IPHeaderSizeMin>>2,
+		Vhl:       V4<<4 | HeaderSizeMin>>2,
 		Tos:       0xff,
-		Tol:       IPHeaderSizeMin + 3,
+		Tol:       HeaderSizeMin + 3,
 		Id:        1,
 		Flags:     0,
 		Ttl:       64,
 		ProtoType: ProtoICMP,
 		Checksum:  0,
-		Src:       IPAddr(src),
-		Dst:       IPAddr(dst),
+		Src:       Addr(src),
+		Dst:       Addr(dst),
 	}
 	org_payload := []byte{0x92, 0x12, 0x29}
 
@@ -67,13 +67,13 @@ func Test2ARP(t *testing.T) {
 			Hrd: arpHrdEther,
 			Pro: arpProIP,
 			Hln: device.EtherAddrLen,
-			Pln: IPAddrLen,
+			Pln: AddrLen,
 			Op:  arpOpReply,
 		},
 		Sha: device.EtherAddrAny,
-		Spa: IPAddrAny,
+		Spa: AddrAny,
 		Tha: device.EtherAddrBroadcast,
-		Tpa: IPAddrBroadcast,
+		Tpa: AddrBroadcast,
 	}
 
 	data, err := header2dataARP(org_hdr)

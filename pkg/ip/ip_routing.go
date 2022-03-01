@@ -11,14 +11,14 @@ var routes []IPRoute
 
 // IPRoute is routing table entry
 type IPRoute struct {
-	network IPAddr
-	netmask IPAddr
-	nexthop IPAddr
+	network Addr
+	netmask Addr
+	nexthop Addr
 	IpIface *Iface
 }
 
 // RouteAdd add routing table entry to routing table
-func RouteAdd(network IPAddr, netmask IPAddr, nexthop IPAddr, ipIface *Iface) {
+func RouteAdd(network Addr, netmask Addr, nexthop Addr, ipIface *Iface) {
 	routes = append(routes, IPRoute{
 		network: network,
 		netmask: netmask,
@@ -33,17 +33,17 @@ func RouteAdd(network IPAddr, netmask IPAddr, nexthop IPAddr, ipIface *Iface) {
 func SetDefaultGateway(ipIface *Iface, gw string) error {
 
 	// convert to uint32
-	gwaddr, err := Str2IPAddr(gw)
+	gwaddr, err := Str2Addr(gw)
 	if err != nil {
 		return err
 	}
 
-	RouteAdd(IPAddrAny, IPAddrAny, IPAddr(gwaddr), ipIface)
+	RouteAdd(AddrAny, AddrAny, Addr(gwaddr), ipIface)
 	return nil
 }
 
 // LookupTable find routing table entry whose network dst is sent
-func LookupTable(dst IPAddr) (IPRoute, error) {
+func LookupTable(dst Addr) (IPRoute, error) {
 
 	var candidate *IPRoute
 

@@ -89,7 +89,7 @@ func TestICMP(t *testing.T) {
 	pkg.NetRun()
 
 	src := iface1.Unicast
-	dst, _ := ip.Str2IPAddr("8.8.8.8") //net.Str2IPAddr(defaultGateway)
+	dst, _ := ip.Str2Addr("8.8.8.8") //net.Str2IPAddr(defaultGateway)
 	id := uint32(109)
 	seq := uint32(0)
 
@@ -104,7 +104,7 @@ func TestICMP(t *testing.T) {
 			}
 
 			time.Sleep(time.Second)
-			err = icmp.TxHandlerICMP(icmp.ICMPTypeEcho, 0, (id<<16 | seq), testdata, src, ip.IPAddr(dst))
+			err = icmp.TxHandlerICMP(icmp.ICMPTypeEcho, 0, (id<<16 | seq), testdata, src, ip.Addr(dst))
 			seq++
 			if seq > 1 && err != nil { // when seq=1(first time),we get cache not found error. this is not the error
 				t.Error(err)

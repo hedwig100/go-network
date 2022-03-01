@@ -25,12 +25,12 @@ func Test2ICMP(t *testing.T) {
 	}
 	org_payload := []byte{90, 21, 143, 134}
 
-	data, err := header2dataICMP(&org_hdr, org_payload)
+	data, err := header2data(&org_hdr, org_payload)
 	if err != nil {
 		t.Error(err)
 	}
 
-	new_hdr, new_payload, err := data2headerICMP(data)
+	new_hdr, new_payload, err := data2header(data)
 	if err != nil {
 		t.Error(err)
 	}

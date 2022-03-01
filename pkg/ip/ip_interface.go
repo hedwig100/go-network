@@ -14,13 +14,13 @@ type Iface struct {
 	dev net.Device
 
 	// unicast address ex) 192.0.0.1
-	Unicast IPAddr
+	Unicast Addr
 
 	// netmask ex) 255.255.255.0
-	netmask IPAddr
+	netmask Addr
 
 	// broadcast address for the subnet
-	broadcast IPAddr
+	broadcast Addr
 }
 
 func (i *Iface) Dev() net.Device {
@@ -38,20 +38,20 @@ func (i *Iface) Family() net.IfaceFamily {
 // NewIface returns Iface whose address is unicastStr
 func NewIface(unicastStr string, netmaskStr string) (iface *Iface, err error) {
 
-	unicast, err := Str2IPAddr(unicastStr)
+	unicast, err := Str2Addr(unicastStr)
 	if err != nil {
 		return
 	}
 
-	netmask, err := Str2IPAddr(netmaskStr)
+	netmask, err := Str2Addr(netmaskStr)
 	if err != nil {
 		return
 	}
 
 	iface = &Iface{
-		Unicast:   IPAddr(unicast),
-		netmask:   IPAddr(netmask),
-		broadcast: IPAddr(unicast | ^netmask),
+		Unicast:   Addr(unicast),
+		netmask:   Addr(netmask),
+		broadcast: Addr(unicast | ^netmask),
 	}
 	return
 }
@@ -62,5 +62,5 @@ func IfaceRegister(dev net.Device, ipIface *Iface) {
 
 	// register subnet's routing information to routing table
 	// this information is used when data is sent to the subnet's host
-	RouteAdd(ipIface.Unicast&ipIface.netmask, ipIface.netmask, IPAddrAny, ipIface)
+	RouteAdd(ipIface.Unicast&ipIface.netmask, ipIface.netmask, AddrAny, ipIface)
 }

@@ -46,7 +46,7 @@ func NetInit(setup bool) error {
 		return err
 	}
 
-	err = icmp.ICMPInit()
+	err = icmp.Init()
 	if err != nil {
 		return err
 	}

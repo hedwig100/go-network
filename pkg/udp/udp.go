@@ -31,7 +31,7 @@ const (
 type UDPEndpoint struct {
 
 	// IP address
-	Address ip.IPAddr
+	Address ip.Addr
 
 	// port number
 	Port uint16
@@ -48,7 +48,7 @@ func Str2UDPEndpoint(str string) (UDPEndpoint, error) {
 	if len(tmp) != 2 {
 		return UDPEndpoint{}, fmt.Errorf("str is not correect")
 	}
-	addr, err := ip.Str2IPAddr(tmp[0])
+	addr, err := ip.Str2Addr(tmp[0])
 	if err != nil {
 		return UDPEndpoint{}, err
 	}
@@ -57,7 +57,7 @@ func Str2UDPEndpoint(str string) (UDPEndpoint, error) {
 		return UDPEndpoint{}, err
 	}
 	return UDPEndpoint{
-		Address: ip.IPAddr(addr),
+		Address: ip.Addr(addr),
 		Port:    uint16(port),
 	}, nil
 }
@@ -100,10 +100,10 @@ func (h UDPHeader) String() string {
 type UDPPseudoHeader struct {
 
 	// source IP address
-	Src ip.IPAddr
+	Src ip.Addr
 
 	// destination IP address
-	Dst ip.IPAddr
+	Dst ip.Addr
 
 	// padding, always 0
 	Pad uint8
@@ -117,7 +117,7 @@ type UDPPseudoHeader struct {
 
 // data2headerUDP transforms data to UDP header
 // src,dst is used for caluculating checksum
-func data2headerUDP(data []byte, src ip.IPAddr, dst ip.IPAddr) (UDPHeader, []byte, error) {
+func data2headerUDP(data []byte, src ip.Addr, dst ip.Addr) (UDPHeader, []byte, error) {
 
 	if len(data) < UDPHeaderSize {
 		return UDPHeader{}, nil, fmt.Errorf("data size is too small for udp header")
@@ -159,7 +159,7 @@ func data2headerUDP(data []byte, src ip.IPAddr, dst ip.IPAddr) (UDPHeader, []byt
 	return hdr, data[UDPHeaderSize:], nil
 }
 
-func header2dataUDP(hdr *UDPHeader, payload []byte, src ip.IPAddr, dst ip.IPAddr) ([]byte, error) {
+func header2dataUDP(hdr *UDPHeader, payload []byte, src ip.Addr, dst ip.Addr) ([]byte, error) {
 
 	// pseudo header for caluculating checksum afterwards
 	pseudoHdr := UDPPseudoHeader{
@@ -207,7 +207,7 @@ func (p *UDPProtocol) Type() ip.ProtoType {
 	return ip.ProtoUDP
 }
 
-func (p *UDPProtocol) RxHandler(data []byte, src ip.IPAddr, dst ip.IPAddr, ipIface *ip.Iface) error {
+func (p *UDPProtocol) RxHandler(data []byte, src ip.Addr, dst ip.Addr, ipIface *ip.Iface) error {
 	hdr, payload, err := data2headerUDP(data, src, dst)
 	if err != nil {
 		return err
@@ -235,7 +235,7 @@ func (p *UDPProtocol) RxHandler(data []byte, src ip.IPAddr, dst ip.IPAddr, ipIfa
 // TxHandlerUDP transmits UDP datagram to the other host.
 func TxHandlerUDP(src UDPEndpoint, dst UDPEndpoint, data []byte) error {
 
-	if len(data)+UDPHeaderSize > ip.IPPayloadSizeMax {
+	if len(data)+UDPHeaderSize > ip.PayloadSizeMax {
 		return fmt.Errorf("data size is too large for UDP payload")
 	}
 
@@ -294,7 +294,7 @@ type udpBuffer struct {
 	data []byte
 }
 
-func udpPCBSelect(address ip.IPAddr, port uint16) *UDPpcb {
+func udpPCBSelect(address ip.Addr, port uint16) *UDPpcb {
 	for _, p := range pcbs {
 		if p.local.Address == address && p.local.Port == port {
 			return p
@@ -307,7 +307,7 @@ func OpenUDP() *UDPpcb {
 	pcb := &UDPpcb{
 		state: udpPCBStateOpen,
 		local: UDPEndpoint{
-			Address: ip.IPAddrAny,
+			Address: ip.AddrAny,
 		},
 		rxQueue: make(chan udpBuffer, udpPCBBufSize),
 	}
@@ -355,7 +355,7 @@ func (pcb *UDPpcb) Send(data []byte, dst UDPEndpoint) error {
 
 	local := pcb.local
 
-	if local.Address == ip.IPAddrAny {
+	if local.Address == ip.AddrAny {
 		route, err := ip.LookupTable(dst.Address)
 		if err != nil {
 			return err

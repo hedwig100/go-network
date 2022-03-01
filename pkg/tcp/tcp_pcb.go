@@ -279,7 +279,7 @@ func (tcb *TCPpcb) Open(errCh chan error, foreign TCPEndpoint, isActive bool, ti
 			return
 		}
 		// active open
-		if foreign.Address == ip.IPAddrAny {
+		if foreign.Address == ip.AddrAny {
 			errCh <- fmt.Errorf("foreign socket unspecified")
 			return
 		}
@@ -314,7 +314,7 @@ func (tcb *TCPpcb) Open(errCh chan error, foreign TCPEndpoint, isActive bool, ti
 			return
 		}
 		// active open
-		if foreign.Address == ip.IPAddrAny {
+		if foreign.Address == ip.AddrAny {
 			errCh <- fmt.Errorf("foreign socket unspecified")
 			return
 		}

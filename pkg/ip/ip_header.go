@@ -40,8 +40,8 @@ type Header struct {
 	Checksum uint16
 
 	// source IP address and destination IP address
-	Src IPAddr
-	Dst IPAddr
+	Src Addr
+	Dst Addr
 }
 
 func (h Header) String() string {
@@ -64,7 +64,7 @@ func (h Header) String() string {
 // data2IPHeader transforms byte strings to IP Header and the rest of the data
 func data2headerIP(data []byte) (Header, []byte, error) {
 
-	if len(data) < IPHeaderSizeMin {
+	if len(data) < HeaderSizeMin {
 		return Header{}, nil, fmt.Errorf("data size is too small")
 	}
 
@@ -77,7 +77,7 @@ func data2headerIP(data []byte) (Header, []byte, error) {
 	}
 
 	// check if the packet is iPv4
-	if (ipHdr.Vhl >> 4) != IPVersionIPv4 {
+	if (ipHdr.Vhl >> 4) != V4 {
 		return Header{}, nil, err
 	}
 
@@ -116,7 +116,7 @@ func header2dataIP(hdr *Header, payload []byte) ([]byte, error) {
 
 	// caluculate checksum
 	buf := w.Bytes()
-	chksum := utils.CheckSum(buf[:IPHeaderSizeMin], 0)
+	chksum := utils.CheckSum(buf[:HeaderSizeMin], 0)
 	copy(buf[10:12], utils.Hton16(chksum))
 
 	// set checksum in the header (for debug)

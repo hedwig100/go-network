@@ -35,7 +35,7 @@ func (p *TCPProtocol) Type() ip.ProtoType {
 	return ip.ProtoTCP
 }
 
-func (p *TCPProtocol) RxHandler(data []byte, src ip.IPAddr, dst ip.IPAddr, ipIface *ip.Iface) error {
+func (p *TCPProtocol) RxHandler(data []byte, src ip.Addr, dst ip.Addr, ipIface *ip.Iface) error {
 
 	hdr, payload, err := data2headerTCP(data, src, dst)
 	// TODO:
@@ -467,7 +467,7 @@ func TxHelperTCP(tcb *TCPpcb, flag ControlFlag, data []byte, trigger uint8, errC
 
 func TxHandlerTCP(src TCPEndpoint, dst TCPEndpoint, payload []byte, seq uint32, ack uint32, flag ControlFlag, wnd uint16, up uint16) error {
 
-	if len(payload)+TCPHeaderSizeMin > ip.IPPayloadSizeMax {
+	if len(payload)+TCPHeaderSizeMin > ip.PayloadSizeMax {
 		return fmt.Errorf("data size is too large for TCP payload")
 	}
 

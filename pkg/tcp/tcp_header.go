@@ -118,10 +118,10 @@ func (h TCPHeader) String() string {
 type TCPPseudoHeader struct {
 
 	// source IP address
-	Src ip.IPAddr
+	Src ip.Addr
 
 	// destination IP address
-	Dst ip.IPAddr
+	Dst ip.Addr
 
 	// padding, always 0
 	Pad uint8
@@ -136,7 +136,7 @@ type TCPPseudoHeader struct {
 // data2headerTCP transforms data to TCP header.
 // returned []byte contains Options
 // src,dst is used for caluculating checksum.
-func data2headerTCP(data []byte, src ip.IPAddr, dst ip.IPAddr) (TCPHeader, []byte, error) {
+func data2headerTCP(data []byte, src ip.Addr, dst ip.Addr) (TCPHeader, []byte, error) {
 
 	if len(data) < TCPHeaderSizeMin {
 		return TCPHeader{}, nil, fmt.Errorf("data size is too small for TCP Header")
@@ -171,7 +171,7 @@ func data2headerTCP(data []byte, src ip.IPAddr, dst ip.IPAddr) (TCPHeader, []byt
 	return hdr, data[TCPHeaderSizeMin:], nil
 }
 
-func header2dataTCP(hdr *TCPHeader, payload []byte, src ip.IPAddr, dst ip.IPAddr) ([]byte, error) {
+func header2dataTCP(hdr *TCPHeader, payload []byte, src ip.Addr, dst ip.Addr) ([]byte, error) {
 
 	// pseudo header for caluculating checksum afterwards
 	pseudoHdr := TCPPseudoHeader{
