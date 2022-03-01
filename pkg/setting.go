@@ -56,7 +56,7 @@ func NetInit(setup bool) error {
 		return err
 	}
 
-	err = tcp.TCPInit(done)
+	err = tcp.Init(done)
 	if err != nil {
 		return err
 	}

@@ -10,7 +10,7 @@ import (
 	"github.com/hedwig100/go-network/pkg/utils"
 )
 
-func TCPInit(done chan struct{}) error {
+func Init(done chan struct{}) error {
 	go tcpTimer(done)
 	rand.Seed(time.Now().UnixNano())
 	return ip.ProtoRegister(&TCPProtocol{})
