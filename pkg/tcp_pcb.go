@@ -7,6 +7,8 @@ import (
 	"math/rand"
 	"sync"
 	"time"
+
+	"github.com/hedwig100/go-network/pkg/ip"
 )
 
 /*
@@ -277,7 +279,7 @@ func (tcb *TCPpcb) Open(errCh chan error, foreign TCPEndpoint, isActive bool, ti
 			return
 		}
 		// active open
-		if foreign.Address == IPAddrAny {
+		if foreign.Address == ip.IPAddrAny {
 			errCh <- fmt.Errorf("foreign socket unspecified")
 			return
 		}
@@ -312,7 +314,7 @@ func (tcb *TCPpcb) Open(errCh chan error, foreign TCPEndpoint, isActive bool, ti
 			return
 		}
 		// active open
-		if foreign.Address == IPAddrAny {
+		if foreign.Address == ip.IPAddrAny {
 			errCh <- fmt.Errorf("foreign socket unspecified")
 			return
 		}

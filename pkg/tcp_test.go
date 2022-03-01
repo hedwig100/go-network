@@ -7,6 +7,7 @@ import (
 
 	"github.com/hedwig100/go-network/pkg"
 	"github.com/hedwig100/go-network/pkg/device"
+	"github.com/hedwig100/go-network/pkg/ip"
 )
 
 /*
@@ -43,20 +44,20 @@ func TestTCPActiveOpenClose(t *testing.T) {
 	}
 
 	// iface
-	iface0, err := pkg.NewIPIface(loopbackIPAddr, loopbackNetmask)
+	iface0, err := ip.NewIPIface(loopbackIPAddr, loopbackNetmask)
 	if err != nil {
 		t.Fatal(err)
 	}
-	pkg.IPIfaceRegister(loop, iface0)
+	ip.IPIfaceRegister(loop, iface0)
 
-	iface1, err := pkg.NewIPIface(etherTapIPAddr, etherTapNetmask)
+	iface1, err := ip.NewIPIface(etherTapIPAddr, etherTapNetmask)
 	if err != nil {
 		t.Fatal(err)
 	}
-	pkg.IPIfaceRegister(ether, iface1)
+	ip.IPIfaceRegister(ether, iface1)
 
 	// default gateway
-	err = pkg.SetDefaultGateway(iface1, defaultGateway)
+	err = ip.SetDefaultGateway(iface1, defaultGateway)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,20 +130,20 @@ func TestTCPSend(t *testing.T) {
 	}
 
 	// iface
-	iface0, err := pkg.NewIPIface(loopbackIPAddr, loopbackNetmask)
+	iface0, err := ip.NewIPIface(loopbackIPAddr, loopbackNetmask)
 	if err != nil {
 		t.Fatal(err)
 	}
-	pkg.IPIfaceRegister(loop, iface0)
+	ip.IPIfaceRegister(loop, iface0)
 
-	iface1, err := pkg.NewIPIface(etherTapIPAddr, etherTapNetmask)
+	iface1, err := ip.NewIPIface(etherTapIPAddr, etherTapNetmask)
 	if err != nil {
 		t.Fatal(err)
 	}
-	pkg.IPIfaceRegister(ether, iface1)
+	ip.IPIfaceRegister(ether, iface1)
 
 	// default gateway
-	err = pkg.SetDefaultGateway(iface1, defaultGateway)
+	err = ip.SetDefaultGateway(iface1, defaultGateway)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,20 +219,20 @@ func TestTCPPassiveOpen(t *testing.T) {
 	}
 
 	// iface
-	iface0, err := pkg.NewIPIface(loopbackIPAddr, loopbackNetmask)
+	iface0, err := ip.NewIPIface(loopbackIPAddr, loopbackNetmask)
 	if err != nil {
 		t.Fatal(err)
 	}
-	pkg.IPIfaceRegister(loop, iface0)
+	ip.IPIfaceRegister(loop, iface0)
 
-	iface1, err := pkg.NewIPIface(etherTapIPAddr, etherTapNetmask)
+	iface1, err := ip.NewIPIface(etherTapIPAddr, etherTapNetmask)
 	if err != nil {
 		t.Fatal(err)
 	}
-	pkg.IPIfaceRegister(ether, iface1)
+	ip.IPIfaceRegister(ether, iface1)
 
 	// default gateway
-	err = pkg.SetDefaultGateway(iface1, defaultGateway)
+	err = ip.SetDefaultGateway(iface1, defaultGateway)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -303,20 +304,20 @@ func TestTCPReceive(t *testing.T) {
 	}
 
 	// iface
-	iface0, err := pkg.NewIPIface(loopbackIPAddr, loopbackNetmask)
+	iface0, err := ip.NewIPIface(loopbackIPAddr, loopbackNetmask)
 	if err != nil {
 		t.Fatal(err)
 	}
-	pkg.IPIfaceRegister(loop, iface0)
+	ip.IPIfaceRegister(loop, iface0)
 
-	iface1, err := pkg.NewIPIface(etherTapIPAddr, etherTapNetmask)
+	iface1, err := ip.NewIPIface(etherTapIPAddr, etherTapNetmask)
 	if err != nil {
 		t.Fatal(err)
 	}
-	pkg.IPIfaceRegister(ether, iface1)
+	ip.IPIfaceRegister(ether, iface1)
 
 	// default gateway
-	err = pkg.SetDefaultGateway(iface1, defaultGateway)
+	err = ip.SetDefaultGateway(iface1, defaultGateway)
 	if err != nil {
 		t.Fatal(err)
 	}

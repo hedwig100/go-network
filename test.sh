@@ -26,10 +26,15 @@ go test -v ./pkg/device/ -run TestLoopback
 check
 
 # ip
-go test -v ./pkg/ -run TestIP
+go test -v ./pkg/ip/ -run Test2
+check 
+
+go test -v ./pkg/ip/ -run TestIP
+check
 
 # other
 go test -v ./pkg/ -run Test2
+check
 
 # test icmp,udp,tcp in manually for now 
 # TODO: how to test icmp,udp,tcp automatically

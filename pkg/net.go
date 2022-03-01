@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"github.com/hedwig100/go-network/pkg/device"
+	"github.com/hedwig100/go-network/pkg/ip"
 	"github.com/hedwig100/go-network/pkg/net"
 )
 
@@ -18,31 +19,31 @@ func NetInit(setup bool) error {
 		}
 
 		// iface
-		iface0, err := NewIPIface("127.0.0.1", "255.0.0.0")
+		iface0, err := ip.NewIPIface("127.0.0.1", "255.0.0.0")
 		if err != nil {
 			return err
 		}
-		IPIfaceRegister(loop, iface0)
+		ip.IPIfaceRegister(loop, iface0)
 
-		iface1, err := NewIPIface("192.0.2.2", "255.255.255.0")
+		iface1, err := ip.NewIPIface("192.0.2.2", "255.255.255.0")
 		if err != nil {
 			return err
 		}
-		IPIfaceRegister(ether, iface1)
+		ip.IPIfaceRegister(ether, iface1)
 
 		// default gateway
-		err = SetDefaultGateway(iface1, "192.0.2.1")
+		err = ip.SetDefaultGateway(iface1, "192.0.2.1")
 		if err != nil {
 			return err
 		}
 	}
 
-	err := arpInit(done)
+	err := ip.ArpInit(done)
 	if err != nil {
 		return err
 	}
 
-	err = ipInit()
+	err = ip.IPInit()
 	if err != nil {
 		return err
 	}

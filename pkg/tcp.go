@@ -5,12 +5,14 @@ import (
 	"log"
 	"math/rand"
 	"time"
+
+	"github.com/hedwig100/go-network/pkg/ip"
 )
 
 func tcpInit(done chan struct{}) error {
 	go tcpTimer(done)
 	rand.Seed(time.Now().UnixNano())
-	return IPProtocolRegister(&TCPProtocol{})
+	return ip.IPProtocolRegister(&TCPProtocol{})
 }
 
 type segment struct {
@@ -28,11 +30,11 @@ type segment struct {
 // This implements IPUpperProtocol interface.
 type TCPProtocol struct{}
 
-func (p *TCPProtocol) Type() IPProtocolType {
-	return IPProtocolTCP
+func (p *TCPProtocol) Type() ip.IPProtocolType {
+	return ip.IPProtocolTCP
 }
 
-func (p *TCPProtocol) rxHandler(data []byte, src IPAddr, dst IPAddr, ipIface *IPIface) error {
+func (p *TCPProtocol) RxHandler(data []byte, src ip.IPAddr, dst ip.IPAddr, ipIface *ip.IPIface) error {
 
 	hdr, payload, err := data2headerTCP(data, src, dst)
 	// TODO:
@@ -464,7 +466,7 @@ func TxHelperTCP(tcb *TCPpcb, flag ControlFlag, data []byte, trigger uint8, errC
 
 func TxHandlerTCP(src TCPEndpoint, dst TCPEndpoint, payload []byte, seq uint32, ack uint32, flag ControlFlag, wnd uint16, up uint16) error {
 
-	if len(payload)+TCPHeaderSizeMin > IPPayloadSizeMax {
+	if len(payload)+TCPHeaderSizeMin > ip.IPPayloadSizeMax {
 		return fmt.Errorf("data size is too large for TCP payload")
 	}
 
@@ -485,5 +487,5 @@ func TxHandlerTCP(src TCPEndpoint, dst TCPEndpoint, payload []byte, seq uint32, 
 	}
 
 	log.Printf("[D] TCP TxHandler: src=%s,dst=%s,len=%d,tcp header=%s", src, dst, len(payload), hdr)
-	return TxHandlerIP(IPProtocolTCP, data, src.Address, dst.Address)
+	return ip.TxHandlerIP(ip.IPProtocolTCP, data, src.Address, dst.Address)
 }

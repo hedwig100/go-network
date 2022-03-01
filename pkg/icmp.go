@@ -5,11 +5,13 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
+
+	"github.com/hedwig100/go-network/pkg/ip"
 )
 
 // icmpInit prepare the ICMP protocol
 func icmpInit() error {
-	err := IPProtocolRegister(&ICMPProtocol{})
+	err := ip.IPProtocolRegister(&ICMPProtocol{})
 	return err
 }
 
@@ -219,11 +221,11 @@ func header2dataICMP(hdr *ICMPHeader, payload []byte) ([]byte, error) {
 */
 type ICMPProtocol struct{}
 
-func (p *ICMPProtocol) Type() IPProtocolType {
-	return IPProtocolICMP
+func (p *ICMPProtocol) Type() ip.IPProtocolType {
+	return ip.IPProtocolICMP
 }
 
-func TxHandlerICMP(typ ICMPMessageType, code ICMPMessageCode, values uint32, data []byte, src IPAddr, dst IPAddr) error {
+func TxHandlerICMP(typ ICMPMessageType, code ICMPMessageCode, values uint32, data []byte, src ip.IPAddr, dst ip.IPAddr) error {
 
 	hdr := ICMPHeader{
 		Typ:    typ,
@@ -238,10 +240,10 @@ func TxHandlerICMP(typ ICMPMessageType, code ICMPMessageCode, values uint32, dat
 
 	log.Printf("[D] ICMP TxHanlder: %s => %s,header=%s", src, dst, hdr)
 
-	return TxHandlerIP(IPProtocolICMP, data, src, dst)
+	return ip.TxHandlerIP(ip.IPProtocolICMP, data, src, dst)
 }
 
-func (p *ICMPProtocol) rxHandler(data []byte, src IPAddr, dst IPAddr, ipIface *IPIface) error {
+func (p *ICMPProtocol) RxHandler(data []byte, src ip.IPAddr, dst ip.IPAddr, ipIface *ip.IPIface) error {
 
 	if len(data) < ICMPHeaderSize {
 		return fmt.Errorf("data size is too small for ICMP header")

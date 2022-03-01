@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+
+	"github.com/hedwig100/go-network/pkg/ip"
 )
 
 /*
@@ -114,16 +116,16 @@ func (h TCPHeader) String() string {
 type TCPPseudoHeader struct {
 
 	// source IP address
-	Src IPAddr
+	Src ip.IPAddr
 
 	// destination IP address
-	Dst IPAddr
+	Dst ip.IPAddr
 
 	// padding, always 0
 	Pad uint8
 
 	// TCP protocol type,always 6
-	Type IPProtocolType
+	Type ip.IPProtocolType
 
 	// length of tcp packet
 	Len uint16
@@ -132,7 +134,7 @@ type TCPPseudoHeader struct {
 // data2headerTCP transforms data to TCP header.
 // returned []byte contains Options
 // src,dst is used for caluculating checksum.
-func data2headerTCP(data []byte, src IPAddr, dst IPAddr) (TCPHeader, []byte, error) {
+func data2headerTCP(data []byte, src ip.IPAddr, dst ip.IPAddr) (TCPHeader, []byte, error) {
 
 	if len(data) < TCPHeaderSizeMin {
 		return TCPHeader{}, nil, fmt.Errorf("data size is too small for TCP Header")
@@ -150,7 +152,7 @@ func data2headerTCP(data []byte, src IPAddr, dst IPAddr) (TCPHeader, []byte, err
 	pseudoHdr := TCPPseudoHeader{
 		Src:  src,
 		Dst:  dst,
-		Type: IPProtocolTCP,
+		Type: ip.IPProtocolTCP,
 		Len:  uint16(len(data)),
 	}
 	var w bytes.Buffer
@@ -167,13 +169,13 @@ func data2headerTCP(data []byte, src IPAddr, dst IPAddr) (TCPHeader, []byte, err
 	return hdr, data[TCPHeaderSizeMin:], nil
 }
 
-func header2dataTCP(hdr *TCPHeader, payload []byte, src IPAddr, dst IPAddr) ([]byte, error) {
+func header2dataTCP(hdr *TCPHeader, payload []byte, src ip.IPAddr, dst ip.IPAddr) ([]byte, error) {
 
 	// pseudo header for caluculating checksum afterwards
 	pseudoHdr := TCPPseudoHeader{
 		Src:  src,
 		Dst:  dst,
-		Type: IPProtocolTCP,
+		Type: ip.IPProtocolTCP,
 		Len:  uint16(TCPHeaderSizeMin + len(payload)),
 	}
 

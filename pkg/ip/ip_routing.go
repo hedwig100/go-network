@@ -1,4 +1,4 @@
-package pkg
+package ip
 
 import (
 	"fmt"
@@ -12,7 +12,7 @@ type IPRoute struct {
 	network IPAddr
 	netmask IPAddr
 	nexthop IPAddr
-	ipIface *IPIface
+	IpIface *IPIface
 }
 
 // IPRouteeAdd add routing table entry to routing table
@@ -21,7 +21,7 @@ func IPRouteAdd(network IPAddr, netmask IPAddr, nexthop IPAddr, ipIface *IPIface
 		network: network,
 		netmask: netmask,
 		nexthop: nexthop,
-		ipIface: ipIface,
+		IpIface: ipIface,
 	})
 	log.Printf("[I] route added,network=%s,netmask=%s,nexthop=%s,iface=%s,dev=%s", network, netmask, nexthop, ipIface.Unicast, ipIface.dev.Name())
 }

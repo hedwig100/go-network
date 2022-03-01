@@ -10,6 +10,7 @@ import (
 
 	"github.com/hedwig100/go-network/pkg"
 	"github.com/hedwig100/go-network/pkg/device"
+	"github.com/hedwig100/go-network/pkg/ip"
 )
 
 /*
@@ -40,14 +41,14 @@ func TestUDP(t *testing.T) {
 	}
 
 	// iface
-	iface0, err := pkg.NewIPIface(etherTapIPAddr, etherTapNetmask)
+	iface0, err := ip.NewIPIface(etherTapIPAddr, etherTapNetmask)
 	if err != nil {
 		t.Fatal(err)
 	}
-	pkg.IPIfaceRegister(ether, iface0)
+	ip.IPIfaceRegister(ether, iface0)
 
 	// default gateway
-	err = pkg.SetDefaultGateway(iface0, defaultGateway)
+	err = ip.SetDefaultGateway(iface0, defaultGateway)
 	if err != nil {
 		t.Error(err)
 	}
@@ -103,14 +104,14 @@ func TestSendUDP(t *testing.T) {
 	}
 
 	// iface
-	iface0, err := pkg.NewIPIface(etherTapIPAddr, etherTapNetmask)
+	iface0, err := ip.NewIPIface(etherTapIPAddr, etherTapNetmask)
 	if err != nil {
 		t.Fatal(err)
 	}
-	pkg.IPIfaceRegister(ether, iface0)
+	ip.IPIfaceRegister(ether, iface0)
 
 	// default gateway
-	err = pkg.SetDefaultGateway(iface0, defaultGateway)
+	err = ip.SetDefaultGateway(iface0, defaultGateway)
 	if err != nil {
 		t.Error(err)
 	}
@@ -165,14 +166,14 @@ func TestSocketUDP(t *testing.T) {
 	}
 
 	// iface
-	iface0, err := pkg.NewIPIface(etherTapIPAddr, etherTapNetmask)
+	iface0, err := ip.NewIPIface(etherTapIPAddr, etherTapNetmask)
 	if err != nil {
 		t.Fatal(err)
 	}
-	pkg.IPIfaceRegister(ether, iface0)
+	ip.IPIfaceRegister(ether, iface0)
 
 	// default gateway
-	err = pkg.SetDefaultGateway(iface0, defaultGateway)
+	err = ip.SetDefaultGateway(iface0, defaultGateway)
 	if err != nil {
 		t.Error(err)
 	}

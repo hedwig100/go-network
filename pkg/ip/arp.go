@@ -1,4 +1,4 @@
-package pkg
+package ip
 
 import (
 	"bytes"
@@ -22,8 +22,8 @@ const (
 	arpOpReply   uint16 = 2
 )
 
-// arpInit prepare the ARP protocol.
-func arpInit(done chan struct{}) error {
+// ArpInit prepare the ARP protocol.
+func ArpInit(done chan struct{}) error {
 	go arpTimer(done)
 	err := net.ProtocolRegister(&arpProtocol{})
 	if err != nil {

@@ -1,4 +1,4 @@
-package pkg
+package ip
 
 import (
 	"bytes"
@@ -20,8 +20,8 @@ const (
 	IPAddrLen        uint8 = 4
 )
 
-// ipInit prepares the IP protocol
-func ipInit() error {
+// IPInit prepares the IP protocol
+func IPInit() error {
 	err := net.ProtocolRegister(&IPProtocol{})
 	return err
 }
@@ -193,7 +193,7 @@ func TxHandlerIP(protocol IPProtocolType, data []byte, src IPAddr, dst IPAddr) e
 	}
 
 	// source address must be the same as interface's one
-	ipIface := route.ipIface
+	ipIface := route.IpIface
 	if src != IPAddrAny && src != ipIface.Unicast {
 		return fmt.Errorf("unable to output with specified source address,addr=%s", src)
 	}
@@ -289,7 +289,7 @@ func (p *IPProtocol) RxHandler(ch chan net.ProtocolBuffer, done chan struct{}) {
 		// search the protocol whose type is the same as the header's one
 		for _, proto := range IPProtocols {
 			if proto.Type() == ipHdr.ProtocolType {
-				err = proto.rxHandler(payload, ipHdr.Src, ipHdr.Dst, ipIface)
+				err = proto.RxHandler(payload, ipHdr.Src, ipHdr.Dst, ipIface)
 				if err != nil {
 					log.Printf("[E] IP RxHanlder: %s", err.Error())
 				}

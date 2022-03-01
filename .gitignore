@@ -1,2 +1,2 @@
-net/log
+pkg/log
 example/*/log
