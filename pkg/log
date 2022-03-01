@@ -1,0 +1,201 @@
+=== RUN   TestSocketUDP
+2022/03/01 09:30:06 [I] registerd dev=tap0
+2022/03/01 09:30:06 [I] iface=IPv4 is registerd dev=tap0
+2022/03/01 09:30:06 [I] route added,network=192.0.2.0,netmask=255.255.255.0,nexthop=0.0.0.0,iface=192.0.2.2,dev=tap0
+2022/03/01 09:30:06 [I] route added,network=0.0.0.0,netmask=0.0.0.0,nexthop=192.0.2.1,iface=192.0.2.2,dev=tap0
+2022/03/01 09:30:06 [I] registerd proto=ARP
+2022/03/01 09:30:06 [I] registerd proto=IPv4
+2022/03/01 09:30:06 [I] registered proto=ICMP
+2022/03/01 09:30:06 [I] registered proto=UDP
+2022/03/01 09:30:06 [I] registered proto=TCP
+2022/03/01 09:30:06 [I] bound address local=192.0.2.2:7
+2022/03/01 09:30:12 [D] Ether rxHandler: dev=tap0,protocolType=ARP,len=42,header=
+		Src: ff:ff:ff:ff:ff:ff,
+		Dst: da:ce:39:e0:bb:1a,
+		Type: ARP
+	
+2022/03/01 09:30:12 [I] input data dev=da:ce:39:e0:bb:1a,typ=ARP,data:[0 1 8 0 6 4 0 1 218 206 57 224 187 26 192 0 2 1 0 0 0 0 0 0 192 0 2 2]
+2022/03/01 09:30:12 [D] ARP cache insert pa=192.0.2.1,ha=da:ce:39:e0:bb:1a,timeval=2022-03-01 09:30:12.146925 +0000 UTC m=+5.711678801
+2022/03/01 09:30:12 [D] ARP rxHandler: dev=tap0,arp header=
+		Hrd: Ethernet(1),
+		Pro: IPv4(2048),
+		Hln: 6,
+		Pln: 4,
+		Op: Request(1),
+		Sha: da:ce:39:e0:bb:1a,
+		Spa: 192.0.2.1,
+		Tha: 0:0:0:0:0:0,
+		Tpa: 192.0.2.2,
+	
+2022/03/01 09:30:12 [D] ARP TxHandler(reply): dev=tap0,arp header=
+		Hrd: Ethernet(1),
+		Pro: IPv4(2048),
+		Hln: 6,
+		Pln: 4,
+		Op: Reply(2),
+		Sha: da:ce:39:e0:bb:1a,
+		Spa: 192.0.2.2,
+		Tha: da:ce:39:e0:bb:1a,
+		Tpa: 192.0.2.1,
+	
+2022/03/01 09:30:12 ARP da:ce:39:e0:bb:1a
+2022/03/01 09:30:12 [D] Ether TxHandler: data is trasmitted by ethernet-device(name=tap0),header=
+		Src: da:ce:39:e0:bb:1a,
+		Dst: da:ce:39:e0:bb:1a,
+		Type: ARP
+	
+2022/03/01 09:30:12 [I] device output, dev=tap0,typ=ARP
+2022/03/01 09:30:12 [D] Ether rxHandler: dev=tap0,protocolType=IPv4,len=47,header=
+		Src: da:ce:39:e0:bb:1a,
+		Dst: da:ce:39:e0:bb:1a,
+		Type: IPv4
+	
+2022/03/01 09:30:12 [I] input data dev=da:ce:39:e0:bb:1a,typ=IPv4,data:[69 0 0 33 111 162 64 0 64 17 71 38 192 0 2 1 192 0 2 2 138 210 0 7 0 13 23 34 104 111 103 101 10]
+2022/03/01 09:30:12 [D] IP rxHandler: iface=192.0.2.2,protocol=UDP,header=
+		Version: 4,
+		Header Length: 20,
+		Total Length: 33,
+		Tos: 0,
+		Id: 28578,
+		Flags: 2,
+		Fragment Offset: 0,
+		TTL: 64,
+		ProtocolType: UDP,
+		Checksum: 4726,
+		Src: 192.0.2.1,
+		Dst: 192.0.2.2,
+	
+2022/03/01 09:30:12 [D] UDP rxHandler: src=192.0.2.1:35538,dst=192.0.2.2:7,iface=IPv4,udp header=
+		Src: 35538,
+		Dst: 7,
+		Len: 13,
+		Checksum: 1722,
+	,payload=[104 111 103 101 10]
+2022/03/01 09:30:12 data size: 5,data: hoge
+,endpoint: 192.0.2.1:35538
+2022/03/01 09:30:12 [D] UDP TxHandler: src=192.0.2.2:7,dst=192.0.2.1:35538,udp header=
+		Src: 7,
+		Dst: 35538,
+		Len: 13,
+		Checksum: 1722,
+	
+2022/03/01 09:30:12 [D] IP TxHandler: iface=1,dev=tap0,header=
+		Version: 4,
+		Header Length: 20,
+		Total Length: 33,
+		Tos: 0,
+		Id: 1,
+		Flags: 0,
+		Fragment Offset: 0,
+		TTL: 255,
+		ProtocolType: UDP,
+		Checksum: 37c7,
+		Src: 192.0.2.2,
+		Dst: 192.0.2.1,
+	
+2022/03/01 09:30:12 IPv4 da:ce:39:e0:bb:1a
+2022/03/01 09:30:12 [D] Ether TxHandler: data is trasmitted by ethernet-device(name=tap0),header=
+		Src: da:ce:39:e0:bb:1a,
+		Dst: da:ce:39:e0:bb:1a,
+		Type: IPv4
+	
+2022/03/01 09:30:13 [D] Ether rxHandler: dev=tap0,protocolType=IPv4,len=45,header=
+		Src: da:ce:39:e0:bb:1a,
+		Dst: da:ce:39:e0:bb:1a,
+		Type: IPv4
+	
+2022/03/01 09:30:13 [I] input data dev=da:ce:39:e0:bb:1a,typ=IPv4,data:[69 0 0 31 116 67 64 0 64 17 66 135 192 0 2 1 192 0 2 2 138 210 0 7 0 11 128 149 102 101 10]
+2022/03/01 09:30:13 [D] IP rxHandler: iface=192.0.2.2,protocol=UDP,header=
+		Version: 4,
+		Header Length: 20,
+		Total Length: 31,
+		Tos: 0,
+		Id: 29763,
+		Flags: 2,
+		Fragment Offset: 0,
+		TTL: 64,
+		ProtocolType: UDP,
+		Checksum: 4287,
+		Src: 192.0.2.1,
+		Dst: 192.0.2.2,
+	
+2022/03/01 09:30:13 [D] UDP rxHandler: src=192.0.2.1:35538,dst=192.0.2.2:7,iface=IPv4,udp header=
+		Src: 35538,
+		Dst: 7,
+		Len: 11,
+		Checksum: 8095,
+	,payload=[102 101 10]
+2022/03/01 09:30:13 data size: 3,data: fe
+,endpoint: 192.0.2.1:35538
+2022/03/01 09:30:13 [D] UDP TxHandler: src=192.0.2.2:7,dst=192.0.2.1:35538,udp header=
+		Src: 7,
+		Dst: 35538,
+		Len: 11,
+		Checksum: 8095,
+	
+2022/03/01 09:30:13 [D] IP TxHandler: iface=1,dev=tap0,header=
+		Version: 4,
+		Header Length: 20,
+		Total Length: 31,
+		Tos: 0,
+		Id: 2,
+		Flags: 0,
+		Fragment Offset: 0,
+		TTL: 255,
+		ProtocolType: UDP,
+		Checksum: 37c8,
+		Src: 192.0.2.2,
+		Dst: 192.0.2.1,
+	
+2022/03/01 09:30:13 IPv4 da:ce:39:e0:bb:1a
+2022/03/01 09:30:13 [D] Ether TxHandler: data is trasmitted by ethernet-device(name=tap0),header=
+		Src: da:ce:39:e0:bb:1a,
+		Dst: da:ce:39:e0:bb:1a,
+		Type: IPv4
+	
+2022/03/01 09:30:13 [D] Ether rxHandler: dev=tap0,protocolType=IPv4,len=56,header=
+		Src: da:ce:39:e0:bb:1a,
+		Dst: da:ce:39:e0:bb:1a,
+		Type: IPv4
+	
+2022/03/01 09:30:13 [I] input data dev=da:ce:39:e0:bb:1a,typ=IPv4,data:[69 0 0 42 170 227 64 0 64 6 11 231 192 0 2 1 192 0 2 2 151 228 31 144 146 27 188 51 110 176 56 102 80 25 250 240 16 240 0 0 115 10]
+2022/03/01 09:30:13 [D] IP rxHandler: iface=192.0.2.2,protocol=TCP,header=
+		Version: 4,
+		Header Length: 20,
+		Total Length: 42,
+		Tos: 0,
+		Id: 43747,
+		Flags: 2,
+		Fragment Offset: 0,
+		TTL: 64,
+		ProtocolType: TCP,
+		Checksum: be7,
+		Src: 192.0.2.1,
+		Dst: 192.0.2.2,
+	
+2022/03/01 09:30:13 [E] IP RxHanlder: TCP socket whose address is 192.0.2.2:8080 not found
+2022/03/01 09:30:13 [D] Ether rxHandler: dev=tap0,protocolType=IPv4,len=54,header=
+		Src: da:ce:39:e0:bb:1a,
+		Dst: da:ce:39:e0:bb:1a,
+		Type: IPv4
+	
+2022/03/01 09:30:13 [I] input data dev=da:ce:39:e0:bb:1a,typ=IPv4,data:[69 0 0 40 252 240 64 0 64 6 185 219 192 0 2 1 192 0 2 2 31 144 31 144 237 5 165 107 54 176 45 119 80 16 250 135 251 143 0 0]
+2022/03/01 09:30:13 [D] IP rxHandler: iface=192.0.2.2,protocol=TCP,header=
+		Version: 4,
+		Header Length: 20,
+		Total Length: 40,
+		Tos: 0,
+		Id: 64752,
+		Flags: 2,
+		Fragment Offset: 0,
+		TTL: 64,
+		ProtocolType: TCP,
+		Checksum: b9db,
+		Src: 192.0.2.1,
+		Dst: 192.0.2.2,
+	
+2022/03/01 09:30:13 [E] IP RxHanlder: TCP socket whose address is 192.0.2.2:8080 not found
+2022/03/01 09:30:16 [I] close device dev=tap0
+--- PASS: TestSocketUDP (10.02s)
+PASS
+ok  	github.com/hedwig100/go-network/pkg	10.032s
