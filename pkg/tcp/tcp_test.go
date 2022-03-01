@@ -81,10 +81,10 @@ func TestTCPActiveOpenClose(t *testing.T) {
 
 	pkg.NetRun()
 
-	src, _ := tcp.Str2TCPEndpoint("192.0.2.2:8080")
-	dst, _ := tcp.Str2TCPEndpoint("192.0.2.1:8080")
+	src, _ := tcp.Str2Endpoint("192.0.2.2:8080")
+	dst, _ := tcp.Str2Endpoint("192.0.2.1:8080")
 
-	soc, err := tcp.NewTCPpcb(src)
+	soc, err := tcp.Newpcb(src)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +97,7 @@ func TestTCPActiveOpenClose(t *testing.T) {
 	close := 0
 
 	for {
-		if open == 0 && close == 0 && soc.Status() == tcp.TCPpcbStateEstablished {
+		if open == 0 && close == 0 && soc.Status() == tcp.PCBStateEstablished {
 			go soc.Close(errChClose)
 			close++
 		}
@@ -167,10 +167,10 @@ func TestTCPSend(t *testing.T) {
 
 	pkg.NetRun()
 
-	src, _ := tcp.Str2TCPEndpoint("192.0.2.2:8080")
-	dst, _ := tcp.Str2TCPEndpoint("192.0.2.1:8080")
+	src, _ := tcp.Str2Endpoint("192.0.2.2:8080")
+	dst, _ := tcp.Str2Endpoint("192.0.2.1:8080")
 
-	soc, err := tcp.NewTCPpcb(src)
+	soc, err := tcp.Newpcb(src)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -186,7 +186,7 @@ func TestTCPSend(t *testing.T) {
 		if cnt == 0 && maxSendTime == 0 {
 			break
 		}
-		if cnt == 0 && soc.Status() == tcp.TCPpcbStateEstablished {
+		if cnt == 0 && soc.Status() == tcp.PCBStateEstablished {
 			go soc.Send(errChSend, []byte(fmt.Sprintf("TCP connection%d !!!!\n", maxSendTime)))
 			cnt++
 		}
@@ -256,23 +256,23 @@ func TestTCPPassiveOpen(t *testing.T) {
 
 	pkg.NetRun()
 
-	src, _ := tcp.Str2TCPEndpoint("192.0.2.2:8080")
+	src, _ := tcp.Str2Endpoint("192.0.2.2:8080")
 
-	soc, err := tcp.NewTCPpcb(src)
+	soc, err := tcp.Newpcb(src)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	errChOpen := make(chan error)
 	errChClose := make(chan error)
-	go soc.Open(errChOpen, tcp.TCPEndpoint{}, false, 5*time.Minute)
+	go soc.Open(errChOpen, tcp.Endpoint{}, false, 5*time.Minute)
 
 	cnt := 1
 	for {
-		if cnt == 0 && soc.Status() == tcp.TCPpcbStateClosed {
+		if cnt == 0 && soc.Status() == tcp.PCBStateClosed {
 			break
 		}
-		if cnt == 0 && soc.Status() == tcp.TCPpcbStateCloseWait {
+		if cnt == 0 && soc.Status() == tcp.PCBStateCloseWait {
 			go soc.Close(errChClose)
 			cnt++
 		}
@@ -341,9 +341,9 @@ func TestTCPReceive(t *testing.T) {
 
 	pkg.NetRun()
 
-	src, _ := tcp.Str2TCPEndpoint("192.0.2.2:8080")
+	src, _ := tcp.Str2Endpoint("192.0.2.2:8080")
 
-	soc, err := tcp.NewTCPpcb(src)
+	soc, err := tcp.Newpcb(src)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -353,7 +353,7 @@ func TestTCPReceive(t *testing.T) {
 	buf := make([]byte, 20)
 	var n int
 
-	go soc.Open(errChOpen, tcp.TCPEndpoint{}, false, 5*time.Minute)
+	go soc.Open(errChOpen, tcp.Endpoint{}, false, 5*time.Minute)
 	time.Sleep(time.Millisecond)
 
 	cnt := 1
@@ -363,7 +363,7 @@ func TestTCPReceive(t *testing.T) {
 		if cnt == 0 && maxRcvTime == 0 {
 			break
 		}
-		if cnt == 0 && soc.Status() == tcp.TCPpcbStateEstablished {
+		if cnt == 0 && soc.Status() == tcp.PCBStateEstablished {
 			go soc.Receive(errChRcv, buf, &n)
 			cnt++
 		}

@@ -14,11 +14,11 @@ import (
 	TCP endpoint
 */
 
-type TCPEndpoint = udp.Endpoint
+type Endpoint = udp.Endpoint
 
-// Str2TCPEndpoint encodes str to TCPEndpoint
+// Str2Endpoint encodes str to Endpoint
 // ex) str="8.8.8.8:80"
-func Str2TCPEndpoint(str string) (TCPEndpoint, error) {
+func Str2Endpoint(str string) (Endpoint, error) {
 	return udp.Str2Endpoint(str)
 }
 
@@ -65,12 +65,12 @@ func (f ControlFlag) String() string {
 }
 
 const (
-	TCPHeaderSizeMin    = 20
-	TCPPseudoHeaderSize = 12
+	HeaderSizeMin    = 20
+	PseudoHeaderSize = 12
 )
 
-// TCPHeader is header for TCP protocol
-type TCPHeader struct {
+// Header is header for TCP protocol
+type Header struct {
 
 	// source port number
 	Src uint16
@@ -100,7 +100,7 @@ type TCPHeader struct {
 	Urgent uint16
 }
 
-func (h TCPHeader) String() string {
+func (h Header) String() string {
 	return fmt.Sprintf(`
 		Dst: %d, 
 		Src: %d,
@@ -114,8 +114,8 @@ func (h TCPHeader) String() string {
 	`, h.Dst, h.Src, h.Seq, h.Ack, h.Offset>>4, h.Flag, h.Window, h.Checksum, h.Urgent)
 }
 
-// TCPPseudoHeader is used for caluculating checksum.
-type TCPPseudoHeader struct {
+// PseudoHeader is used for caluculating checksum.
+type PseudoHeader struct {
 
 	// source IP address
 	Src ip.Addr
@@ -133,25 +133,25 @@ type TCPPseudoHeader struct {
 	Len uint16
 }
 
-// data2headerTCP transforms data to TCP header.
+// data2header transforms data to TCP header.
 // returned []byte contains Options
 // src,dst is used for caluculating checksum.
-func data2headerTCP(data []byte, src ip.Addr, dst ip.Addr) (TCPHeader, []byte, error) {
+func data2header(data []byte, src ip.Addr, dst ip.Addr) (Header, []byte, error) {
 
-	if len(data) < TCPHeaderSizeMin {
-		return TCPHeader{}, nil, fmt.Errorf("data size is too small for TCP Header")
+	if len(data) < HeaderSizeMin {
+		return Header{}, nil, fmt.Errorf("data size is too small for TCP Header")
 	}
 
 	// read header in bigEndian
-	var hdr TCPHeader
+	var hdr Header
 	r := bytes.NewReader(data)
 	err := binary.Read(r, binary.BigEndian, &hdr)
 	if err != nil {
-		return TCPHeader{}, nil, err
+		return Header{}, nil, err
 	}
 
 	// caluculate checksum
-	pseudoHdr := TCPPseudoHeader{
+	pseudoHdr := PseudoHeader{
 		Src:  src,
 		Dst:  dst,
 		Type: ip.ProtoTCP,
@@ -160,25 +160,25 @@ func data2headerTCP(data []byte, src ip.Addr, dst ip.Addr) (TCPHeader, []byte, e
 	var w bytes.Buffer
 	err = binary.Write(&w, binary.BigEndian, pseudoHdr)
 	if err != nil {
-		return TCPHeader{}, nil, err
+		return Header{}, nil, err
 	}
 	chksum := utils.CheckSum(w.Bytes(), 0)
 	chksum = utils.CheckSum(data, uint32(^chksum))
 	if chksum != 0 && chksum != 0xffff {
-		return TCPHeader{}, nil, fmt.Errorf("checksum error (TCP)")
+		return Header{}, nil, fmt.Errorf("checksum error (TCP)")
 	}
 
-	return hdr, data[TCPHeaderSizeMin:], nil
+	return hdr, data[HeaderSizeMin:], nil
 }
 
-func header2dataTCP(hdr *TCPHeader, payload []byte, src ip.Addr, dst ip.Addr) ([]byte, error) {
+func header2data(hdr *Header, payload []byte, src ip.Addr, dst ip.Addr) ([]byte, error) {
 
 	// pseudo header for caluculating checksum afterwards
-	pseudoHdr := TCPPseudoHeader{
+	pseudoHdr := PseudoHeader{
 		Src:  src,
 		Dst:  dst,
 		Type: ip.ProtoTCP,
-		Len:  uint16(TCPHeaderSizeMin + len(payload)),
+		Len:  uint16(HeaderSizeMin + len(payload)),
 	}
 
 	// write header in bigEndian
@@ -205,5 +205,5 @@ func header2dataTCP(hdr *TCPHeader, payload []byte, src ip.Addr, dst ip.Addr) ([
 
 	// set checksum in the header (for debug)
 	hdr.Checksum = chksum
-	return buf[TCPPseudoHeaderSize:], nil
+	return buf[PseudoHeaderSize:], nil
 }

@@ -46,44 +46,44 @@ type rcvCmd struct {
 */
 
 const (
-	TCPpcbStateListen      TCPpcbState = 0
-	TCPpcbStateSYNSent     TCPpcbState = 1
-	TCPpcbStateSYNReceived TCPpcbState = 2
-	TCPpcbStateEstablished TCPpcbState = 3
-	TCPpcbStateFINWait1    TCPpcbState = 4
-	TCPpcbStateFINWait2    TCPpcbState = 5
-	TCPpcbStateCloseWait   TCPpcbState = 6
-	TCPpcbStateClosing     TCPpcbState = 7
-	TCPpcbStateLastACK     TCPpcbState = 8
-	TCPpcbStateTimeWait    TCPpcbState = 9
-	TCPpcbStateClosed      TCPpcbState = 10
+	PCBStateListen      PCBState = 0
+	PCBStateSYNSent     PCBState = 1
+	PCBStateSYNReceived PCBState = 2
+	PCBStateEstablished PCBState = 3
+	PCBStateFINWait1    PCBState = 4
+	PCBStateFINWait2    PCBState = 5
+	PCBStateCloseWait   PCBState = 6
+	PCBStateClosing     PCBState = 7
+	PCBStateLastACK     PCBState = 8
+	PCBStateTimeWait    PCBState = 9
+	PCBStateClosed      PCBState = 10
 )
 
-type TCPpcbState uint32
+type PCBState uint32
 
-func (s TCPpcbState) String() string {
+func (s PCBState) String() string {
 	switch s {
-	case TCPpcbStateListen:
+	case PCBStateListen:
 		return "LISTEN"
-	case TCPpcbStateSYNSent:
+	case PCBStateSYNSent:
 		return "SYN-SENT"
-	case TCPpcbStateSYNReceived:
+	case PCBStateSYNReceived:
 		return "SYN-RECEIVED"
-	case TCPpcbStateEstablished:
+	case PCBStateEstablished:
 		return "ESTABLISHED"
-	case TCPpcbStateFINWait1:
+	case PCBStateFINWait1:
 		return "FIN-WAIT-1"
-	case TCPpcbStateFINWait2:
+	case PCBStateFINWait2:
 		return "FIN-WAIT-2"
-	case TCPpcbStateCloseWait:
+	case PCBStateCloseWait:
 		return "CLOSE-WAIT"
-	case TCPpcbStateClosing:
+	case PCBStateClosing:
 		return "CLOSING"
-	case TCPpcbStateLastACK:
+	case PCBStateLastACK:
 		return "LAST-ACK"
-	case TCPpcbStateTimeWait:
+	case PCBStateTimeWait:
 		return "TIME-WAIT"
-	case TCPpcbStateClosed:
+	case PCBStateClosed:
 		return "CLOSED"
 	default:
 		return "UNKNOWN"
@@ -114,14 +114,14 @@ const (
 )
 
 var (
-	tcpMutex sync.Mutex
-	tcbs     []*TCPpcb
+	mutex sync.Mutex
+	pcbs  []*pcb
 )
 
-type TCPpcb struct {
-	state   TCPpcbState
-	local   TCPEndpoint
-	foreign TCPEndpoint
+type pcb struct {
+	state   PCBState
+	local   Endpoint
+	foreign Endpoint
 
 	snd
 	iss uint32
@@ -140,13 +140,13 @@ type TCPpcb struct {
 	lastTxTime time.Time
 }
 
-func (tcb *TCPpcb) transition(state TCPpcbState) {
-	log.Printf("[I] local=%s, %s => %s", tcb.local, tcb.state, state)
-	tcb.state = state
+func (pcb *pcb) transition(state PCBState) {
+	log.Printf("[I] local=%s, %s => %s", pcb.local, pcb.state, state)
+	pcb.state = state
 }
 
-func (tcb *TCPpcb) queueAdd(seq uint32, flag ControlFlag, data []byte, trigger uint8, errCh chan error) {
-	tcb.retxQueue = append(tcb.retxQueue, retxEntry{
+func (pcb *pcb) queueAdd(seq uint32, flag ControlFlag, data []byte, trigger uint8, errCh chan error) {
+	pcb.retxQueue = append(pcb.retxQueue, retxEntry{
 		data:        data,
 		seq:         seq,
 		flag:        flag,
@@ -169,10 +169,10 @@ func removeRetx(data []retxEntry, indexs []int) []retxEntry {
 	return ret
 }
 
-func (tcb *TCPpcb) queueAck() {
+func (pcb *pcb) queueAck() {
 	var deleteIndex []int
-	for i, entry := range tcb.retxQueue {
-		if entry.seq < tcb.una {
+	for i, entry := range pcb.retxQueue {
+		if entry.seq < pcb.una {
 			deleteIndex = append(deleteIndex, i)
 			if entry.errCh != nil {
 				entry.errCh <- nil
@@ -180,101 +180,101 @@ func (tcb *TCPpcb) queueAck() {
 			calculateRTO(time.Since(entry.last))
 		}
 	}
-	tcb.retxQueue = removeRetx(tcb.retxQueue, deleteIndex)
+	pcb.retxQueue = removeRetx(pcb.retxQueue, deleteIndex)
 }
 
-func (tcb *TCPpcb) queueFlush(msg string) {
+func (pcb *pcb) queueFlush(msg string) {
 	err := fmt.Errorf(msg)
-	for _, entry := range tcb.retxQueue {
+	for _, entry := range pcb.retxQueue {
 		if entry.errCh != nil {
 			entry.errCh <- err
 		}
 	}
-	tcb.retxQueue = nil
+	pcb.retxQueue = nil
 }
 
-func (tcb *TCPpcb) signalCmd(trigger uint8) {
+func (pcb *pcb) signalCmd(trigger uint8) {
 
 	switch trigger {
 	case triggerOpen, triggerClose:
 		var deleteIndex []int
-		for i, entry := range tcb.retxQueue {
+		for i, entry := range pcb.retxQueue {
 			if entry.triggerType == trigger {
 				entry.errCh <- nil
 				deleteIndex = append(deleteIndex, i)
 			}
 		}
-		tcb.retxQueue = removeRetx(tcb.retxQueue, deleteIndex)
+		pcb.retxQueue = removeRetx(pcb.retxQueue, deleteIndex)
 	case triggerReceive:
-		if tcb.rcvCmd.errCh != nil && tcb.rxLen > 0 {
-			dlen := copy(tcb.rcvCmd.data, tcb.rxQueue[:tcb.rxLen])
-			*tcb.rcvCmd.n = dlen
-			tcb.rcvCmd.errCh <- nil
-			if dlen == int(tcb.rxLen) {
-				tcb.rxLen = 0
-				tcb.rcv.wnd = bufferSize
+		if pcb.rcvCmd.errCh != nil && pcb.rxLen > 0 {
+			dlen := copy(pcb.rcvCmd.data, pcb.rxQueue[:pcb.rxLen])
+			*pcb.rcvCmd.n = dlen
+			pcb.rcvCmd.errCh <- nil
+			if dlen == int(pcb.rxLen) {
+				pcb.rxLen = 0
+				pcb.rcv.wnd = bufferSize
 			} else {
-				copy(tcb.rxQueue[:], tcb.rxQueue[tcb.rxLen-uint16(dlen):])
-				tcb.rxLen -= uint16(dlen)
-				tcb.rcv.wnd += uint16(dlen)
+				copy(pcb.rxQueue[:], pcb.rxQueue[pcb.rxLen-uint16(dlen):])
+				pcb.rxLen -= uint16(dlen)
+				pcb.rcv.wnd += uint16(dlen)
 			}
-			tcb.rcvCmd = rcvCmd{}
+			pcb.rcvCmd = rcvCmd{}
 		}
 	default:
 	}
 }
 
-func (tcb *TCPpcb) signalErr(msg string) {
-	tcb.queueFlush(msg)
+func (pcb *pcb) signalErr(msg string) {
+	pcb.queueFlush(msg)
 	err := fmt.Errorf(msg)
-	if tcb.rcvCmd.errCh != nil {
-		tcb.rcvCmd.errCh <- err
+	if pcb.rcvCmd.errCh != nil {
+		pcb.rcvCmd.errCh <- err
 	}
-	tcb.rcvCmd = rcvCmd{}
+	pcb.rcvCmd = rcvCmd{}
 }
 
-// NewTCPpcb returns *TCBpcb if there is no *TCPpcb whose address is not the same as local
-func NewTCPpcb(local TCPEndpoint) (*TCPpcb, error) {
+// Newpcb returns *TCBpcb if there is no *pcb whose address is not the same as local
+func Newpcb(local Endpoint) (*pcb, error) {
 	// check if the same local address has not been used
-	tcpMutex.Lock()
-	defer tcpMutex.Unlock()
-	for _, t := range tcbs {
+	mutex.Lock()
+	defer mutex.Unlock()
+	for _, t := range pcbs {
 		if t.local == local {
 			return nil, fmt.Errorf("the same local address(%s) is already used", local)
 		}
 	}
 
-	tcb := &TCPpcb{
-		state: TCPpcbStateClosed,
+	pcb := &pcb{
+		state: PCBStateClosed,
 		local: local,
 	}
-	tcbs = append(tcbs, tcb)
-	return tcb, nil
+	pcbs = append(pcbs, pcb)
+	return pcb, nil
 }
 
-func DeleteTCPpcb(tcb *TCPpcb) error {
-	tcpMutex.Lock()
-	defer tcpMutex.Unlock()
-	for i, t := range tcbs {
-		if t == tcb {
-			tcbs = append(tcbs[:i], tcbs[i+1:]...)
+func Deletepcb(pcb *pcb) error {
+	mutex.Lock()
+	defer mutex.Unlock()
+	for i, t := range pcbs {
+		if t == pcb {
+			pcbs = append(pcbs[:i], pcbs[i+1:]...)
 			return nil
 		}
 	}
-	return fmt.Errorf("tcb not found, and cannot be deleted")
+	return fmt.Errorf("pcb not found, and cannot be deleted")
 }
 
-func (tcb *TCPpcb) Open(errCh chan error, foreign TCPEndpoint, isActive bool, timeout time.Duration) {
-	tcpMutex.Lock()
-	defer tcpMutex.Unlock()
+func (pcb *pcb) Open(errCh chan error, foreign Endpoint, isActive bool, timeout time.Duration) {
+	mutex.Lock()
+	defer mutex.Unlock()
 
-	switch tcb.state {
-	case TCPpcbStateClosed:
+	switch pcb.state {
+	case PCBStateClosed:
 		// passive open
 		if !isActive {
-			log.Printf("[D] passive open: local=%s,waiting for connection...", tcb.local)
-			tcb.timeout = timeout
-			tcb.transition(TCPpcbStateListen)
+			log.Printf("[D] passive open: local=%s,waiting for connection...", pcb.local)
+			pcb.timeout = timeout
+			pcb.transition(PCBStateListen)
 			errCh <- nil
 			return
 		}
@@ -284,32 +284,32 @@ func (tcb *TCPpcb) Open(errCh chan error, foreign TCPEndpoint, isActive bool, ti
 			return
 		}
 
-		tcb.timeout = timeout
-		tcb.foreign = foreign
+		pcb.timeout = timeout
+		pcb.foreign = foreign
 
 		iss := createISS()
-		tcb.iss = iss
-		tcb.snd.una = iss
-		tcb.snd.nxt = iss + 1
+		pcb.iss = iss
+		pcb.snd.una = iss
+		pcb.snd.nxt = iss + 1
 
 		var err error
 		for i := 0; i < 3; i++ { // try to send SYN at most three time ( because of ARP cache specification of this package).
-			if err = TxHelperTCP(tcb, SYN, []byte{}, triggerOpen, errCh); err != nil {
+			if err = TxHelperTCP(pcb, SYN, []byte{}, triggerOpen, errCh); err != nil {
 				log.Printf("[E] TCP OPEN call error %s", err.Error())
 				time.Sleep(20 * time.Millisecond)
 			} else {
-				tcb.transition(TCPpcbStateSYNSent)
-				log.Printf("[D] active open: local=%s,foreign=%s,connecting...", tcb.local, tcb.foreign)
+				pcb.transition(PCBStateSYNSent)
+				log.Printf("[D] active open: local=%s,foreign=%s,connecting...", pcb.local, pcb.foreign)
 				return
 			}
 		}
 		errCh <- err
 
-	case TCPpcbStateListen:
+	case PCBStateListen:
 		// passive open
 		if !isActive {
-			log.Printf("[D] passive open: local=%s,waiting for connection...", tcb.local)
-			tcb.timeout = timeout
+			log.Printf("[D] passive open: local=%s,waiting for connection...", pcb.local)
+			pcb.timeout = timeout
 			errCh <- nil
 			return
 		}
@@ -319,22 +319,22 @@ func (tcb *TCPpcb) Open(errCh chan error, foreign TCPEndpoint, isActive bool, ti
 			return
 		}
 
-		tcb.timeout = timeout
-		tcb.foreign = foreign
+		pcb.timeout = timeout
+		pcb.foreign = foreign
 
 		iss := createISS()
-		tcb.iss = iss
-		tcb.snd.una = iss
-		tcb.snd.nxt = iss + 1
+		pcb.iss = iss
+		pcb.snd.una = iss
+		pcb.snd.nxt = iss + 1
 
 		var err error
 		for i := 0; i < 3; i++ { // try to send SYN at most three time ( because of ARP cache specification of this package).
-			if err = TxHelperTCP(tcb, SYN, []byte{}, triggerOpen, errCh); err != nil {
+			if err = TxHelperTCP(pcb, SYN, []byte{}, triggerOpen, errCh); err != nil {
 				log.Printf("[E] TCP OPEN call error %s", err.Error())
 				time.Sleep(20 * time.Millisecond)
 			} else {
-				tcb.transition(TCPpcbStateSYNSent)
-				log.Printf("[D] active open: local=%s,foreign=%s,connecting...", tcb.local, tcb.foreign)
+				pcb.transition(PCBStateSYNSent)
+				log.Printf("[D] active open: local=%s,foreign=%s,connecting...", pcb.local, pcb.foreign)
 				return
 			}
 		}
@@ -345,29 +345,29 @@ func (tcb *TCPpcb) Open(errCh chan error, foreign TCPEndpoint, isActive bool, ti
 	}
 }
 
-func (tcb *TCPpcb) Send(errCh chan error, data []byte) {
-	tcpMutex.Lock()
-	defer tcpMutex.Unlock()
+func (pcb *pcb) Send(errCh chan error, data []byte) {
+	mutex.Lock()
+	defer mutex.Unlock()
 
-	switch tcb.state {
-	case TCPpcbStateClosed:
+	switch pcb.state {
+	case PCBStateClosed:
 		errCh <- fmt.Errorf("connection does not exist")
-	case TCPpcbStateListen:
+	case PCBStateListen:
 		errCh <- fmt.Errorf("connection does not exist")
-	case TCPpcbStateSYNSent, TCPpcbStateSYNReceived:
+	case PCBStateSYNSent, PCBStateSYNReceived:
 		errCh <- fmt.Errorf("connection does not exist")
-	case TCPpcbStateEstablished, TCPpcbStateCloseWait:
-		if len(data) > int(tcb.snd.wnd) {
+	case PCBStateEstablished, PCBStateCloseWait:
+		if len(data) > int(pcb.snd.wnd) {
 			errCh <- fmt.Errorf("insufficient resources")
 		}
 
 		var err error
 		for i := 0; i < 3; i++ { // try to send data at most three time ( because of ARP cache specification of this package).
-			if err = TxHelperTCP(tcb, ACK, data, triggerSend, errCh); err != nil {
+			if err = TxHelperTCP(pcb, ACK, data, triggerSend, errCh); err != nil {
 				log.Printf("[E] TCP SEND call error %s", err.Error())
 				time.Sleep(20 * time.Millisecond)
 			} else {
-				tcb.snd.nxt += uint32(len(data))
+				pcb.snd.nxt += uint32(len(data))
 				return
 			}
 		}
@@ -378,43 +378,43 @@ func (tcb *TCPpcb) Send(errCh chan error, data []byte) {
 	}
 }
 
-func (tcb *TCPpcb) Receive(errCh chan error, buf []byte, n *int) {
-	tcpMutex.Lock()
-	defer tcpMutex.Unlock()
+func (pcb *pcb) Receive(errCh chan error, buf []byte, n *int) {
+	mutex.Lock()
+	defer mutex.Unlock()
 
-	switch tcb.state {
-	case TCPpcbStateClosed:
+	switch pcb.state {
+	case PCBStateClosed:
 		errCh <- fmt.Errorf("connection does not exist")
-	case TCPpcbStateListen, TCPpcbStateSYNSent, TCPpcbStateSYNReceived:
+	case PCBStateListen, PCBStateSYNSent, PCBStateSYNReceived:
 		errCh <- fmt.Errorf("connection does not exist")
-	case TCPpcbStateEstablished, TCPpcbStateFINWait1, TCPpcbStateFINWait2:
+	case PCBStateEstablished, PCBStateFINWait1, PCBStateFINWait2:
 		// If insufficient incoming segments are queued to satisfy the
 		// request, queue the request.
-		if tcb.rcvCmd.errCh != nil {
+		if pcb.rcvCmd.errCh != nil {
 			errCh <- fmt.Errorf("RECEIVE was already called and data haven't come yet")
 			return
 		}
-		tcb.rcvCmd = rcvCmd{
+		pcb.rcvCmd = rcvCmd{
 			n:     n,
 			data:  buf,
 			errCh: errCh,
 		}
-		tcb.signalCmd(triggerReceive)
-	case TCPpcbStateCloseWait:
-		if tcb.rcvCmd.errCh != nil {
+		pcb.signalCmd(triggerReceive)
+	case PCBStateCloseWait:
+		if pcb.rcvCmd.errCh != nil {
 			errCh <- fmt.Errorf("RECEIVE was already called and data haven't come yet")
 			return
 		}
-		tcb.rcvCmd = rcvCmd{
+		pcb.rcvCmd = rcvCmd{
 			n:     n,
 			data:  buf,
 			errCh: errCh,
 		}
-		tcb.signalCmd(triggerReceive)
+		pcb.signalCmd(triggerReceive)
 
 		// no remaining data
-		if tcb.rcvCmd.errCh != nil {
-			tcb.rcvCmd = rcvCmd{}
+		if pcb.rcvCmd.errCh != nil {
+			pcb.rcvCmd = rcvCmd{}
 			errCh <- fmt.Errorf("no remaning data")
 		}
 	default:
@@ -422,72 +422,72 @@ func (tcb *TCPpcb) Receive(errCh chan error, buf []byte, n *int) {
 	}
 }
 
-func (tcb *TCPpcb) Close(errCh chan error) {
-	tcpMutex.Lock()
-	defer tcpMutex.Unlock()
+func (pcb *pcb) Close(errCh chan error) {
+	mutex.Lock()
+	defer mutex.Unlock()
 
-	switch tcb.state {
-	case TCPpcbStateClosed:
+	switch pcb.state {
+	case PCBStateClosed:
 		errCh <- fmt.Errorf("connection does not exist")
-	case TCPpcbStateListen:
+	case PCBStateListen:
 		// Any outstanding RECEIVEs are returned with "error:  closing" responses.
-		tcb.signalErr("closing")
-		tcb.transition(TCPpcbStateClosed)
+		pcb.signalErr("closing")
+		pcb.transition(PCBStateClosed)
 		errCh <- nil
-	case TCPpcbStateSYNSent:
+	case PCBStateSYNSent:
 		// return "error:  closing" responses to any queued SENDs, or RECEIVEs.
-		tcb.signalErr("closing")
-		tcb.transition(TCPpcbStateClosed)
+		pcb.signalErr("closing")
+		pcb.transition(PCBStateClosed)
 		errCh <- nil
-	case TCPpcbStateSYNReceived:
+	case PCBStateSYNReceived:
 		// If no SENDs have been issued and there is no pending data to send,
 		// then form a FIN segment and send it, and enter FIN-WAIT-1 state;
 		// otherwise queue for processing after entering ESTABLISHED state.
 		var err error
 		for i := 0; i < 3; i++ { // try to send FIN at most three time ( because of ARP cache specification of this package).
-			if err = TxHelperTCP(tcb, ACK|FIN, []byte{}, triggerClose, errCh); err != nil {
+			if err = TxHelperTCP(pcb, ACK|FIN, []byte{}, triggerClose, errCh); err != nil {
 				log.Printf("[E] TCP CLOSE call error %s", err.Error())
 				time.Sleep(20 * time.Millisecond)
 			} else {
-				tcb.transition(TCPpcbStateFINWait1)
-				tcb.snd.nxt++
-				log.Printf("[D] active close: local=%s,foreign=%s,closing...", tcb.local, tcb.foreign)
+				pcb.transition(PCBStateFINWait1)
+				pcb.snd.nxt++
+				log.Printf("[D] active close: local=%s,foreign=%s,closing...", pcb.local, pcb.foreign)
 				return
 			}
 		}
 		errCh <- err
 
-	case TCPpcbStateEstablished:
+	case PCBStateEstablished:
 		// Queue this until all preceding SENDs have been segmentized, then
 		// form a FIN segment and send it.  In any case, enter FIN-WAIT-1
 		// state.
 		var err error
 		for i := 0; i < 3; i++ { // try to send FIN at most three time ( because of ARP cache specification of this package).
-			if err = TxHelperTCP(tcb, ACK|FIN, []byte{}, triggerClose, errCh); err != nil {
+			if err = TxHelperTCP(pcb, ACK|FIN, []byte{}, triggerClose, errCh); err != nil {
 				log.Printf("[E] TCP CLOSE call error %s", err.Error())
 				time.Sleep(20 * time.Millisecond)
 			} else {
-				tcb.transition(TCPpcbStateFINWait1)
-				tcb.snd.nxt++
-				log.Printf("[D] active close: local=%s,foreign=%s,closing...", tcb.local, tcb.foreign)
+				pcb.transition(PCBStateFINWait1)
+				pcb.snd.nxt++
+				log.Printf("[D] active close: local=%s,foreign=%s,closing...", pcb.local, pcb.foreign)
 				return
 			}
 		}
 		errCh <- err
 
-	case TCPpcbStateFINWait1, TCPpcbStateFINWait2:
+	case PCBStateFINWait1, PCBStateFINWait2:
 		errCh <- fmt.Errorf("connection closing")
-	case TCPpcbStateCloseWait:
+	case PCBStateCloseWait:
 		// Queue this request until all preceding SENDs have been
 		// segmentized; then send a FIN segment, enter CLOSING state.
 		var err error
 		for i := 0; i < 3; i++ { // try to send FIN at most three time ( because of ARP cache specification of this package).
-			if err = TxHelperTCP(tcb, ACK|FIN, []byte{}, triggerClose, errCh); err != nil {
+			if err = TxHelperTCP(pcb, ACK|FIN, []byte{}, triggerClose, errCh); err != nil {
 				log.Printf("[E] TCP CLOSE call error %s", err.Error())
 				time.Sleep(20 * time.Millisecond)
 			} else {
-				tcb.transition(TCPpcbStateLastACK)
-				tcb.snd.nxt++
+				pcb.transition(PCBStateLastACK)
+				pcb.snd.nxt++
 				return
 			}
 		}
@@ -498,38 +498,38 @@ func (tcb *TCPpcb) Close(errCh chan error) {
 	}
 }
 
-func (tcb *TCPpcb) Abort() error {
-	tcpMutex.Lock()
-	defer tcpMutex.Unlock()
+func (pcb *pcb) Abort() error {
+	mutex.Lock()
+	defer mutex.Unlock()
 
-	switch tcb.state {
-	case TCPpcbStateClosed:
+	switch pcb.state {
+	case PCBStateClosed:
 		return fmt.Errorf("connection does not exist")
-	case TCPpcbStateListen:
+	case PCBStateListen:
 		// Any outstanding RECEIVEs should be returned with "error:
 		// connection reset" responses
-		tcb.signalErr("connection reset")
-		tcb.transition(TCPpcbStateClosed)
+		pcb.signalErr("connection reset")
+		pcb.transition(PCBStateClosed)
 		return nil
-	case TCPpcbStateSYNSent:
+	case PCBStateSYNSent:
 		// All queued SENDs and RECEIVEs should be given "connection reset" notification,
 		// RECEIVE
-		tcb.signalErr("connection reset")
-		tcb.transition(TCPpcbStateClosed)
+		pcb.signalErr("connection reset")
+		pcb.transition(PCBStateClosed)
 		return nil
-	case TCPpcbStateSYNReceived, TCPpcbStateEstablished, TCPpcbStateFINWait1, TCPpcbStateFINWait2, TCPpcbStateCloseWait:
+	case PCBStateSYNReceived, PCBStateEstablished, PCBStateFINWait1, PCBStateFINWait2, PCBStateCloseWait:
 		// All queued SENDs and RECEIVEs should be given "connection reset"
 		// notification; all segments queued for transmission (except for the
 		// RST formed above) or retransmission should be flushed
-		tcb.signalErr("connection reset")
-		tcb.transition(TCPpcbStateClosed)
-		return TxHandlerTCP(tcb.local, tcb.foreign, []byte{}, tcb.snd.nxt, 0, RST, 0, 0)
+		pcb.signalErr("connection reset")
+		pcb.transition(PCBStateClosed)
+		return TxHandlerTCP(pcb.local, pcb.foreign, []byte{}, pcb.snd.nxt, 0, RST, 0, 0)
 	default:
-		tcb.transition(TCPpcbStateClosed)
+		pcb.transition(PCBStateClosed)
 		return nil
 	}
 }
 
-func (tcb *TCPpcb) Status() TCPpcbState {
-	return tcb.state
+func (pcb *pcb) Status() PCBState {
+	return pcb.state
 }

@@ -20,7 +20,7 @@ func compareByte(a []byte, b []byte) bool {
 }
 
 func Test2TCP(t *testing.T) {
-	org_hdr := TCPHeader{
+	org_hdr := Header{
 		Src:    80,
 		Dst:    20,
 		Seq:    9,
@@ -36,12 +36,12 @@ func Test2TCP(t *testing.T) {
 	src := ip.Addr(src_)
 	dst := ip.Addr(dst_)
 
-	data, err := header2dataTCP(&org_hdr, org_payload, src, dst)
+	data, err := header2data(&org_hdr, org_payload, src, dst)
 	if err != nil {
 		t.Error(err)
 	}
 
-	new_hdr, new_payload, err := data2headerTCP(data, src, dst)
+	new_hdr, new_payload, err := data2header(data, src, dst)
 	if err != nil {
 		t.Error(err)
 	}

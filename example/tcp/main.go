@@ -29,10 +29,10 @@ func main() {
 		return
 	}
 
-	src, _ := tcp.Str2TCPEndpoint(srcAddr)
+	src, _ := tcp.Str2Endpoint(srcAddr)
 
 	pkg.NetRun()
-	soc, err := tcp.NewTCPpcb(src)
+	soc, err := tcp.Newpcb(src)
 	if err != nil {
 		log.Println(err.Error())
 		return
@@ -51,7 +51,7 @@ func main() {
 
 	// for open
 	errOpen := make(chan error)
-	go soc.Open(errOpen, tcp.TCPEndpoint{}, false, 5*time.Minute)
+	go soc.Open(errOpen, tcp.Endpoint{}, false, 5*time.Minute)
 
 	// for receive
 	errRcv := make(chan error)
@@ -63,7 +63,7 @@ func main() {
 
 	func() {
 		for {
-			if rcv == 0 && soc.Status() == tcp.TCPpcbStateEstablished {
+			if rcv == 0 && soc.Status() == tcp.PCBStateEstablished {
 				go soc.Receive(errRcv, buf, &n)
 				rcv++
 			}
@@ -111,7 +111,7 @@ func main() {
 		log.Println("close succeeded")
 	}
 
-	err = tcp.DeleteTCPpcb(soc)
+	err = tcp.Deletepcb(soc)
 	if err != nil {
 		log.Println(err.Error())
 	}

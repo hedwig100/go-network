@@ -52,25 +52,25 @@ func tcpTimer(done chan struct{}) {
 		}
 
 		time.Sleep(time.Second)
-		tcpMutex.Lock()
+		mutex.Lock()
 
-		for _, tcb := range tcbs {
+		for _, pcb := range pcbs {
 
 			// time-wait timeout
-			if tcb.state == TCPpcbStateTimeWait && tcb.lastTxTime.Add(MSL).Before(time.Now()) {
-				tcb.signalErr("connection aborted due to user timeout")
-				tcb.transition(TCPpcbStateClosed)
+			if pcb.state == PCBStateTimeWait && pcb.lastTxTime.Add(MSL).Before(time.Now()) {
+				pcb.signalErr("connection aborted due to user timeout")
+				pcb.transition(PCBStateClosed)
 				continue
 			}
 
-			tcb.queueAck()
+			pcb.queueAck()
 			var deleteIndex []int
-			for i, entry := range tcb.retxQueue {
+			for i, entry := range pcb.retxQueue {
 
 				// user timeout
-				if entry.first.Add(tcb.timeout).Before(time.Now()) {
-					tcb.signalErr("connection aborted due to user timeout")
-					tcb.transition(TCPpcbStateClosed)
+				if entry.first.Add(pcb.timeout).Before(time.Now()) {
+					pcb.signalErr("connection aborted due to user timeout")
+					pcb.transition(PCBStateClosed)
 					break
 				}
 
@@ -86,8 +86,8 @@ func tcpTimer(done chan struct{}) {
 						}
 						deleteIndex = append(deleteIndex, i)
 					} else { // retransmission
-						log.Printf("[I] restransmission time=%d,local=%s,foreign=%s,seq=%d,flag=%s", entry.retxCount, tcb.local, tcb.foreign, entry.seq, entry.flag)
-						err := TxHandlerTCP(tcb.local, tcb.foreign, entry.data, entry.seq, tcb.rcv.nxt, entry.flag, tcb.snd.wnd, 0)
+						log.Printf("[I] restransmission time=%d,local=%s,foreign=%s,seq=%d,flag=%s", entry.retxCount, pcb.local, pcb.foreign, entry.seq, entry.flag)
+						err := TxHandlerTCP(pcb.local, pcb.foreign, entry.data, entry.seq, pcb.rcv.nxt, entry.flag, pcb.snd.wnd, 0)
 						if err != nil {
 							log.Printf("[E] : retransmit error %s", err)
 						}
@@ -95,9 +95,9 @@ func tcpTimer(done chan struct{}) {
 					}
 				}
 			}
-			tcb.retxQueue = removeRetx(tcb.retxQueue, deleteIndex)
+			pcb.retxQueue = removeRetx(pcb.retxQueue, deleteIndex)
 		}
 
-		tcpMutex.Unlock()
+		mutex.Unlock()
 	}
 }
