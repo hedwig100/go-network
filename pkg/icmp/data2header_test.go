@@ -17,9 +17,9 @@ func compareByte(a []byte, b []byte) bool {
 	return true
 }
 func Test2ICMP(t *testing.T) {
-	org_hdr := ICMPHeader{
-		Typ:      ICMPTypeDestUnreach,
-		Code:     ICMPCodeNetUnreach,
+	org_hdr := Header{
+		Typ:      TypeDestUnreach,
+		Code:     CodeNetUnreach,
 		Checksum: 0,
 		Values:   19,
 	}
