@@ -14,12 +14,12 @@ import (
 	TCP endpoint
 */
 
-type TCPEndpoint = udp.UDPEndpoint
+type TCPEndpoint = udp.Endpoint
 
 // Str2TCPEndpoint encodes str to TCPEndpoint
 // ex) str="8.8.8.8:80"
 func Str2TCPEndpoint(str string) (TCPEndpoint, error) {
-	return udp.Str2UDPEndpoint(str)
+	return udp.Str2Endpoint(str)
 }
 
 /*

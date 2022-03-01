@@ -13,9 +13,9 @@ import (
 	"github.com/hedwig100/go-network/pkg/utils"
 )
 
-// UDPInit prepare the UDP protocol.
-func UDPInit() error {
-	return ip.ProtoRegister(&UDPProtocol{})
+// Init prepare the UDP protocol.
+func Init() error {
+	return ip.ProtoRegister(&Protocol{})
 }
 
 /*
@@ -23,42 +23,42 @@ func UDPInit() error {
 */
 
 const (
-	UDPPortMin uint16 = 49152
-	UDPPortMax uint16 = 65535
+	PortMin uint16 = 49152
+	PortMax uint16 = 65535
 )
 
-// UDPEndpoint is IP address and port number combination
-type UDPEndpoint struct {
+// Endpoint is IP address and port number combination
+type Endpoint struct {
 
 	// IP address
-	Address ip.Addr
+	Addr ip.Addr
 
 	// port number
 	Port uint16
 }
 
-func (e UDPEndpoint) String() string {
-	return fmt.Sprintf("%s:%d", e.Address, e.Port)
+func (e Endpoint) String() string {
+	return fmt.Sprintf("%s:%d", e.Addr, e.Port)
 }
 
-// Str2UDPEndpoint encodes str to UDPEndpoint
+// Str2Endpoint encodes str to Endpoint
 // ex) str="8.8.8.8:80"
-func Str2UDPEndpoint(str string) (UDPEndpoint, error) {
+func Str2Endpoint(str string) (Endpoint, error) {
 	tmp := strings.Split(str, ":")
 	if len(tmp) != 2 {
-		return UDPEndpoint{}, fmt.Errorf("str is not correect")
+		return Endpoint{}, fmt.Errorf("str is not correect")
 	}
 	addr, err := ip.Str2Addr(tmp[0])
 	if err != nil {
-		return UDPEndpoint{}, err
+		return Endpoint{}, err
 	}
 	port, err := strconv.Atoi(tmp[1])
 	if err != nil {
-		return UDPEndpoint{}, err
+		return Endpoint{}, err
 	}
-	return UDPEndpoint{
-		Address: ip.Addr(addr),
-		Port:    uint16(port),
+	return Endpoint{
+		Addr: ip.Addr(addr),
+		Port: uint16(port),
 	}, nil
 }
 
@@ -67,12 +67,12 @@ func Str2UDPEndpoint(str string) (UDPEndpoint, error) {
 */
 
 const (
-	UDPHeaderSize       = 8
-	UDPPseudoHeaderSize = 12 // only supports IPv4 now
+	HeaderSize       = 8
+	PseudoHeaderSize = 12 // only supports IPv4 now
 )
 
-// UDPHeader is header for UDP.
-type UDPHeader struct {
+// Header is header for UDP.
+type Header struct {
 
 	// Source port number
 	Src uint16
@@ -87,7 +87,7 @@ type UDPHeader struct {
 	Checksum uint16
 }
 
-func (h UDPHeader) String() string {
+func (h Header) String() string {
 	return fmt.Sprintf(`
 		Src: %d,
 		Dst: %d,
@@ -96,8 +96,8 @@ func (h UDPHeader) String() string {
 	`, h.Src, h.Dst, h.Len, h.Checksum)
 }
 
-// UDPPseudoHeader is used for caluculating checksum
-type UDPPseudoHeader struct {
+// PseudoHeader is used for caluculating checksum
+type PseudoHeader struct {
 
 	// source IP address
 	Src ip.Addr
@@ -115,34 +115,34 @@ type UDPPseudoHeader struct {
 	Len uint16
 }
 
-// data2headerUDP transforms data to UDP header
+// data2header transforms data to UDP header
 // src,dst is used for caluculating checksum
-func data2headerUDP(data []byte, src ip.Addr, dst ip.Addr) (UDPHeader, []byte, error) {
+func data2header(data []byte, src ip.Addr, dst ip.Addr) (Header, []byte, error) {
 
-	if len(data) < UDPHeaderSize {
-		return UDPHeader{}, nil, fmt.Errorf("data size is too small for udp header")
+	if len(data) < HeaderSize {
+		return Header{}, nil, fmt.Errorf("data size is too small for udp header")
 	}
 
 	// read header in bigEndian
-	var hdr UDPHeader
+	var hdr Header
 	r := bytes.NewReader(data)
 	err := binary.Read(r, binary.BigEndian, &hdr)
 	if err != nil {
-		return UDPHeader{}, nil, err
+		return Header{}, nil, err
 	}
 
 	// check if length is correct
 	if int(hdr.Len) != len(data) {
-		return UDPHeader{}, nil, fmt.Errorf("data length is not the same as that written in header")
+		return Header{}, nil, fmt.Errorf("data length is not the same as that written in header")
 	}
 
 	// checksum not supported to other host
 	if hdr.Checksum == 0 {
-		return hdr, data[UDPHeaderSize:], nil
+		return hdr, data[HeaderSize:], nil
 	}
 
 	// caluculate checksum
-	pseudoHdr := UDPPseudoHeader{
+	pseudoHdr := PseudoHeader{
 		Src:  src,
 		Dst:  dst,
 		Type: ip.ProtoUDP,
@@ -153,20 +153,20 @@ func data2headerUDP(data []byte, src ip.Addr, dst ip.Addr) (UDPHeader, []byte, e
 	chksum := utils.CheckSum(w.Bytes(), 0)
 	chksum = utils.CheckSum(data, uint32(^chksum))
 	if chksum != 0 && chksum != 0xffff {
-		return UDPHeader{}, nil, fmt.Errorf("checksum error (UDP)")
+		return Header{}, nil, fmt.Errorf("checksum error (UDP)")
 	}
 
-	return hdr, data[UDPHeaderSize:], nil
+	return hdr, data[HeaderSize:], nil
 }
 
-func header2dataUDP(hdr *UDPHeader, payload []byte, src ip.Addr, dst ip.Addr) ([]byte, error) {
+func header2data(hdr *Header, payload []byte, src ip.Addr, dst ip.Addr) ([]byte, error) {
 
 	// pseudo header for caluculating checksum afterwards
-	pseudoHdr := UDPPseudoHeader{
+	pseudoHdr := PseudoHeader{
 		Src:  src,
 		Dst:  dst,
 		Type: ip.ProtoUDP,
-		Len:  uint16(UDPHeaderSize + len(payload)),
+		Len:  uint16(HeaderSize + len(payload)),
 	}
 
 	// write header in bigEndian
@@ -193,65 +193,65 @@ func header2dataUDP(hdr *UDPHeader, payload []byte, src ip.Addr, dst ip.Addr) ([
 
 	// set checksum in the header (for debug)
 	hdr.Checksum = chksum
-	return buf[UDPPseudoHeaderSize:], nil
+	return buf[PseudoHeaderSize:], nil
 }
 
 /*
 	UDP Protocol
 */
-// UDPProtocol is struct for UDP protocol handler.
+// Protocol is struct for UDP protocol handler.
 // This implements IPUpperProtocol interface.
-type UDPProtocol struct{}
+type Protocol struct{}
 
-func (p *UDPProtocol) Type() ip.ProtoType {
+func (p *Protocol) Type() ip.ProtoType {
 	return ip.ProtoUDP
 }
 
-func (p *UDPProtocol) RxHandler(data []byte, src ip.Addr, dst ip.Addr, ipIface *ip.Iface) error {
-	hdr, payload, err := data2headerUDP(data, src, dst)
+func (p *Protocol) RxHandler(data []byte, src ip.Addr, dst ip.Addr, ipIface *ip.Iface) error {
+	hdr, payload, err := data2header(data, src, dst)
 	if err != nil {
 		return err
 	}
 	log.Printf("[D] UDP rxHandler: src=%s:%d,dst=%s:%d,iface=%s,udp header=%s,payload=%v", src, hdr.Src, dst, hdr.Dst, ipIface.Family(), hdr, payload)
 
 	// search udp pcb whose address is dst
-	udpMutex.Lock()
-	defer udpMutex.Unlock()
-	pcb := udpPCBSelect(dst, hdr.Dst)
+	mutex.Lock()
+	defer mutex.Unlock()
+	pcb := pcbSelect(dst, hdr.Dst)
 	if pcb == nil {
 		return fmt.Errorf("destination UDP protocol control block not found")
 	}
 
-	pcb.rxQueue <- udpBuffer{
-		foreign: UDPEndpoint{
-			Address: src,
-			Port:    hdr.Src,
+	pcb.rxQueue <- buffer{
+		foreign: Endpoint{
+			Addr: src,
+			Port: hdr.Src,
 		},
 		data: payload,
 	}
 	return nil
 }
 
-// TxHandlerUDP transmits UDP datagram to the other host.
-func TxHandlerUDP(src UDPEndpoint, dst UDPEndpoint, data []byte) error {
+// TxHandler transmits UDP datagram to the other host.
+func TxHandler(src Endpoint, dst Endpoint, data []byte) error {
 
-	if len(data)+UDPHeaderSize > ip.PayloadSizeMax {
+	if len(data)+HeaderSize > ip.PayloadSizeMax {
 		return fmt.Errorf("data size is too large for UDP payload")
 	}
 
 	// transform UDP header to byte strings
-	hdr := UDPHeader{
+	hdr := Header{
 		Src: src.Port,
 		Dst: dst.Port,
-		Len: uint16(UDPHeaderSize + len(data)),
+		Len: uint16(HeaderSize + len(data)),
 	}
-	data, err := header2dataUDP(&hdr, data, src.Address, dst.Address)
+	data, err := header2data(&hdr, data, src.Addr, dst.Addr)
 	if err != nil {
 		return err
 	}
 
 	log.Printf("[D] UDP TxHandler: src=%s,dst=%s,udp header=%s", src, dst, hdr)
-	return ip.TxHandlerIP(ip.ProtoUDP, data, src.Address, dst.Address)
+	return ip.TxHandlerIP(ip.ProtoUDP, data, src.Addr, dst.Addr)
 }
 
 /*
@@ -259,69 +259,69 @@ func TxHandlerUDP(src UDPEndpoint, dst UDPEndpoint, data []byte) error {
 */
 
 const (
-	udpPCBStateFree    = 0
-	udpPCBStateOpen    = 1
-	udpPCBStateClosing = 2
+	pcbStateFree    = 0
+	pcbStateOpen    = 1
+	pcbStateClosing = 2
 
-	udpPCBBufSize = 100
+	pcbBufSize = 100
 )
 
 var (
-	udpMutex sync.Mutex
-	pcbs     []*UDPpcb
+	mutex sync.Mutex
+	pcbs  []*pcb
 )
 
-// UDPpcb is protocol control block for UDP
-type UDPpcb struct {
+// pcb is protocol control block for UDP
+type pcb struct {
 
 	// pcb state
 	state int
 
 	// our UDP endpoint
-	local UDPEndpoint
+	local Endpoint
 
 	// receive queue
-	rxQueue chan udpBuffer
+	rxQueue chan buffer
 }
 
-// udpBuffer is
-type udpBuffer struct {
+// buffer is
+type buffer struct {
 
 	// UDP endpoint of the source
-	foreign UDPEndpoint
+	foreign Endpoint
 
 	// data sent to us
 	data []byte
 }
 
-func udpPCBSelect(address ip.Addr, port uint16) *UDPpcb {
+func pcbSelect(address ip.Addr, port uint16) *pcb {
 	for _, p := range pcbs {
-		if p.local.Address == address && p.local.Port == port {
+		if p.local.Addr == address && p.local.Port == port {
 			return p
 		}
 	}
 	return nil
 }
 
-func OpenUDP() *UDPpcb {
-	pcb := &UDPpcb{
-		state: udpPCBStateOpen,
-		local: UDPEndpoint{
-			Address: ip.AddrAny,
+func OpenUDP() *pcb {
+	pcb := &pcb{
+		state: pcbStateOpen,
+		local: Endpoint{
+			Addr: ip.AddrAny,
 		},
-		rxQueue: make(chan udpBuffer, udpPCBBufSize),
+		rxQueue: make(chan buffer, pcbBufSize),
 	}
-	udpMutex.Lock()
+	mutex.Lock()
 	pcbs = append(pcbs, pcb)
-	udpMutex.Unlock()
+	mutex.Unlock()
 	return pcb
 }
 
-func Close(pcb *UDPpcb) error {
+func Close(pcb *pcb) error {
 
 	index := -1
-	udpMutex.Lock()
-	defer udpMutex.Unlock()
+	mutex.Lock()
+	defer mutex.Unlock()
 	for i, p := range pcbs {
 		if p == pcb {
 			index = i
@@ -336,11 +336,11 @@ func Close(pcb *UDPpcb) error {
 	return nil
 }
 
-func (pcb *UDPpcb) Bind(local UDPEndpoint) error {
+func (pcb *pcb) Bind(local Endpoint) error {
 
 	// check if the same address has not been bound
-	udpMutex.Lock()
-	defer udpMutex.Unlock()
+	mutex.Lock()
+	defer mutex.Unlock()
 	for _, p := range pcbs {
 		if p.local == local {
 			return fmt.Errorf("local address(%s) is already binded", local)
@@ -351,23 +351,23 @@ func (pcb *UDPpcb) Bind(local UDPEndpoint) error {
 	return nil
 }
 
-func (pcb *UDPpcb) Send(data []byte, dst UDPEndpoint) error {
+func (pcb *pcb) Send(data []byte, dst Endpoint) error {
 
 	local := pcb.local
 
-	if local.Address == ip.AddrAny {
-		route, err := ip.LookupTable(dst.Address)
+	if local.Addr == ip.AddrAny {
+		route, err := ip.LookupTable(dst.Addr)
 		if err != nil {
 			return err
 		}
-		local.Address = route.IpIface.Unicast
+		local.Addr = route.IpIface.Unicast
 	}
 
 	if local.Port == 0 { // zero value of Port (uint16)
-		for p := UDPPortMin; p <= UDPPortMax; p++ {
-			if udpPCBSelect(local.Address, p) != nil {
+		for p := PortMin; p <= PortMax; p++ {
+			if pcbSelect(local.Addr, p) != nil {
 				local.Port = p
-				log.Printf("[D] registered UDP :address=%s,port=%d", local.Address, local.Port)
+				log.Printf("[D] registered UDP :address=%s,port=%d", local.Addr, local.Port)
 				break
 			}
 		}
@@ -376,12 +376,12 @@ func (pcb *UDPpcb) Send(data []byte, dst UDPEndpoint) error {
 		}
 	}
 
-	return TxHandlerUDP(local, dst, data)
+	return TxHandler(local, dst, data)
 }
 
 // Listen listens data and write data to 'data'. if 'block' is false, there is no blocking I/O.
 // This function returns data size,data,and source UDP endpoint.
-func (pcb *UDPpcb) Listen(block bool) (int, []byte, UDPEndpoint) {
+func (pcb *pcb) Listen(block bool) (int, []byte, Endpoint) {
 
 	if block {
 		buf := <-pcb.rxQueue
@@ -393,6 +393,6 @@ func (pcb *UDPpcb) Listen(block bool) (int, []byte, UDPEndpoint) {
 	case buf := <-pcb.rxQueue:
 		return len(buf.data), buf.data, buf.foreign
 	default:
-		return 0, []byte{}, UDPEndpoint{}
+		return 0, []byte{}, Endpoint{}
 	}
 }

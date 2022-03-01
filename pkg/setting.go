@@ -51,7 +51,7 @@ func NetInit(setup bool) error {
 		return err
 	}
 
-	err = udp.UDPInit()
+	err = udp.Init()
 	if err != nil {
 		return err
 	}

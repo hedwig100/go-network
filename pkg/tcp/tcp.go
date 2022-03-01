@@ -47,7 +47,7 @@ func (p *TCPProtocol) RxHandler(data []byte, src ip.Addr, dst ip.Addr, ipIface *
 	// search TCP pcb
 	var tcb *TCPpcb
 	for _, candidate := range tcbs {
-		if candidate.local.Address == dst && candidate.local.Port == hdr.Dst {
+		if candidate.local.Addr == dst && candidate.local.Port == hdr.Dst {
 			tcb = candidate
 			break
 		}
@@ -73,8 +73,8 @@ func (p *TCPProtocol) RxHandler(data []byte, src ip.Addr, dst ip.Addr, ipIface *
 	}
 
 	foreign := TCPEndpoint{
-		Address: src,
-		Port:    hdr.Src,
+		Addr: src,
+		Port: hdr.Src,
 	}
 
 	return segmentArrives(tcb, seg, hdr.Flag, payload[hdrLen-TCPHeaderSizeMin:], dataLen, foreign)
@@ -482,11 +482,11 @@ func TxHandlerTCP(src TCPEndpoint, dst TCPEndpoint, payload []byte, seq uint32, 
 		Window: wnd,
 		Urgent: up,
 	}
-	data, err := header2dataTCP(&hdr, payload, src.Address, dst.Address)
+	data, err := header2dataTCP(&hdr, payload, src.Addr, dst.Addr)
 	if err != nil {
 		return err
 	}
 
 	log.Printf("[D] TCP TxHandler: src=%s,dst=%s,len=%d,tcp header=%s", src, dst, len(payload), hdr)
-	return ip.TxHandlerIP(ip.ProtoTCP, data, src.Address, dst.Address)
+	return ip.TxHandlerIP(ip.ProtoTCP, data, src.Addr, dst.Addr)
 }

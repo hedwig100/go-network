@@ -29,7 +29,7 @@ func main() {
 		return
 	}
 
-	src, _ := udp.Str2UDPEndpoint(srcAddr)
+	src, _ := udp.Str2Endpoint(srcAddr)
 
 	pkg.NetRun()
 	soc := udp.OpenUDP()

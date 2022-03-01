@@ -73,8 +73,8 @@ func TestUDP(t *testing.T) {
 	pkg.NetRun()
 
 	var seq int
-	src, _ := udp.Str2UDPEndpoint("192.0.2.2:80")
-	dst, _ := udp.Str2UDPEndpoint("8.8.8.8:80")
+	src, _ := udp.Str2Endpoint("192.0.2.2:80")
+	dst, _ := udp.Str2Endpoint("8.8.8.8:80")
 
 	func() {
 		for {
@@ -87,7 +87,7 @@ func TestUDP(t *testing.T) {
 			}
 
 			time.Sleep(time.Second)
-			err = udp.TxHandlerUDP(src, dst, []byte("hello"))
+			err = udp.TxHandler(src, dst, []byte("hello"))
 			seq++
 			if seq > 1 && err != nil { // when seq=1(first time),we get cache not found error. this is not the error
 				t.Error(err)
@@ -136,8 +136,8 @@ func TestSendUDP(t *testing.T) {
 	pkg.NetRun()
 
 	var seq int
-	src, _ := udp.Str2UDPEndpoint("192.0.2.2:80")
-	dst, _ := udp.Str2UDPEndpoint("192.0.2.1:80")
+	src, _ := udp.Str2Endpoint("192.0.2.2:80")
+	dst, _ := udp.Str2Endpoint("192.0.2.1:80")
 
 	func() {
 		for {
@@ -150,7 +150,7 @@ func TestSendUDP(t *testing.T) {
 			}
 
 			time.Sleep(time.Second)
-			err = udp.TxHandlerUDP(src, dst, []byte("hello world!\n"))
+			err = udp.TxHandler(src, dst, []byte("hello world!\n"))
 			seq++
 			if seq > 1 && err != nil { // when seq=1(first time),we get cache not found error. this is not the error
 				t.Error(err)
@@ -198,7 +198,7 @@ func TestSocketUDP(t *testing.T) {
 	pkg.NetRun()
 
 	// var seq int
-	src, _ := udp.Str2UDPEndpoint("192.0.2.2:7")
+	src, _ := udp.Str2Endpoint("192.0.2.2:7")
 	// dst, _ := pkg.Str2UDPEndpoint("192.0.2.1:7")
 
 	sock := udp.OpenUDP()
