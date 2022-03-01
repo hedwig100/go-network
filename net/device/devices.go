@@ -55,7 +55,7 @@ type Device interface {
 	Transmit([]byte, ProtocolType, HardwareAddress) error
 
 	// input from the device
-	RxHandler(chan struct{}, []Protocol)
+	RxHandler(chan struct{})
 }
 
 func isUp(d Device) bool {
@@ -69,10 +69,10 @@ func DeviceRegister(dev Device) {
 }
 
 // DeviceInputHandler receives data from the device and passes it to the protocol.
-func DeviceInputHanlder(typ ProtocolType, data []byte, dev Device, protocols []Protocol) {
+func DeviceInputHanlder(typ ProtocolType, data []byte, dev Device) {
 	log.Printf("[I] input data dev=%s,typ=%s,data:%v", dev, typ, data)
 
-	for i, proto := range protocols {
+	for i, proto := range Protocols {
 		if proto.Type() == typ {
 			ProtocolBuffers[i] <- ProtocolBuffer{
 				Data: data,

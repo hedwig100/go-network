@@ -66,7 +66,7 @@ func NetRun() {
 
 	// activate the receive handler of the device
 	for _, dev := range device.Devices {
-		go dev.RxHandler(done, device.Protocols)
+		go dev.RxHandler(done)
 	}
 
 	// activate the receive handler of the protocol

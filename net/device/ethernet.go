@@ -216,7 +216,7 @@ func (e *EthernetDevice) Transmit(data []byte, typ ProtocolType, dst HardwareAdd
 	return nil
 }
 
-func (e *EthernetDevice) RxHandler(done chan struct{}, protocols []Protocol) {
+func (e *EthernetDevice) RxHandler(done chan struct{}) {
 	buf := make([]byte, EtherFrameSizeMax)
 
 	for {
@@ -262,7 +262,7 @@ func (e *EthernetDevice) RxHandler(done chan struct{}, protocols []Protocol) {
 
 			// pass the header and subsequent parts as data to the protocol
 			log.Printf("[D] Ether rxHandler: dev=%s,protocolType=%s,len=%d,header=%s", e.name, hdr.Type, len, hdr)
-			DeviceInputHanlder(hdr.Type, payload[:len-EtherHdrSize], e, protocols)
+			DeviceInputHanlder(hdr.Type, payload[:len-EtherHdrSize], e)
 		}
 
 	}
