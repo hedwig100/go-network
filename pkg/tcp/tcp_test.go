@@ -1,4 +1,4 @@
-package pkg_test
+package tcp_test
 
 import (
 	"fmt"
@@ -8,24 +8,25 @@ import (
 	"github.com/hedwig100/go-network/pkg"
 	"github.com/hedwig100/go-network/pkg/device"
 	"github.com/hedwig100/go-network/pkg/ip"
+	"github.com/hedwig100/go-network/pkg/tcp"
 )
 
 /*
 
 1)
 nc -nv -l 192.0.2.1 8080&
-go test -v ./pkg/ -run TestTCPActive > log
+go test -v ./pkg/tcp -run TestTCPActive > log
 
 2)
 nc -nv -l 192.0.2.1 8080&
-go test -v ./pkg/ -run TestTCPSend > log
+go test -v ./pkg/tcp -run TestTCPSend > log
 
 3)
-go test -v ./pkg/ -run TestTCPPassive > log&
+go test -v ./pkg/tcp -run TestTCPPassive > log&
 nc -nv 192.0.2.2 8080
 
 4)
-go test -v ./pkg/ -run TestTCPReceive > log&
+go test -v ./pkg/tcp -run TestTCPReceive > log&
 nc -nv 192.0.2.2 8080
 hoge
 ...
@@ -80,10 +81,10 @@ func TestTCPActiveOpenClose(t *testing.T) {
 
 	pkg.NetRun()
 
-	src, _ := pkg.Str2TCPEndpoint("192.0.2.2:8080")
-	dst, _ := pkg.Str2TCPEndpoint("192.0.2.1:8080")
+	src, _ := tcp.Str2TCPEndpoint("192.0.2.2:8080")
+	dst, _ := tcp.Str2TCPEndpoint("192.0.2.1:8080")
 
-	soc, err := pkg.NewTCPpcb(src)
+	soc, err := tcp.NewTCPpcb(src)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +97,7 @@ func TestTCPActiveOpenClose(t *testing.T) {
 	close := 0
 
 	for {
-		if open == 0 && close == 0 && soc.Status() == pkg.TCPpcbStateEstablished {
+		if open == 0 && close == 0 && soc.Status() == tcp.TCPpcbStateEstablished {
 			go soc.Close(errChClose)
 			close++
 		}
@@ -166,10 +167,10 @@ func TestTCPSend(t *testing.T) {
 
 	pkg.NetRun()
 
-	src, _ := pkg.Str2TCPEndpoint("192.0.2.2:8080")
-	dst, _ := pkg.Str2TCPEndpoint("192.0.2.1:8080")
+	src, _ := tcp.Str2TCPEndpoint("192.0.2.2:8080")
+	dst, _ := tcp.Str2TCPEndpoint("192.0.2.1:8080")
 
-	soc, err := pkg.NewTCPpcb(src)
+	soc, err := tcp.NewTCPpcb(src)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,7 +186,7 @@ func TestTCPSend(t *testing.T) {
 		if cnt == 0 && maxSendTime == 0 {
 			break
 		}
-		if cnt == 0 && soc.Status() == pkg.TCPpcbStateEstablished {
+		if cnt == 0 && soc.Status() == tcp.TCPpcbStateEstablished {
 			go soc.Send(errChSend, []byte(fmt.Sprintf("TCP connection%d !!!!\n", maxSendTime)))
 			cnt++
 		}
@@ -255,23 +256,23 @@ func TestTCPPassiveOpen(t *testing.T) {
 
 	pkg.NetRun()
 
-	src, _ := pkg.Str2TCPEndpoint("192.0.2.2:8080")
+	src, _ := tcp.Str2TCPEndpoint("192.0.2.2:8080")
 
-	soc, err := pkg.NewTCPpcb(src)
+	soc, err := tcp.NewTCPpcb(src)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	errChOpen := make(chan error)
 	errChClose := make(chan error)
-	go soc.Open(errChOpen, pkg.TCPEndpoint{}, false, 5*time.Minute)
+	go soc.Open(errChOpen, tcp.TCPEndpoint{}, false, 5*time.Minute)
 
 	cnt := 1
 	for {
-		if cnt == 0 && soc.Status() == pkg.TCPpcbStateClosed {
+		if cnt == 0 && soc.Status() == tcp.TCPpcbStateClosed {
 			break
 		}
-		if cnt == 0 && soc.Status() == pkg.TCPpcbStateCloseWait {
+		if cnt == 0 && soc.Status() == tcp.TCPpcbStateCloseWait {
 			go soc.Close(errChClose)
 			cnt++
 		}
@@ -340,9 +341,9 @@ func TestTCPReceive(t *testing.T) {
 
 	pkg.NetRun()
 
-	src, _ := pkg.Str2TCPEndpoint("192.0.2.2:8080")
+	src, _ := tcp.Str2TCPEndpoint("192.0.2.2:8080")
 
-	soc, err := pkg.NewTCPpcb(src)
+	soc, err := tcp.NewTCPpcb(src)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -352,7 +353,7 @@ func TestTCPReceive(t *testing.T) {
 	buf := make([]byte, 20)
 	var n int
 
-	go soc.Open(errChOpen, pkg.TCPEndpoint{}, false, 5*time.Minute)
+	go soc.Open(errChOpen, tcp.TCPEndpoint{}, false, 5*time.Minute)
 	time.Sleep(time.Millisecond)
 
 	cnt := 1
@@ -362,7 +363,7 @@ func TestTCPReceive(t *testing.T) {
 		if cnt == 0 && maxRcvTime == 0 {
 			break
 		}
-		if cnt == 0 && soc.Status() == pkg.TCPpcbStateEstablished {
+		if cnt == 0 && soc.Status() == tcp.TCPpcbStateEstablished {
 			go soc.Receive(errChRcv, buf, &n)
 			cnt++
 		}

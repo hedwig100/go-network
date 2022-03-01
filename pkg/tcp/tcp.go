@@ -1,4 +1,4 @@
-package pkg
+package tcp
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"github.com/hedwig100/go-network/pkg/utils"
 )
 
-func tcpInit(done chan struct{}) error {
+func TCPInit(done chan struct{}) error {
 	go tcpTimer(done)
 	rand.Seed(time.Now().UnixNano())
 	return ip.IPProtocolRegister(&TCPProtocol{})

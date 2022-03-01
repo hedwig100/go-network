@@ -1,4 +1,4 @@
-package pkg
+package udp
 
 import (
 	"bytes"
@@ -13,8 +13,8 @@ import (
 	"github.com/hedwig100/go-network/pkg/utils"
 )
 
-// udpInit prepare the UDP protocol.
-func udpInit() error {
+// UDPInit prepare the UDP protocol.
+func UDPInit() error {
 	return ip.IPProtocolRegister(&UDPProtocol{})
 }
 

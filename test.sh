@@ -36,12 +36,17 @@ check
 go test -v ./pkg/icmp/ -run Test2
 check
 
+# udp 
+go test -v ./pkg/udp/ -run Test2
+check
+
+# tcp
+go test -v ./pkg/tcp/ -run Test2
+check
+
 # utils
 go test -v ./pkg/utils/
-
-# other
-go test -v ./pkg/ -run Test2
-check
+check 
 
 # test icmp,udp,tcp in manually for now 
 # TODO: how to test icmp,udp,tcp automatically

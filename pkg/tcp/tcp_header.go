@@ -1,4 +1,4 @@
-package pkg
+package tcp
 
 import (
 	"bytes"
@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/hedwig100/go-network/pkg/ip"
+	"github.com/hedwig100/go-network/pkg/udp"
 	"github.com/hedwig100/go-network/pkg/utils"
 )
 
@@ -13,12 +14,12 @@ import (
 	TCP endpoint
 */
 
-type TCPEndpoint = UDPEndpoint
+type TCPEndpoint = udp.UDPEndpoint
 
 // Str2TCPEndpoint encodes str to TCPEndpoint
 // ex) str="8.8.8.8:80"
 func Str2TCPEndpoint(str string) (TCPEndpoint, error) {
-	return Str2UDPEndpoint(str)
+	return udp.Str2UDPEndpoint(str)
 }
 
 /*

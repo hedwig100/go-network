@@ -5,6 +5,8 @@ import (
 	"github.com/hedwig100/go-network/pkg/icmp"
 	"github.com/hedwig100/go-network/pkg/ip"
 	"github.com/hedwig100/go-network/pkg/net"
+	"github.com/hedwig100/go-network/pkg/tcp"
+	"github.com/hedwig100/go-network/pkg/udp"
 )
 
 var done chan struct{} = make(chan struct{})
@@ -54,12 +56,12 @@ func NetInit(setup bool) error {
 		return err
 	}
 
-	err = udpInit()
+	err = udp.UDPInit()
 	if err != nil {
 		return err
 	}
 
-	err = tcpInit(done)
+	err = tcp.TCPInit(done)
 	if err != nil {
 		return err
 	}

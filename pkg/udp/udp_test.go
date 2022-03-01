@@ -1,4 +1,4 @@
-package pkg_test
+package udp_test
 
 import (
 	"log"
@@ -11,21 +11,33 @@ import (
 	"github.com/hedwig100/go-network/pkg"
 	"github.com/hedwig100/go-network/pkg/device"
 	"github.com/hedwig100/go-network/pkg/ip"
+	"github.com/hedwig100/go-network/pkg/udp"
 )
 
 /*
 
 1)
-go test -v ./pkg/ -run TestSendUDP > log&
+go test -v ./pkg/udp -run TestSendUDP > log&
 nc -u -l 192.0.2.1 80
 
 2)
-go test -v ./pkg/ -run TestSocketUDP > log&
+go test -v ./pkg/udp -run TestSocketUDP > log&
 nc -u 192.0.2.2 7
 hoge (followed by the same reply)
 ...
 
 */
+
+const (
+	loopbackIPAddr  = "127.0.0.1"
+	loopbackNetmask = "255.0.0.0"
+
+	etherTapIPAddr  = "192.0.2.2"
+	etherTapNetmask = "255.255.255.0"
+
+	defaultGateway = "192.0.2.1"
+)
+
 func TestUDP(t *testing.T) {
 
 	// catch CTRL+C
@@ -61,8 +73,8 @@ func TestUDP(t *testing.T) {
 	pkg.NetRun()
 
 	var seq int
-	src, _ := pkg.Str2UDPEndpoint("192.0.2.2:80")
-	dst, _ := pkg.Str2UDPEndpoint("8.8.8.8:80")
+	src, _ := udp.Str2UDPEndpoint("192.0.2.2:80")
+	dst, _ := udp.Str2UDPEndpoint("8.8.8.8:80")
 
 	func() {
 		for {
@@ -75,7 +87,7 @@ func TestUDP(t *testing.T) {
 			}
 
 			time.Sleep(time.Second)
-			err = pkg.TxHandlerUDP(src, dst, []byte("hello"))
+			err = udp.TxHandlerUDP(src, dst, []byte("hello"))
 			seq++
 			if seq > 1 && err != nil { // when seq=1(first time),we get cache not found error. this is not the error
 				t.Error(err)
@@ -124,8 +136,8 @@ func TestSendUDP(t *testing.T) {
 	pkg.NetRun()
 
 	var seq int
-	src, _ := pkg.Str2UDPEndpoint("192.0.2.2:80")
-	dst, _ := pkg.Str2UDPEndpoint("192.0.2.1:80")
+	src, _ := udp.Str2UDPEndpoint("192.0.2.2:80")
+	dst, _ := udp.Str2UDPEndpoint("192.0.2.1:80")
 
 	func() {
 		for {
@@ -138,7 +150,7 @@ func TestSendUDP(t *testing.T) {
 			}
 
 			time.Sleep(time.Second)
-			err = pkg.TxHandlerUDP(src, dst, []byte("hello world!\n"))
+			err = udp.TxHandlerUDP(src, dst, []byte("hello world!\n"))
 			seq++
 			if seq > 1 && err != nil { // when seq=1(first time),we get cache not found error. this is not the error
 				t.Error(err)
@@ -186,10 +198,10 @@ func TestSocketUDP(t *testing.T) {
 	pkg.NetRun()
 
 	// var seq int
-	src, _ := pkg.Str2UDPEndpoint("192.0.2.2:7")
+	src, _ := udp.Str2UDPEndpoint("192.0.2.2:7")
 	// dst, _ := pkg.Str2UDPEndpoint("192.0.2.1:7")
 
-	sock := pkg.OpenUDP()
+	sock := udp.OpenUDP()
 	err = sock.Bind(src)
 	if err != nil {
 		t.Error(err)
@@ -223,7 +235,7 @@ func TestSocketUDP(t *testing.T) {
 		}
 	}()
 
-	err = pkg.Close(sock)
+	err = udp.Close(sock)
 	if err != nil {
 		t.Error(err)
 	}
