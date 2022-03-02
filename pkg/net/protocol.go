@@ -33,8 +33,8 @@ func (pt ProtoType) String() string {
 
 const ProtoBufferSize = 100
 
-var Protos []Proto
-var ProtoBuffers []chan ProtoBuffer
+var protos []Proto
+var protoBuffers []chan ProtoBuffer
 
 // Proto is the ans abstraction of protocol
 type Proto interface {
@@ -61,8 +61,8 @@ func ProtoRegister(proto Proto) (err error) {
 
 	// add thee protocol
 	ch := make(chan ProtoBuffer, ProtoBufferSize)
-	Protos = append(Protos, proto)
-	ProtoBuffers = append(ProtoBuffers, ch)
+	protos = append(protos, proto)
+	protoBuffers = append(protoBuffers, ch)
 
 	log.Printf("[I] registerd proto=%s", proto.Type())
 	return

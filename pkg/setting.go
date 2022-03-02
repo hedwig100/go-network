@@ -71,16 +71,7 @@ func NetInit(setup bool) error {
 }
 
 func NetRun() {
-
-	// activate the receive handler of the device
-	for _, dev := range net.Devices {
-		go dev.RxHandler(done)
-	}
-
-	// activate the receive handler of the protocol
-	for i, proto := range net.Protos {
-		go proto.RxHandler(net.ProtoBuffers[i], done)
-	}
+	net.Open(done)
 }
 
 func NetShutdown() (err error) {
@@ -89,7 +80,7 @@ func NetShutdown() (err error) {
 	close(done)
 
 	// close devices
-	if err = net.CloseDevices(); err != nil {
+	if err = net.Close(); err != nil {
 		return
 	}
 	return

@@ -35,7 +35,7 @@ func TxHandler(typ MessageType, code MessageCode, values uint32, data []byte, sr
 
 	log.Printf("[D] ICMP TxHanlder: %s => %s,header=%s", src, dst, hdr)
 
-	return ip.TxHandlerIP(ip.ProtoICMP, data, src, dst)
+	return ip.TxHandler(ip.ProtoICMP, data, src, dst)
 }
 
 func (p *Proto) RxHandler(data []byte, src ip.Addr, dst ip.Addr, ipIface *ip.Iface) error {

@@ -19,7 +19,7 @@ const (
 	DeviceFlagNeedARP   uint16 = 0x0100
 )
 
-var Devices []Device
+var devices []Device
 
 /*
 	Device
@@ -64,7 +64,7 @@ func isUp(d Device) bool {
 
 // DeviceRegister registers the device
 func DeviceRegister(dev Device) {
-	Devices = append(Devices, dev)
+	devices = append(devices, dev)
 	log.Printf("[I] registerd dev=%s", dev.Name())
 }
 
@@ -72,9 +72,9 @@ func DeviceRegister(dev Device) {
 func DeviceInputHanlder(typ ProtoType, data []byte, dev Device) {
 	log.Printf("[I] input data dev=%s,typ=%s,data:%v", dev, typ, data)
 
-	for i, proto := range Protos {
+	for i, proto := range protos {
 		if proto.Type() == typ {
-			ProtoBuffers[i] <- ProtoBuffer{
+			protoBuffers[i] <- ProtoBuffer{
 				Data: data,
 				Dev:  dev,
 			}
@@ -102,22 +102,4 @@ func DeviceOutput(dev Device, data []byte, typ ProtoType, dst HardwareAddr) erro
 	}
 	log.Printf("[I] device output, dev=%s,typ=%s", dev.Name(), typ)
 	return nil
-}
-
-// CloseDevices closes all the devices
-func CloseDevices() (err error) {
-	for _, dev := range Devices {
-
-		if !isUp(dev) {
-			return fmt.Errorf("already closed dev=%s", dev.Name())
-		}
-
-		// close the channel and stop the receive handler
-		err = dev.Close()
-		if err != nil {
-			return
-		}
-		log.Printf("[I] close device dev=%s", dev.Name())
-	}
-	return
 }

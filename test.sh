@@ -32,6 +32,10 @@ check
 go test -v ./pkg/ip/ -run TestIP
 check
 
+# arp
+go test -v ./pkg/arp/ -run Test2
+check 
+
 # icmp
 go test -v ./pkg/icmp/ -run Test2
 check

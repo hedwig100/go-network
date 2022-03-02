@@ -64,5 +64,5 @@ func TxHandler(src Endpoint, dst Endpoint, data []byte) error {
 	}
 
 	log.Printf("[D] UDP TxHandler: src=%s,dst=%s,udp header=%s", src, dst, hdr)
-	return ip.TxHandlerIP(ip.ProtoUDP, data, src.Addr, dst.Addr)
+	return ip.TxHandler(ip.ProtoUDP, data, src.Addr, dst.Addr)
 }

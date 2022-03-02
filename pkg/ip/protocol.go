@@ -59,8 +59,8 @@ func (p *IProto) Type() net.ProtoType {
 	return net.ProtoTypeIP
 }
 
-// TxHandlerIP receives data from IPUpperProtocol and transmit the data with the device
-func TxHandlerIP(protocol ProtoType, data []byte, src Addr, dst Addr) error {
+// TxHandler receives data from IPUpperProtocol and transmit the data with the device
+func TxHandler(protocol ProtoType, data []byte, src Addr, dst Addr) error {
 
 	// if dst is broadcast address, source is required
 	if src == AddrAny && dst == AddrBroadcast {

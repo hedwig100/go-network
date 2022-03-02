@@ -31,9 +31,9 @@ func (f IfaceFamily) String() string {
 	Interface
 */
 
-var Interfaces []Interface
+var interfaces []Interface
 
-// Interfaces is a logical interface,
+// Interface is a logical interface,
 // it serves as an entry point for devices and manages their addresses, etc
 type Interface interface {
 
@@ -60,7 +60,7 @@ func IfaceRegister(dev Device, iface Interface) error {
 	// add interface to the device
 	dev.AddIface(iface)
 	iface.SetDev(dev)
-	Interfaces = append(Interfaces, iface)
+	interfaces = append(interfaces, iface)
 	log.Printf("[I] iface=%s is registerd dev=%s", iface.Family(), dev.Name())
 	return nil
 }

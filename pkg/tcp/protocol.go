@@ -488,5 +488,5 @@ func TxHandler(src Endpoint, dst Endpoint, payload []byte, seq uint32, ack uint3
 	}
 
 	log.Printf("[D] TCP TxHandler: src=%s,dst=%s,len=%d,tcp header=%s", src, dst, len(payload), hdr)
-	return ip.TxHandlerIP(ip.ProtoTCP, data, src.Addr, dst.Addr)
+	return ip.TxHandler(ip.ProtoTCP, data, src.Addr, dst.Addr)
 }
