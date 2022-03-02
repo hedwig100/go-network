@@ -2,10 +2,10 @@ package arp
 
 import "time"
 
-const arpCacheTimeout time.Duration = 30 * time.Second
+const cacheTimeout time.Duration = 30 * time.Second
 
-// arpTimer
-func arpTimer(done chan struct{}) {
+// timer
+func timer(done chan struct{}) {
 	for {
 
 		// check if process finishes or not
@@ -17,8 +17,8 @@ func arpTimer(done chan struct{}) {
 
 		now := time.Now()
 		for i, cache := range caches {
-			if cache.state != arpCacheStateFree && cache.timeval.Add(arpCacheTimeout).Before(now) {
-				arpCacheDelete(i) // no error
+			if cache.state != cacheFree && cache.timeval.Add(cacheTimeout).Before(now) {
+				cacheDelete(i) // no error
 			}
 		}
 

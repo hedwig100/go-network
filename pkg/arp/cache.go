@@ -11,22 +11,22 @@ import (
 )
 
 const (
-	arpCacheSize uint8 = 32
+	cacheSize uint8 = 32
 
 	// cache state
-	arpCacheStateFree       uint8 = 0
-	arpCacheStateImcomplete uint8 = 1
-	arpCacheStateResolved   uint8 = 2
-	arpCacheStateStatic     uint8 = 3
+	cacheFree       uint8 = 0
+	cacheImcomplete uint8 = 1
+	cacheResolved   uint8 = 2
+	cacheStatic     uint8 = 3
 )
 
 var (
 	mutex  sync.Mutex
-	caches [arpCacheSize]arpCacheEntry
+	caches [cacheSize]cacheEntry
 )
 
-// arpCacheEntry is arp cache table's entry
-type arpCacheEntry struct {
+// cacheEntry is arp cache table's entry
+type cacheEntry struct {
 
 	// cache state
 	state uint8
@@ -41,37 +41,37 @@ type arpCacheEntry struct {
 	timeval time.Time
 }
 
-// arpCacheAlloc searches empty cache entry in the cache table and returns the index,
+// cacheAlloc searches empty cache entry in the cache table and returns the index,
 // if no empty entry is found, index of the oldest entry is returned.
-func arpCacheAlloc() int {
+func cacheAlloc() int {
 
-	oldestIndex := -1
-	var oldest arpCacheEntry
+	var id int
+	var oldest cacheEntry
 
 	for i, cache := range caches {
 
 		// empty cache
-		if cache.state == arpCacheStateFree {
+		if cache.state == cacheFree {
 			return i
 		}
 
 		// update if cache's timeval is older than oldest's timeval
-		if oldestIndex < 0 || oldest.timeval.After(cache.timeval) {
-			oldestIndex = i
+		if oldest.timeval.After(cache.timeval) {
+			id = i
 			oldest = cache
 		}
 	}
 
-	return oldestIndex
+	return id
 }
 
-// arpCacheInsert inserts cache entry to the cache table
-func arpCacheInsert(pa ip.Addr, ha device.EtherAddr) {
+// cacheInsert inserts cache entry to the cache table
+func cacheInsert(pa ip.Addr, ha device.EtherAddr) {
 
-	index := arpCacheAlloc()
+	id := cacheAlloc()
 	timeval := time.Now()
-	caches[index] = arpCacheEntry{
-		state:   arpCacheStateResolved,
+	caches[id] = cacheEntry{
+		state:   cacheResolved,
 		pa:      pa,
 		ha:      ha,
 		timeval: timeval,
@@ -80,12 +80,12 @@ func arpCacheInsert(pa ip.Addr, ha device.EtherAddr) {
 
 }
 
-// arpCacheSelect selects cache entry from the cache table
+// cacheSelect selects cache entry from the cache table
 // and returns index of the entry
-func arpCacheSelect(pa ip.Addr) (int, error) {
+func cacheSelect(pa ip.Addr) (int, error) {
 
 	for i, cache := range caches {
-		if cache.state != arpCacheStateFree && cache.pa == pa {
+		if cache.state != cacheFree && cache.pa == pa {
 			return i, nil
 		}
 	}
@@ -93,21 +93,21 @@ func arpCacheSelect(pa ip.Addr) (int, error) {
 	return 0, fmt.Errorf("cache not found(pa=%s)", pa)
 }
 
-// arpCacheUpdate updates cache entry in the cache table
+// cacheUpdate updates cache entry in the cache table
 // return true if cache was inserted before and update is successful
 // return false if cache was not there and update is unsuccessful
-func arpCacheUpdate(pa ip.Addr, ha device.EtherAddr) bool {
+func cacheUpdate(pa ip.Addr, ha device.EtherAddr) bool {
 
 	// get cache index
-	index, err := arpCacheSelect(pa)
+	id, err := cacheSelect(pa)
 	if err != nil {
 		return false
 	}
 
 	// update
 	timeval := time.Now()
-	caches[index] = arpCacheEntry{
-		state:   arpCacheStateResolved,
+	caches[id] = cacheEntry{
+		state:   cacheResolved,
 		pa:      pa,
 		ha:      ha,
 		timeval: timeval,
@@ -116,15 +116,15 @@ func arpCacheUpdate(pa ip.Addr, ha device.EtherAddr) bool {
 	return true
 }
 
-// arpCacheDelete deletes cache entry from the cache table
-func arpCacheDelete(index int) error {
-	if index < 0 || index >= int(arpCacheSize) {
+// cacheDelete deletes cache entry from the cache table
+func cacheDelete(id int) error {
+	if id < 0 || id >= int(cacheSize) {
 		return fmt.Errorf("cache table index out of range")
 	}
 
-	log.Printf("[D] ARP cache delete ps=%s,ha=%s", caches[index].pa, caches[index].ha)
-	caches[index] = arpCacheEntry{
-		state: arpCacheStateFree,
+	log.Printf("[D] ARP cache delete ps=%s,ha=%s", caches[id].pa, caches[id].ha)
+	caches[id] = cacheEntry{
+		state: cacheFree,
 	}
 	return nil
 }

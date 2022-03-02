@@ -23,7 +23,7 @@ const (
 
 // Init prepare the ARP protocol.
 func Init(done chan struct{}) error {
-	go arpTimer(done)
+	go timer(done)
 	err := net.ProtoRegister(&Proto{})
 	if err != nil {
 		return err
@@ -59,7 +59,7 @@ func (p *Proto) RxHandler(ch chan net.ProtoBuffer, done chan struct{}) {
 
 		// update arp cache table
 		mutex.Lock()
-		merge := arpCacheUpdate(hdr.Spa, hdr.Sha)
+		merge := cacheUpdate(hdr.Spa, hdr.Sha)
 		mutex.Unlock()
 
 		// search the IP interface of the device
@@ -75,7 +75,7 @@ func (p *Proto) RxHandler(ch chan net.ProtoBuffer, done chan struct{}) {
 		// insert cache entry if entry is not updated before
 		if !merge {
 			mutex.Lock()
-			arpCacheInsert(hdr.Spa, hdr.Sha)
+			cacheInsert(hdr.Spa, hdr.Sha)
 			mutex.Unlock()
 		}
 
@@ -136,38 +136,34 @@ func Resolve(iface net.Interface, pa ip.Addr) (net.HardwareAddr, error) {
 
 	// search cache table
 	mutex.Lock()
-	index, err := arpCacheSelect(pa)
+	defer mutex.Unlock()
+	index, err := cacheSelect(pa)
 
 	// cache not found
 	if err != nil {
 
-		index = arpCacheAlloc()
-		caches[index] = arpCacheEntry{
-			state:   arpCacheStateImcomplete,
+		index = cacheAlloc()
+		caches[index] = cacheEntry{
+			state:   cacheImcomplete,
 			pa:      pa,
 			timeval: time.Now(),
 		}
 
 		// if cache is not in the table, transmit arp request
 		Request(ipIface, pa)
-		mutex.Unlock()
-
 		return nil, err
 	}
 
 	// cache found but imcomplete request
-	if caches[index].state == arpCacheStateImcomplete {
+	if caches[index].state == cacheImcomplete {
 
 		// if found cache is imcomplete,it might be a packet loss,so transmit arp request
 		Request(ipIface, pa)
-		mutex.Unlock()
-
 		return nil, fmt.Errorf("cache state is imcomplete")
 	}
 
 	// cache found and get hardware address
 	ha := caches[index].ha
-	mutex.Unlock()
 	return ha, nil
 }
 
