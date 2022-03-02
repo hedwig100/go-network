@@ -8,10 +8,6 @@ import (
 	"github.com/hedwig100/go-network/pkg/utils"
 )
 
-/*
-	IP Header
-*/
-
 // Header is header for IP packet.
 type Header struct {
 
@@ -62,7 +58,7 @@ func (h Header) String() string {
 }
 
 // data2IPHeader transforms byte strings to IP Header and the rest of the data
-func data2headerIP(data []byte) (Header, []byte, error) {
+func data2header(data []byte) (Header, []byte, error) {
 
 	if len(data) < HeaderSizeMin {
 		return Header{}, nil, fmt.Errorf("data size is too small")
@@ -99,7 +95,7 @@ func data2headerIP(data []byte) (Header, []byte, error) {
 	return ipHdr, data[hlen:], nil
 }
 
-func header2dataIP(hdr *Header, payload []byte) ([]byte, error) {
+func header2data(hdr *Header, payload []byte) ([]byte, error) {
 
 	// write header in bigEndian
 	var w bytes.Buffer

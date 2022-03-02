@@ -42,7 +42,7 @@ func NetInit(setup bool) error {
 		}
 	}
 
-	err := ip.Init(arp.ArpResolve)
+	err := ip.Init(arp.Resolve)
 	if err != nil {
 		return err
 	}

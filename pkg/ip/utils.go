@@ -19,3 +19,11 @@ func Str2Addr(str string) (uint32, error) {
 	}
 	return b, nil
 }
+
+var id uint16 = 0
+
+// generateId() generates id for IP header
+func generateId() uint16 {
+	id++
+	return id
+}

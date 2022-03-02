@@ -35,12 +35,12 @@ func Test2IP(t *testing.T) {
 	}
 	org_payload := []byte{0x92, 0x12, 0x29}
 
-	data, err := header2dataIP(&org_hdr, org_payload)
+	data, err := header2data(&org_hdr, org_payload)
 	if err != nil {
 		t.Error(err)
 	}
 
-	new_hdr, new_payload, err := data2headerIP(data)
+	new_hdr, new_payload, err := data2header(data)
 	if err != nil {
 		t.Error(err)
 	}

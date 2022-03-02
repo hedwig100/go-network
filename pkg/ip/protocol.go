@@ -48,14 +48,6 @@ func (a Addr) String() string {
 	return fmt.Sprintf("%d.%d.%d.%d", (b>>24)&0xff, (b>>16)&0xff, (b>>8)&0xff, b&0xff)
 }
 
-var id uint16 = 0
-
-// generateId() generates id for IP header
-func generateId() uint16 {
-	id++
-	return id
-}
-
 /*
 	IP Protocol
 */
@@ -111,7 +103,7 @@ func TxHandlerIP(protocol ProtoType, data []byte, src Addr, dst Addr) error {
 		Src:       ipIface.Unicast,
 		Dst:       dst,
 	}
-	data, err = header2dataIP(&hdr, data)
+	data, err = header2data(&hdr, data)
 	if err != nil {
 		return err
 	}
@@ -149,7 +141,7 @@ func (p *IProto) RxHandler(ch chan net.ProtoBuffer, done chan struct{}) {
 		pb = <-ch
 
 		// extract the header from the beginning of the data
-		ipHdr, payload, err := data2headerIP(pb.Data)
+		ipHdr, payload, err := data2header(pb.Data)
 		if err != nil {
 			log.Printf("[E] IP rxHandler: %s", err.Error())
 			continue
