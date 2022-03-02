@@ -92,10 +92,10 @@ func segmentArrives(pcb *pcb, seg segment, flag ControlFlag, data []byte, dataLe
 		}
 		// ACK bit is off
 		if !isSet(flag, ACK) {
-			return TxHandlerTCP(pcb.local, pcb.foreign, []byte{}, 0, seg.seq+seg.len, RST|ACK, 0, 0)
+			return TxHandler(pcb.local, pcb.foreign, []byte{}, 0, seg.seq+seg.len, RST|ACK, 0, 0)
 		}
 		// ACK bit is on
-		return TxHandlerTCP(pcb.local, pcb.foreign, []byte{}, seg.ack, 0, RST, 0, 0)
+		return TxHandler(pcb.local, pcb.foreign, []byte{}, seg.ack, 0, RST, 0, 0)
 
 	case PCBStateListen:
 		// first check for an RST
@@ -108,7 +108,7 @@ func segmentArrives(pcb *pcb, seg segment, flag ControlFlag, data []byte, dataLe
 		if isSet(flag, ACK) {
 			// Any acknowledgment is bad if it arrives on a connection still in the LISTEN state.
 			// An acceptable reset segment should be formed for any arriving ACK-bearing segment.
-			return TxHandlerTCP(pcb.local, pcb.foreign, []byte{}, seg.ack, 0, RST, 0, 0)
+			return TxHandler(pcb.local, pcb.foreign, []byte{}, seg.ack, 0, RST, 0, 0)
 		}
 
 		// third check for a SYN
@@ -142,7 +142,7 @@ func segmentArrives(pcb *pcb, seg segment, flag ControlFlag, data []byte, dataLe
 			// If SEG.ACK =< ISS, or SEG.ACK > SND.NXT, send a reset (unless
 			// the RST bit is set, if so drop the segment and return)
 			if seg.ack <= pcb.iss || seg.ack > pcb.snd.nxt {
-				return TxHandlerTCP(pcb.local, pcb.foreign, []byte{}, seg.ack, 0, RST, 0, 0)
+				return TxHandler(pcb.local, pcb.foreign, []byte{}, seg.ack, 0, RST, 0, 0)
 			}
 			if pcb.snd.una <= seg.ack && seg.ack <= pcb.snd.nxt {
 				// this ACK is  acceptable
@@ -290,7 +290,7 @@ func segmentArrives(pcb *pcb, seg segment, flag ControlFlag, data []byte, dataLe
 				pcb.transition(PCBStateEstablished)
 			} else {
 				log.Printf("unacceptable ACK is sent")
-				return TxHandlerTCP(pcb.local, pcb.foreign, []byte{}, seg.ack, 0, RST, 0, 0)
+				return TxHandler(pcb.local, pcb.foreign, []byte{}, seg.ack, 0, RST, 0, 0)
 			}
 			fallthrough
 		case PCBStateEstablished, PCBStateFINWait1, PCBStateFINWait2, PCBStateCloseWait, PCBStateClosing:
@@ -456,7 +456,7 @@ func TxHelperTCP(pcb *pcb, flag ControlFlag, data []byte, trigger uint8, errCh c
 	if isSet(flag, SYN) {
 		seq = pcb.iss
 	}
-	if err := TxHandlerTCP(pcb.local, pcb.foreign, data, seq, pcb.rcv.nxt, flag, pcb.rcv.wnd, pcb.rcv.up); err != nil {
+	if err := TxHandler(pcb.local, pcb.foreign, data, seq, pcb.rcv.nxt, flag, pcb.rcv.wnd, pcb.rcv.up); err != nil {
 		return err
 	}
 	if isSet(flag, SYN|FIN) || len(data) > 0 {
@@ -465,7 +465,7 @@ func TxHelperTCP(pcb *pcb, flag ControlFlag, data []byte, trigger uint8, errCh c
 	return nil
 }
 
-func TxHandlerTCP(src Endpoint, dst Endpoint, payload []byte, seq uint32, ack uint32, flag ControlFlag, wnd uint16, up uint16) error {
+func TxHandler(src Endpoint, dst Endpoint, payload []byte, seq uint32, ack uint32, flag ControlFlag, wnd uint16, up uint16) error {
 
 	if len(payload)-HeaderSizeMin > ip.PayloadSizeMax {
 		return fmt.Errorf("data size is too large for TCP payload")

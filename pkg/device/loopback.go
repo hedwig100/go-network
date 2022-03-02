@@ -55,7 +55,7 @@ func (l *Loopback) Close() error {
 	return nil
 }
 
-func (l *Loopback) Transmit(data []byte, typ net.ProtoType, dst net.HardwareAddr) error {
+func (l *Loopback) TxHandler(data []byte, typ net.ProtoType, dst net.HardwareAddr) error {
 
 	// send back
 	net.DeviceInputHanlder(typ, data, l)

@@ -523,7 +523,7 @@ func (pcb *pcb) Abort() error {
 		// RST formed above) or retransmission should be flushed
 		pcb.signalErr("connection reset")
 		pcb.transition(PCBStateClosed)
-		return TxHandlerTCP(pcb.local, pcb.foreign, []byte{}, pcb.snd.nxt, 0, RST, 0, 0)
+		return TxHandler(pcb.local, pcb.foreign, []byte{}, pcb.snd.nxt, 0, RST, 0, 0)
 	default:
 		pcb.transition(PCBStateClosed)
 		return nil

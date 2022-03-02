@@ -52,7 +52,7 @@ type Device interface {
 	Close() error
 
 	// output data to destination
-	Transmit([]byte, ProtoType, HardwareAddr) error
+	TxHandler([]byte, ProtoType, HardwareAddr) error
 
 	// input from the device
 	RxHandler(chan struct{})
@@ -96,7 +96,7 @@ func DeviceOutput(dev Device, data []byte, typ ProtoType, dst HardwareAddr) erro
 		return fmt.Errorf("data size is too large dev=%s,mtu=%v", dev.Name(), dev.MTU())
 	}
 
-	err := dev.Transmit(data, typ, dst)
+	err := dev.TxHandler(data, typ, dst)
 	if err != nil {
 		return err
 	}

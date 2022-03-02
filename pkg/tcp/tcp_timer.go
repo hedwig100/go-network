@@ -87,7 +87,7 @@ func tcpTimer(done chan struct{}) {
 						deleteIndex = append(deleteIndex, i)
 					} else { // retransmission
 						log.Printf("[I] restransmission time=%d,local=%s,foreign=%s,seq=%d,flag=%s", entry.retxCount, pcb.local, pcb.foreign, entry.seq, entry.flag)
-						err := TxHandlerTCP(pcb.local, pcb.foreign, entry.data, entry.seq, pcb.rcv.nxt, entry.flag, pcb.snd.wnd, 0)
+						err := TxHandler(pcb.local, pcb.foreign, entry.data, entry.seq, pcb.rcv.nxt, entry.flag, pcb.snd.wnd, 0)
 						if err != nil {
 							log.Printf("[E] : retransmit error %s", err)
 						}

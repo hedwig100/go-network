@@ -124,7 +124,7 @@ func TxHandlerIP(protocol ProtoType, data []byte, src Addr, dst Addr) error {
 	}
 
 	log.Printf("[D] IP TxHandler: iface=%d,dev=%s,header=%s", ipIface.Family(), ipIface.dev.Name(), hdr)
-	return ipIface.dev.Transmit(data, net.ProtoTypeIP, hwaddr)
+	return net.DeviceOutput(ipIface.dev, data, net.ProtoTypeIP, hwaddr) //ipIface.dev.TxHandler(data, net.ProtoTypeIP, hwaddr)
 }
 
 func (p *IProto) RxHandler(ch chan net.ProtoBuffer, done chan struct{}) {

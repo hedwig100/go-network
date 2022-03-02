@@ -171,7 +171,7 @@ func (e *Ether) Close() error {
 	return err
 }
 
-func (e *Ether) Transmit(data []byte, typ net.ProtoType, dst net.HardwareAddr) error {
+func (e *Ether) TxHandler(data []byte, typ net.ProtoType, dst net.HardwareAddr) error {
 
 	// dst must be Ethernet address
 	etherDst, ok := dst.(EtherAddr)

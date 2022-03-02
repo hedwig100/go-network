@@ -53,7 +53,7 @@ func (n *Null) Close() error {
 	return nil
 }
 
-func (n *Null) Transmit(data []byte, typ net.ProtoType, dst net.HardwareAddr) error {
+func (n *Null) TxHandler(data []byte, typ net.ProtoType, dst net.HardwareAddr) error {
 	log.Printf("[I] Null TxHandler: data(%v) is trasmitted by null-device(name=%s)", data, n.name)
 	return nil
 }
