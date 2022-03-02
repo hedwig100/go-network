@@ -3,8 +3,6 @@ package ip
 import (
 	"log"
 	"testing"
-
-	"github.com/hedwig100/go-network/pkg/device"
 )
 
 func compareByte(a []byte, b []byte) bool {
@@ -58,40 +56,5 @@ func Test2IP(t *testing.T) {
 	}
 	if !compareByte(org_payload, new_payload) {
 		t.Error("IPv4 payload transforrm not succeeded")
-	}
-}
-
-func Test2ARP(t *testing.T) {
-	org_hdr := ArpEther{
-		ArpHeader: ArpHeader{
-			Hrd: arpHrdEther,
-			Pro: arpProIP,
-			Hln: device.EtherAddrLen,
-			Pln: AddrLen,
-			Op:  arpOpReply,
-		},
-		Sha: device.EtherAddrAny,
-		Spa: AddrAny,
-		Tha: device.EtherAddrBroadcast,
-		Tpa: AddrBroadcast,
-	}
-
-	data, err := header2dataARP(org_hdr)
-	log.Printf("%v\n", data)
-	if err != nil {
-		t.Error(err)
-	}
-
-	new_hdr, err := data2headerARP(data)
-	if err != nil {
-		t.Error(err)
-	}
-
-	log.Printf("%s\n", org_hdr)
-	log.Printf("%v\n", data)
-	log.Printf("%s\n", new_hdr)
-
-	if org_hdr != new_hdr {
-		t.Error("ARP header transform not succeeded")
 	}
 }

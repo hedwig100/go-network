@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"github.com/hedwig100/go-network/pkg/arp"
 	"github.com/hedwig100/go-network/pkg/device"
 	"github.com/hedwig100/go-network/pkg/icmp"
 	"github.com/hedwig100/go-network/pkg/ip"
@@ -41,7 +42,12 @@ func NetInit(setup bool) error {
 		}
 	}
 
-	err := ip.Init(done)
+	err := ip.Init(arp.ArpResolve)
+	if err != nil {
+		return err
+	}
+
+	err = arp.Init(done)
 	if err != nil {
 		return err
 	}

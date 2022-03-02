@@ -1,4 +1,4 @@
-package ip
+package arp
 
 import (
 	"fmt"
@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hedwig100/go-network/pkg/device"
+	"github.com/hedwig100/go-network/pkg/ip"
 )
 
 const (
@@ -31,7 +32,7 @@ type arpCacheEntry struct {
 	state uint8
 
 	// protocol address
-	pa Addr
+	pa ip.Addr
 
 	// hardware address
 	ha device.EtherAddr
@@ -65,7 +66,7 @@ func arpCacheAlloc() int {
 }
 
 // arpCacheInsert inserts cache entry to the cache table
-func arpCacheInsert(pa Addr, ha device.EtherAddr) {
+func arpCacheInsert(pa ip.Addr, ha device.EtherAddr) {
 
 	index := arpCacheAlloc()
 	timeval := time.Now()
@@ -81,7 +82,7 @@ func arpCacheInsert(pa Addr, ha device.EtherAddr) {
 
 // arpCacheSelect selects cache entry from the cache table
 // and returns index of the entry
-func arpCacheSelect(pa Addr) (int, error) {
+func arpCacheSelect(pa ip.Addr) (int, error) {
 
 	for i, cache := range caches {
 		if cache.state != arpCacheStateFree && cache.pa == pa {
@@ -95,7 +96,7 @@ func arpCacheSelect(pa Addr) (int, error) {
 // arpCacheUpdate updates cache entry in the cache table
 // return true if cache was inserted before and update is successful
 // return false if cache was not there and update is unsuccessful
-func arpCacheUpdate(pa Addr, ha device.EtherAddr) bool {
+func arpCacheUpdate(pa ip.Addr, ha device.EtherAddr) bool {
 
 	// get cache index
 	index, err := arpCacheSelect(pa)

@@ -1,4 +1,4 @@
-package ip
+package arp
 
 import (
 	"bytes"
@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hedwig100/go-network/pkg/device"
+	"github.com/hedwig100/go-network/pkg/ip"
 	"github.com/hedwig100/go-network/pkg/net"
 )
 
@@ -16,14 +17,14 @@ const (
 	arpProIP    uint16 = 0x0800
 
 	ArpHeaderSizeMin uint8 = 8
-	ArpEtherSize     uint8 = ArpHeaderSizeMin + 2*device.EtherAddrLen + 2*AddrLen
+	ArpEtherSize     uint8 = ArpHeaderSizeMin + 2*device.EtherAddrLen + 2*ip.AddrLen
 
 	arpOpRequest uint16 = 1
 	arpOpReply   uint16 = 2
 )
 
-// arpInit prepare the ARP protocol.
-func arpInit(done chan struct{}) error {
+// Init prepare the ARP protocol.
+func Init(done chan struct{}) error {
 	go arpTimer(done)
 	err := net.ProtoRegister(&arpProtocol{})
 	if err != nil {
@@ -65,13 +66,13 @@ type ArpEther struct {
 	Sha device.EtherAddr
 
 	// source protocol address
-	Spa Addr
+	Spa ip.Addr
 
 	// target hardware address
 	Tha device.EtherAddr
 
 	// target protocol address
-	Tpa Addr
+	Tpa ip.Addr
 }
 
 func (ae ArpEther) String() string {
@@ -136,7 +137,7 @@ func data2headerARP(data []byte) (ArpEther, error) {
 	if hdr.Hrd != arpHrdEther || hdr.Hln != device.EtherAddrLen {
 		return ArpEther{}, fmt.Errorf("arp resolves only Ethernet address")
 	}
-	if hdr.Pro != arpProIP || hdr.Pln != AddrLen {
+	if hdr.Pro != arpProIP || hdr.Pln != ip.AddrLen {
 		return ArpEther{}, fmt.Errorf("arp only supports IP address")
 	}
 	return hdr, nil
@@ -191,7 +192,7 @@ func (p *arpProtocol) RxHandler(ch chan net.ProtoBuffer, done chan struct{}) {
 		if err != nil {
 			return // the data is to other host
 		}
-		ipIface := iface.(*Iface)
+		ipIface := iface.(*ip.Iface)
 		if ipIface == nil || ipIface.Unicast != hdr.Tpa {
 			return // the data is to other host
 		}
@@ -215,7 +216,7 @@ func (p *arpProtocol) RxHandler(ch chan net.ProtoBuffer, done chan struct{}) {
 }
 
 // ArpReply transmits ARP reply data to dst
-func ArpReply(ipIface *Iface, tha device.EtherAddr, tpa Addr, dst device.EtherAddr) error {
+func ArpReply(ipIface *ip.Iface, tha device.EtherAddr, tpa ip.Addr, dst device.EtherAddr) error {
 
 	dev, ok := ipIface.Dev().(*device.Ether)
 	if !ok {
@@ -228,7 +229,7 @@ func ArpReply(ipIface *Iface, tha device.EtherAddr, tpa Addr, dst device.EtherAd
 			Hrd: arpHrdEther,
 			Pro: arpProIP,
 			Hln: device.EtherAddrLen,
-			Pln: AddrLen,
+			Pln: ip.AddrLen,
 			Op:  arpOpReply,
 		},
 		Sha: dev.EtherAddr,
@@ -247,14 +248,14 @@ func ArpReply(ipIface *Iface, tha device.EtherAddr, tpa Addr, dst device.EtherAd
 }
 
 // ArpResolve receives protocol address and returns hardware address
-func ArpResolve(iface net.Interface, pa Addr) (net.HardwareAddr, error) {
+func ArpResolve(iface net.Interface, pa ip.Addr) (net.HardwareAddr, error) {
 
 	// only supports IPv4 and Ethernet protocol
-	ipIface, ok := iface.(*Iface)
+	ipIface, ok := iface.(*ip.Iface)
 	if !ok {
 		return nil, fmt.Errorf("unsupported protocol address type")
 	}
-	if ipIface.dev.Type() != net.DeviceTypeEther {
+	if ipIface.Dev().Type() != net.DeviceTypeEther {
 		return nil, fmt.Errorf("unsupported hardware address type")
 	}
 
@@ -296,7 +297,7 @@ func ArpResolve(iface net.Interface, pa Addr) (net.HardwareAddr, error) {
 }
 
 // ArpRequest receives interface and target IP address and transmits ARP request to the host(tpa)
-func ArpRequest(ipIface *Iface, tpa Addr) error {
+func ArpRequest(ipIface *ip.Iface, tpa ip.Addr) error {
 
 	dev, ok := ipIface.Dev().(*device.Ether)
 	if !ok {
@@ -309,7 +310,7 @@ func ArpRequest(ipIface *Iface, tpa Addr) error {
 			Hrd: arpHrdEther,
 			Pro: arpProIP,
 			Hln: device.EtherAddrLen,
-			Pln: AddrLen,
+			Pln: ip.AddrLen,
 			Op:  arpOpRequest,
 		},
 		Sha: dev.EtherAddr,

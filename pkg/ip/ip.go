@@ -18,9 +18,15 @@ const (
 	AddrLen        uint8 = 4
 )
 
+var (
+	// NOTE: resolver is arp.ArpResolver
+	resolve func(net.Interface, Addr) (net.HardwareAddr, error)
+)
+
 // Init prepares the IP protocol
-func Init(done chan struct{}) error {
-	arpInit(done)
+// this receives arp.Resolver
+func Init(resolver func(net.Interface, Addr) (net.HardwareAddr, error)) error {
+	resolve = resolver
 	err := net.ProtoRegister(&IProto{})
 	return err
 }
@@ -116,7 +122,7 @@ func TxHandlerIP(protocol ProtoType, data []byte, src Addr, dst Addr) error {
 		if nexthop == ipIface.broadcast || nexthop == AddrBroadcast {
 			hwaddr = device.EtherAddrBroadcast // TODO: not only ethernet
 		} else {
-			hwaddr, err = ArpResolve(ipIface, nexthop)
+			hwaddr, err = resolve(ipIface, nexthop) // NOTE: resolver is arp.ArpResolver
 			if err != nil {
 				return err
 			}
@@ -124,7 +130,7 @@ func TxHandlerIP(protocol ProtoType, data []byte, src Addr, dst Addr) error {
 	}
 
 	log.Printf("[D] IP TxHandler: iface=%d,dev=%s,header=%s", ipIface.Family(), ipIface.dev.Name(), hdr)
-	return net.DeviceOutput(ipIface.dev, data, net.ProtoTypeIP, hwaddr) //ipIface.dev.TxHandler(data, net.ProtoTypeIP, hwaddr)
+	return net.DeviceOutput(ipIface.dev, data, net.ProtoTypeIP, hwaddr)
 }
 
 func (p *IProto) RxHandler(ch chan net.ProtoBuffer, done chan struct{}) {
