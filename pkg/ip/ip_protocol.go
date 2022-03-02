@@ -34,7 +34,7 @@ func (p ProtoType) String() string {
 	IP Protocols
 */
 
-var Protos []Proto
+var protos []Proto
 
 // Proto is the upper protocol of IP such as TCP,UDP
 type Proto interface {
@@ -43,20 +43,20 @@ type Proto interface {
 	Type() ProtoType
 
 	// Receive Handler
-	RxHandler(data []byte, src Addr, dst Addr, ipIface *Iface) error
+	RxHandler(data []byte, src Addr, dst Addr, iface *Iface) error
 }
 
 // ProtoRegister is used to register ip.Proto
-func ProtoRegister(iproto Proto) error {
+func ProtoRegister(proto Proto) error {
 
 	// check if the same type IpUpperProtocol is already registered
-	for _, proto := range Protos {
-		if proto.Type() == iproto.Type() {
-			return fmt.Errorf("IP protocol(type=%s) is already registerd", iproto.Type())
+	for _, registerd := range protos {
+		if registerd.Type() == proto.Type() {
+			return fmt.Errorf("IP protocol(type=%s) is already registerd", proto.Type())
 		}
 	}
 
-	Protos = append(Protos, iproto)
-	log.Printf("[I] registered proto=%s", iproto.Type())
+	protos = append(protos, proto)
+	log.Printf("[I] registered proto=%s", proto.Type())
 	return nil
 }

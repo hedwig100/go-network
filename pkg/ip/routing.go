@@ -7,25 +7,25 @@ import (
 	"github.com/hedwig100/go-network/pkg/utils"
 )
 
-var routes []IPRoute
+var routes []route
 
-// IPRoute is routing table entry
-type IPRoute struct {
+// route is routing table entry
+type route struct {
 	network Addr
 	netmask Addr
 	nexthop Addr
-	IpIface *Iface
+	Iface   *Iface
 }
 
-// RouteAdd add routing table entry to routing table
-func RouteAdd(network Addr, netmask Addr, nexthop Addr, ipIface *Iface) {
-	routes = append(routes, IPRoute{
+// routeAdd add routing table entry to routing table
+func routeAdd(network Addr, netmask Addr, nexthop Addr, iface *Iface) {
+	routes = append(routes, route{
 		network: network,
 		netmask: netmask,
 		nexthop: nexthop,
-		IpIface: ipIface,
+		Iface:   iface,
 	})
-	log.Printf("[I] route added,network=%s,netmask=%s,nexthop=%s,iface=%s,dev=%s", network, netmask, nexthop, ipIface.Unicast, ipIface.dev.Name())
+	log.Printf("[I] route added,network=%s,netmask=%s,nexthop=%s,iface=%s,dev=%s", network, netmask, nexthop, iface.Unicast, iface.dev.Name())
 }
 
 // SetDefaultGateway sets gw address as default gateway of ipIface
@@ -38,14 +38,14 @@ func SetDefaultGateway(ipIface *Iface, gw string) error {
 		return err
 	}
 
-	RouteAdd(AddrAny, AddrAny, Addr(gwaddr), ipIface)
+	routeAdd(AddrAny, AddrAny, Addr(gwaddr), ipIface)
 	return nil
 }
 
 // LookupTable find routing table entry whose network dst is sent
-func LookupTable(dst Addr) (IPRoute, error) {
+func LookupTable(dst Addr) (route, error) {
 
-	var candidate *IPRoute
+	var candidate *route
 
 	// search routing table
 	for _, route := range routes {
@@ -61,7 +61,7 @@ func LookupTable(dst Addr) (IPRoute, error) {
 	}
 
 	if candidate == nil {
-		return IPRoute{}, fmt.Errorf("routing table entry not found(dst=%s)", dst)
+		return route{}, fmt.Errorf("routing table entry not found(dst=%s)", dst)
 	}
 	return *candidate, nil
 }

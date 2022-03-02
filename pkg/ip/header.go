@@ -65,24 +65,24 @@ func data2header(data []byte) (Header, []byte, error) {
 	}
 
 	// read header in bigEndian
-	var ipHdr Header
+	var hdr Header
 	r := bytes.NewReader(data)
-	err := binary.Read(r, binary.BigEndian, &ipHdr)
+	err := binary.Read(r, binary.BigEndian, &hdr)
 	if err != nil {
 		return Header{}, nil, err
 	}
 
 	// check if the packet is iPv4
-	if (ipHdr.Vhl >> 4) != V4 {
+	if (hdr.Vhl >> 4) != V4 {
 		return Header{}, nil, err
 	}
 
 	// check header length and total length
-	hlen := (ipHdr.Vhl & 0xf) << 2
+	hlen := (hdr.Vhl & 0xf) << 2
 	if uint8(len(data)) < hlen {
 		return Header{}, nil, fmt.Errorf("data length is smaller than IHL")
 	}
-	if uint16(len(data)) < ipHdr.Tol {
+	if uint16(len(data)) < hdr.Tol {
 		return Header{}, nil, fmt.Errorf("data length is smaller than Total Length")
 	}
 
@@ -92,7 +92,7 @@ func data2header(data []byte) (Header, []byte, error) {
 		return Header{}, nil, fmt.Errorf("checksum error (IP)")
 	}
 
-	return ipHdr, data[hlen:], nil
+	return hdr, data[hlen:], nil
 }
 
 func header2data(hdr *Header, payload []byte) ([]byte, error) {

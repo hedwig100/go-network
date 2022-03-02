@@ -114,7 +114,7 @@ func (pcb *pcb) Send(data []byte, dst Endpoint) error {
 		if err != nil {
 			return err
 		}
-		local.Addr = route.IpIface.Unicast
+		local.Addr = route.Iface.Unicast
 	}
 
 	if local.Port == 0 { // zero value of Port (uint16)

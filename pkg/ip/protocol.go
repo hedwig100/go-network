@@ -60,7 +60,7 @@ func (p *IProto) Type() net.ProtoType {
 }
 
 // TxHandler receives data from IPUpperProtocol and transmit the data with the device
-func TxHandler(protocol ProtoType, data []byte, src Addr, dst Addr) error {
+func TxHandler(proto ProtoType, data []byte, src Addr, dst Addr) error {
 
 	// if dst is broadcast address, source is required
 	if src == AddrAny && dst == AddrBroadcast {
@@ -74,8 +74,8 @@ func TxHandler(protocol ProtoType, data []byte, src Addr, dst Addr) error {
 	}
 
 	// source address must be the same as interface's one
-	ipIface := route.IpIface
-	if src != AddrAny && src != ipIface.Unicast {
+	iface := route.Iface
+	if src != AddrAny && src != iface.Unicast {
 		return fmt.Errorf("unable to output with specified source address,addr=%s", src)
 	}
 
@@ -87,8 +87,8 @@ func TxHandler(protocol ProtoType, data []byte, src Addr, dst Addr) error {
 	}
 
 	// does not support fragmentation
-	if int(ipIface.dev.MTU()) < HeaderSizeMin+len(data) {
-		return fmt.Errorf("dst(%v) IP address cannot be reachable(broadcast=%v)", dst, ipIface.broadcast)
+	if int(iface.dev.MTU()) < HeaderSizeMin+len(data) {
+		return fmt.Errorf("dst(%v) IP address cannot be reachable(broadcast=%v)", dst, iface.broadcast)
 	}
 
 	// transform IP header to byte strings
@@ -98,9 +98,9 @@ func TxHandler(protocol ProtoType, data []byte, src Addr, dst Addr) error {
 		Id:        generateId(),
 		Flags:     0,
 		Ttl:       0xff,
-		ProtoType: protocol,
+		ProtoType: proto,
 		Checksum:  0,
-		Src:       ipIface.Unicast,
+		Src:       iface.Unicast,
 		Dst:       dst,
 	}
 	data, err = header2data(&hdr, data)
@@ -110,19 +110,19 @@ func TxHandler(protocol ProtoType, data []byte, src Addr, dst Addr) error {
 
 	// transmit data from the device
 	var hwaddr net.HardwareAddr
-	if ipIface.dev.Flags()&net.DeviceFlagNeedARP > 0 { // check if arp is necessary
-		if nexthop == ipIface.broadcast || nexthop == AddrBroadcast {
+	if iface.dev.Flags()&net.DeviceFlagNeedARP > 0 { // check if arp is necessary
+		if nexthop == iface.broadcast || nexthop == AddrBroadcast {
 			hwaddr = device.EtherAddrBroadcast // TODO: not only ethernet
 		} else {
-			hwaddr, err = resolve(ipIface, nexthop) // NOTE: resolver is arp.ArpResolver
+			hwaddr, err = resolve(iface, nexthop) // NOTE: resolver is arp.ArpResolver
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	log.Printf("[D] IP TxHandler: iface=%d,dev=%s,header=%s", ipIface.Family(), ipIface.dev.Name(), hdr)
-	return net.DeviceOutput(ipIface.dev, data, net.ProtoTypeIP, hwaddr)
+	log.Printf("[D] IP TxHandler: iface=%d,dev=%s,header=%s", iface.Family(), iface.dev.Name(), hdr)
+	return net.DeviceOutput(iface.dev, data, net.ProtoTypeIP, hwaddr)
 }
 
 func (p *IProto) RxHandler(ch chan net.ProtoBuffer, done chan struct{}) {
@@ -141,36 +141,36 @@ func (p *IProto) RxHandler(ch chan net.ProtoBuffer, done chan struct{}) {
 		pb = <-ch
 
 		// extract the header from the beginning of the data
-		ipHdr, payload, err := data2header(pb.Data)
+		hdr, payload, err := data2header(pb.Data)
 		if err != nil {
 			log.Printf("[E] IP rxHandler: %s", err.Error())
 			continue
 		}
 
-		if ipHdr.Flags&0x2000 > 0 || ipHdr.Flags&0x1fff > 0 {
+		if hdr.Flags&0x2000 > 0 || hdr.Flags&0x1fff > 0 {
 			log.Printf("[E] IP rxHandler: does not support fragments")
 			continue
 		}
 
 		// search the interface whose address matches the header's one
-		var ipIface *Iface
+		var iface *Iface
 		var ok bool
-		for _, iface := range pb.Dev.Interfaces() {
-			ipIface, ok = iface.(*Iface)
-			if ok && (ipIface.Unicast == ipHdr.Dst || ipIface.broadcast == AddrBroadcast || ipIface.broadcast == ipHdr.Dst) {
+		for _, candidate := range pb.Dev.Interfaces() {
+			iface, ok = candidate.(*Iface)
+			if ok && (iface.Unicast == hdr.Dst || iface.broadcast == AddrBroadcast || iface.broadcast == hdr.Dst) {
 				break
 			}
 		}
-		if ipIface == nil {
+		if iface == nil {
 			log.Printf("[D] IP rxHandler: packet is to other host")
 			continue // the packet is to other host
 		}
-		log.Printf("[D] IP rxHandler: iface=%s,protocol=%s,header=%v", ipIface.Unicast, ipHdr.ProtoType, ipHdr)
+		log.Printf("[D] IP rxHandler: iface=%s,protocol=%s,header=%v", iface.Unicast, hdr.ProtoType, hdr)
 
 		// search the protocol whose type is the same as the header's one
-		for _, proto := range Protos {
-			if proto.Type() == ipHdr.ProtoType {
-				err = proto.RxHandler(payload, ipHdr.Src, ipHdr.Dst, ipIface)
+		for _, proto := range protos {
+			if proto.Type() == hdr.ProtoType {
+				err = proto.RxHandler(payload, hdr.Src, hdr.Dst, iface)
 				if err != nil {
 					log.Printf("[E] IP RxHanlder: %s", err.Error())
 				}

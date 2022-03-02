@@ -62,5 +62,5 @@ func IfaceRegister(dev net.Device, ipIface *Iface) {
 
 	// register subnet's routing information to routing table
 	// this information is used when data is sent to the subnet's host
-	RouteAdd(ipIface.Unicast&ipIface.netmask, ipIface.netmask, AddrAny, ipIface)
+	routeAdd(ipIface.Unicast&ipIface.netmask, ipIface.netmask, AddrAny, ipIface)
 }
