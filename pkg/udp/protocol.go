@@ -9,18 +9,18 @@ import (
 
 // Init prepare the UDP protocol.
 func Init() error {
-	return ip.ProtoRegister(&Protocol{})
+	return ip.ProtoRegister(&Proto{})
 }
 
-// Protocol is struct for UDP protocol handler.
-// This implements IPUpperProtocol interface.
-type Protocol struct{}
+// Proto is struct for UDP protocol handler.
+// This implements IPUpperProto interface.
+type Proto struct{}
 
-func (p *Protocol) Type() ip.ProtoType {
+func (p *Proto) Type() ip.ProtoType {
 	return ip.ProtoUDP
 }
 
-func (p *Protocol) RxHandler(data []byte, src ip.Addr, dst ip.Addr, ipIface *ip.Iface) error {
+func (p *Proto) RxHandler(data []byte, src ip.Addr, dst ip.Addr, ipIface *ip.Iface) error {
 	hdr, payload, err := data2header(data, src, dst)
 	if err != nil {
 		return err

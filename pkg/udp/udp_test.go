@@ -198,7 +198,7 @@ func TestSocketUDP(t *testing.T) {
 	src, _ := udp.Str2Endpoint("192.0.2.2:7")
 	// dst, _ := pkg.Str2UDPEndpoint("192.0.2.1:7")
 
-	sock := udp.OpenUDP()
+	sock := udp.Open()
 	err = sock.Bind(src)
 	if err != nil {
 		t.Error(err)

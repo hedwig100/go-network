@@ -13,7 +13,7 @@ import (
 func Init(done chan struct{}) error {
 	go tcpTimer(done)
 	rand.Seed(time.Now().UnixNano())
-	return ip.ProtoRegister(&TCPProtocol{})
+	return ip.ProtoRegister(&Proto{})
 }
 
 type segment struct {
@@ -27,15 +27,15 @@ type segment struct {
 /*
 	TCP Protocol
 */
-// TCPProtocol is struct for TCP protocol handler.
+// Proto is struct for TCP protocol handler.
 // This implements IPUpperProtocol interface.
-type TCPProtocol struct{}
+type Proto struct{}
 
-func (p *TCPProtocol) Type() ip.ProtoType {
+func (p *Proto) Type() ip.ProtoType {
 	return ip.ProtoTCP
 }
 
-func (p *TCPProtocol) RxHandler(data []byte, src ip.Addr, dst ip.Addr, ipIface *ip.Iface) error {
+func (p *Proto) RxHandler(data []byte, src ip.Addr, dst ip.Addr, ipIface *ip.Iface) error {
 
 	hdr, payload, err := data2header(data, src, dst)
 	// TODO:

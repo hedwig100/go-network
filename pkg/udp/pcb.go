@@ -57,7 +57,7 @@ func pcbSelect(address ip.Addr, port uint16) *pcb {
 	return nil
 }
 
-func OpenUDP() *pcb {
+func Open() *pcb {
 	pcb := &pcb{
 		state: pcbStateOpen,
 		local: Endpoint{

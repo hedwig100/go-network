@@ -32,7 +32,7 @@ func main() {
 	src, _ := udp.Str2Endpoint(srcAddr)
 
 	pkg.NetRun()
-	soc := udp.OpenUDP()
+	soc := udp.Open()
 	err = soc.Bind(src)
 	if err != nil {
 		log.Println(err.Error())
