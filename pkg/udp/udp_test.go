@@ -29,9 +29,6 @@ hoge (followed by the same reply)
 */
 
 const (
-	loopbackIPAddr  = "127.0.0.1"
-	loopbackNetmask = "255.0.0.0"
-
 	etherTapIPAddr  = "192.0.2.2"
 	etherTapNetmask = "255.255.255.0"
 
